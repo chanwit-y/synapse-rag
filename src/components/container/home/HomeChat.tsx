@@ -231,16 +231,16 @@ export default function HomeChat({
         className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-72 w-[60%] -translate-x-1/2 rounded-full bg-brand-200/30 blur-3xl"
       />
 
-      <header className="flex items-center justify-between gap-4 border-b border-border/60 bg-background/70 px-6 py-4 backdrop-blur">
+      <header className="flex items-center justify-between gap-4 border-b border-border/60 bg-background/70 px-4 py-4 backdrop-blur sm:px-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-brand-500 to-brand-800 text-white shadow-sm ring-1 ring-brand-700/30">
             <Sparkles size={18} />
           </div>
           <div className="leading-tight">
-            <Typography variant="h6" component="h1" className="mb-0!">
+            <Typography variant="h6" component="h1" className="mb-0! text-sm sm:text-base">
               AI Chat
             </Typography>
-            <Typography variant="caption" color="muted">
+            <Typography variant="caption" color="muted" className="hidden sm:block">
               Ground your conversation in RAG sources and a chosen model.
             </Typography>
           </div>
@@ -261,9 +261,9 @@ export default function HomeChat({
         </div>
       </header>
 
-      <section className="border-b border-border/60 bg-surface/40 px-6 py-2.5 backdrop-blur">
-        <div className="flex w-full items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <section className="border-b border-border/60 bg-surface/40 px-4 py-2.5 backdrop-blur sm:px-6">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto">
             <span className="hidden items-center gap-1.5 pr-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:inline-flex">
               <Wand2 size={12} className="text-brand-500" />
               Context
@@ -355,7 +355,7 @@ export default function HomeChat({
 
                 <div
                   className={[
-                    "flex max-w-[85%] flex-col gap-1",
+                    "flex max-w-[90%] sm:max-w-[85%] flex-col gap-1",
                     isUser ? "items-end" : "items-start",
                   ].join(" ")}
                 >
@@ -576,7 +576,7 @@ function ToolbarField({
         {badge}
       </span>
       <span className="h-4 w-px bg-border/70" />
-      <div className="toolbar-field-trigger min-w-[140px] flex-1 sm:min-w-[180px]">
+      <div className="toolbar-field-trigger min-w-[120px] flex-1 sm:min-w-[140px] md:min-w-[180px]">
         {children}
       </div>
     </div>
@@ -604,7 +604,7 @@ function EmptyState({
         </Typography>
       </div>
 
-      <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid w-full max-w-2xl grid-cols-1 gap-3 xs:grid-cols-2">
         {SUGGESTIONS.map(({ title, prompt, icon: Icon }) => (
           <button
             key={title}

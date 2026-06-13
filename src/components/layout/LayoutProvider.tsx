@@ -49,7 +49,7 @@ export default function LayoutProvider({
           <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
         </div>
       </div>
-      {/* <MobileSidebar /> */}
+      <MobileSidebar />
     </div>
   );
 }

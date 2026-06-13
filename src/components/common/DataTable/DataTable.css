@@ -197,6 +197,7 @@
 /* ── Overflow wrapper ─────────────────────────────────── */
 .mui-datatable-scroll {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ── Selection checkbox column ────────────────────────── */
@@ -256,6 +257,45 @@
 
 .mui-datatable-edit-input:focus {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--dt-accent) 25%, transparent);
+}
+
+/* ── Mobile responsiveness ──────────────────────────────── */
+@media (max-width: 768px) {
+  .mui-datatable {
+    font-size: 0.75rem;
+  }
+
+  .mui-datatable-footer {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .mui-datatable-footer-info {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .mui-datatable-footer-nav {
+    justify-content: center;
+  }
+
+  .mui-datatable-page-btn {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 6px;
+  }
+
+  .mui-datatable thead th {
+    padding: 8px 12px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+
+  .mui-datatable tbody td {
+    padding: 8px 12px;
+    font-size: 0.7rem;
+  }
 }
 
 /* ── Dark overrides (handled via CSS vars, no extra block needed) ── */
