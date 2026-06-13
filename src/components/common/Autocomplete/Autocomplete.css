@@ -1,0 +1,721 @@
+/* ============================================================
+ * MUI Autocomplete
+ * ============================================================ */
+.mui-autocomplete {
+  --main: var(--mui-primary);
+  --main-dark: var(--mui-primary-dark);
+
+  display: inline-flex;
+  flex-direction: column;
+  position: relative;
+  font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.4375em;
+  letter-spacing: 0.00938em;
+  color: var(--foreground, rgba(0, 0, 0, 0.87));
+}
+
+.mui-autocomplete-fullwidth {
+  width: 100%;
+}
+
+/* ---- Color tokens ---- */
+.mui-autocomplete-color-primary {
+  --main: var(--mui-primary);
+  --main-dark: var(--mui-primary-dark);
+}
+
+.mui-autocomplete-color-secondary {
+  --main: var(--mui-secondary);
+  --main-dark: var(--mui-secondary-dark);
+}
+
+.mui-autocomplete-color-error {
+  --main: var(--mui-error);
+  --main-dark: var(--mui-error-dark);
+}
+
+/* ---- Input wrapper ---- */
+.mui-autocomplete-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* ---- Trigger button (acts like an input) ---- */
+.mui-autocomplete-trigger {
+  font: inherit;
+  letter-spacing: inherit;
+  color: currentColor;
+  border: 0;
+  outline: 0;
+  background: none;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  appearance: none;
+}
+
+.mui-autocomplete-value,
+.mui-autocomplete-placeholder {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mui-autocomplete-placeholder {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.42));
+}
+
+/* ---- Multiple selection chips ---- */
+.mui-autocomplete-multiple .mui-autocomplete-trigger {
+  align-items: flex-start;
+  height: auto;
+  min-height: 0;
+}
+
+.mui-autocomplete-multiple.mui-autocomplete-medium .mui-autocomplete-trigger {
+  padding: 10px 0;
+}
+
+.mui-autocomplete-multiple.mui-autocomplete-small .mui-autocomplete-trigger {
+  padding: 6px 0;
+}
+
+.mui-autocomplete-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mui-autocomplete-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 2px 6px 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  background-color: color-mix(in srgb, var(--main) 14%, transparent);
+  color: var(--main);
+}
+
+.mui-autocomplete-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.mui-autocomplete-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.72;
+  transition: opacity 150ms ease, background-color 150ms ease;
+}
+
+.mui-autocomplete-chip-remove:hover {
+  opacity: 1;
+  background-color: color-mix(in srgb, var(--main) 20%, transparent);
+}
+
+/* ---- Adornments (search icon, chevron, clear) ---- */
+.mui-autocomplete-adornment {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.54));
+  height: 0.01em;
+  max-height: 2em;
+  pointer-events: auto;
+}
+
+.mui-autocomplete-adornment-start {
+  margin-right: 8px;
+}
+
+.mui-autocomplete-adornment-end {
+  margin-left: 8px;
+  gap: 4px;
+}
+
+.mui-autocomplete-chevron {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.54));
+  transition:
+    color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-autocomplete-chevron-open {
+  transform: rotate(180deg);
+}
+
+.mui-autocomplete-focused .mui-autocomplete-chevron,
+.mui-autocomplete-focused .mui-autocomplete-adornment {
+  color: var(--main);
+}
+
+.mui-autocomplete-error .mui-autocomplete-chevron,
+.mui-autocomplete-error .mui-autocomplete-adornment {
+  color: var(--mui-error);
+}
+
+.mui-autocomplete-disabled .mui-autocomplete-chevron,
+.mui-autocomplete-disabled .mui-autocomplete-adornment {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.26));
+}
+
+.mui-autocomplete-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.mui-autocomplete-clear:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .mui-autocomplete-clear:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.mui-autocomplete-spinner {
+  animation: mui-autocomplete-spin 1s linear infinite;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.54));
+}
+
+@keyframes mui-autocomplete-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- Sizes ---- */
+.mui-autocomplete-medium .mui-autocomplete-input-wrapper {
+  min-height: 56px;
+}
+
+.mui-autocomplete-small .mui-autocomplete-input-wrapper {
+  min-height: 40px;
+}
+
+.mui-autocomplete-medium .mui-autocomplete-trigger {
+  padding: 16.5px 0;
+}
+
+.mui-autocomplete-small .mui-autocomplete-trigger {
+  padding: 8.5px 0;
+}
+
+/* ============================================================
+ * Label
+ * ============================================================ */
+.mui-autocomplete-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  pointer-events: none;
+  transform-origin: top left;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.6));
+  font-size: 1rem;
+  line-height: 1.4375em;
+  letter-spacing: 0.00938em;
+  transition:
+    color 200ms cubic-bezier(0, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0, 0, 0.2, 1),
+    max-width 200ms cubic-bezier(0, 0, 0.2, 1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 24px);
+}
+
+/* ---- Outlined label positions (always shrunk like a select) ---- */
+.mui-autocomplete-outlined.mui-autocomplete-label-shrink .mui-autocomplete-label {
+  transform: translate(14px, -9px) scale(0.75);
+  max-width: calc(133% - 32px);
+}
+
+/* ---- Filled label positions ---- */
+.mui-autocomplete-filled.mui-autocomplete-label-shrink .mui-autocomplete-label {
+  transform: translate(12px, 7px) scale(0.75);
+}
+
+/* ---- Standard label positions ---- */
+.mui-autocomplete-standard.mui-autocomplete-label-shrink .mui-autocomplete-label {
+  transform: translate(0, -1.5px) scale(0.75);
+}
+
+/* ---- Focus / Error label color ---- */
+.mui-autocomplete-focused .mui-autocomplete-label {
+  color: var(--main);
+}
+
+.mui-autocomplete-error .mui-autocomplete-label {
+  color: var(--mui-error);
+}
+
+.mui-autocomplete-disabled .mui-autocomplete-label {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.38));
+}
+
+/* ============================================================
+ * Outlined variant
+ * ============================================================ */
+.mui-autocomplete-outlined .mui-autocomplete-input-wrapper {
+  border-radius: 4px;
+  padding: 0 14px;
+}
+
+.mui-autocomplete-outline {
+  position: absolute;
+  inset: -5px 0 0;
+  margin: 0;
+  padding: 0 8px;
+  pointer-events: none;
+  border-radius: inherit;
+  border: 1px solid var(--mui-inherit-border, rgba(0, 0, 0, 0.23));
+  overflow: hidden;
+  min-width: 0;
+  transition: border-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-autocomplete-no-label .mui-autocomplete-outline {
+  top: 0;
+}
+
+.mui-autocomplete-no-label .mui-autocomplete-outline-legend {
+  display: none;
+}
+
+.mui-autocomplete-outlined:hover:not(.mui-autocomplete-focused):not(.mui-autocomplete-disabled):not(.mui-autocomplete-error)
+  .mui-autocomplete-outline {
+  border-color: var(--foreground, rgba(0, 0, 0, 0.87));
+}
+
+.mui-autocomplete-outlined.mui-autocomplete-focused .mui-autocomplete-outline {
+  border: 2px solid var(--main);
+}
+
+.mui-autocomplete-outlined.mui-autocomplete-error .mui-autocomplete-outline {
+  border-color: var(--mui-error);
+}
+
+.mui-autocomplete-outlined.mui-autocomplete-error.mui-autocomplete-focused
+  .mui-autocomplete-outline {
+  border: 2px solid var(--mui-error);
+}
+
+.mui-autocomplete-outlined.mui-autocomplete-disabled .mui-autocomplete-outline {
+  border-color: var(--mui-disabled-bg, rgba(0, 0, 0, 0.12));
+}
+
+.mui-autocomplete-outline-legend {
+  float: unset;
+  width: auto;
+  overflow: hidden;
+  display: block;
+  padding: 0;
+  height: 11px;
+  font-size: 0.75em;
+  visibility: hidden;
+  max-width: 0.01px;
+  transition: max-width 50ms cubic-bezier(0, 0, 0.2, 1) 0ms;
+  white-space: nowrap;
+}
+
+.mui-autocomplete-outline-legend > span {
+  padding-left: 5px;
+  padding-right: 5px;
+  display: inline-block;
+  opacity: 0;
+  visibility: visible;
+}
+
+.mui-autocomplete-label-shrink .mui-autocomplete-outline-legend {
+  max-width: 100%;
+  transition: max-width 100ms cubic-bezier(0, 0, 0.2, 1) 50ms;
+}
+
+.mui-autocomplete-outline-legend-empty {
+  padding: 0;
+}
+
+/* ============================================================
+ * Filled variant
+ * ============================================================ */
+.mui-autocomplete-filled .mui-autocomplete-input-wrapper {
+  background-color: var(--mui-filled-bg, rgba(0, 0, 0, 0.06));
+  border-radius: 4px 4px 0 0;
+  padding: 0 12px;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+[data-theme="dark"] .mui-autocomplete-filled .mui-autocomplete-input-wrapper {
+  --mui-filled-bg: rgba(255, 255, 255, 0.09);
+}
+
+.mui-autocomplete-filled:hover:not(.mui-autocomplete-focused):not(.mui-autocomplete-disabled)
+  .mui-autocomplete-input-wrapper {
+  background-color: var(--mui-filled-bg-hover, rgba(0, 0, 0, 0.09));
+}
+
+[data-theme="dark"]
+  .mui-autocomplete-filled:hover:not(.mui-autocomplete-focused):not(
+    .mui-autocomplete-disabled
+  )
+  .mui-autocomplete-input-wrapper {
+  --mui-filled-bg-hover: rgba(255, 255, 255, 0.13);
+}
+
+.mui-autocomplete-filled .mui-autocomplete-input-wrapper::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-color: var(--mui-inherit-border, rgba(0, 0, 0, 0.42));
+  transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-autocomplete-filled.mui-autocomplete-focused
+  .mui-autocomplete-input-wrapper::after {
+  height: 2px;
+  background-color: var(--main);
+}
+
+.mui-autocomplete-filled.mui-autocomplete-error
+  .mui-autocomplete-input-wrapper::after {
+  background-color: var(--mui-error);
+}
+
+.mui-autocomplete-filled.mui-autocomplete-error.mui-autocomplete-focused
+  .mui-autocomplete-input-wrapper::after {
+  height: 2px;
+  background-color: var(--mui-error);
+}
+
+.mui-autocomplete-filled.mui-autocomplete-disabled .mui-autocomplete-input-wrapper {
+  background-color: var(--mui-disabled-bg, rgba(0, 0, 0, 0.12));
+}
+
+.mui-autocomplete-filled.mui-autocomplete-disabled
+  .mui-autocomplete-input-wrapper::after {
+  background-color: transparent;
+  border-bottom: 1px dotted var(--mui-disabled-fg, rgba(0, 0, 0, 0.42));
+}
+
+.mui-autocomplete-filled .mui-autocomplete-trigger {
+  padding-top: 25px;
+  padding-bottom: 8px;
+}
+
+.mui-autocomplete-filled.mui-autocomplete-small .mui-autocomplete-trigger {
+  padding-top: 21px;
+  padding-bottom: 4px;
+}
+
+.mui-autocomplete-filled.mui-autocomplete-no-label .mui-autocomplete-trigger {
+  padding-top: 16.5px;
+  padding-bottom: 16.5px;
+}
+
+.mui-autocomplete-filled.mui-autocomplete-no-label.mui-autocomplete-small
+  .mui-autocomplete-trigger {
+  padding-top: 8.5px;
+  padding-bottom: 8.5px;
+}
+
+/* ============================================================
+ * Standard variant
+ * ============================================================ */
+.mui-autocomplete-standard .mui-autocomplete-input-wrapper {
+  padding: 0;
+}
+
+.mui-autocomplete-standard .mui-autocomplete-input-wrapper::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-color: var(--mui-inherit-border, rgba(0, 0, 0, 0.42));
+  transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-autocomplete-standard:hover:not(.mui-autocomplete-focused):not(.mui-autocomplete-disabled)
+  .mui-autocomplete-input-wrapper::after {
+  height: 2px;
+  background-color: var(--foreground, rgba(0, 0, 0, 0.87));
+}
+
+.mui-autocomplete-standard.mui-autocomplete-focused
+  .mui-autocomplete-input-wrapper::after {
+  height: 2px;
+  background-color: var(--main);
+}
+
+.mui-autocomplete-standard.mui-autocomplete-error
+  .mui-autocomplete-input-wrapper::after {
+  background-color: var(--mui-error);
+}
+
+.mui-autocomplete-standard.mui-autocomplete-error.mui-autocomplete-focused
+  .mui-autocomplete-input-wrapper::after {
+  height: 2px;
+  background-color: var(--mui-error);
+}
+
+.mui-autocomplete-standard.mui-autocomplete-disabled
+  .mui-autocomplete-input-wrapper::after {
+  background-color: transparent;
+  border-bottom: 1px dotted var(--mui-disabled-fg, rgba(0, 0, 0, 0.42));
+}
+
+.mui-autocomplete-standard .mui-autocomplete-trigger {
+  padding-top: 4px;
+  padding-bottom: 5px;
+  margin-top: 16px;
+}
+
+.mui-autocomplete-standard.mui-autocomplete-small .mui-autocomplete-trigger {
+  padding-top: 4px;
+  padding-bottom: 5px;
+  margin-top: 12px;
+}
+
+.mui-autocomplete-standard.mui-autocomplete-no-label .mui-autocomplete-trigger {
+  margin-top: 0;
+}
+
+/* ============================================================
+ * Helper text
+ * ============================================================ */
+.mui-autocomplete-helper {
+  font-size: 0.75rem;
+  line-height: 1.66;
+  letter-spacing: 0.03333em;
+  margin: 3px 14px 0;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.6));
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mui-autocomplete-helper-error,
+.mui-autocomplete-error .mui-autocomplete-helper {
+  color: var(--mui-error);
+}
+
+.mui-autocomplete-helper-icon {
+  flex-shrink: 0;
+}
+
+.mui-autocomplete-standard .mui-autocomplete-helper {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* ============================================================
+ * Disabled state
+ * ============================================================ */
+.mui-autocomplete-disabled .mui-autocomplete-input-wrapper {
+  cursor: default;
+}
+
+.mui-autocomplete-disabled .mui-autocomplete-trigger {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.38));
+  cursor: default;
+}
+
+/* ============================================================
+ * Dropdown
+ * ============================================================ */
+.mui-autocomplete-dropdown {
+  background: var(--background, #ffffff);
+  color: var(--foreground, rgba(0, 0, 0, 0.87));
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 4px;
+  box-shadow:
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: mui-autocomplete-fade 120ms ease-out;
+}
+
+@keyframes mui-autocomplete-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mui-autocomplete-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+}
+
+.mui-autocomplete-search-icon {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.54));
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.mui-autocomplete-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.mui-autocomplete-search-input::placeholder {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.42));
+}
+
+.mui-autocomplete-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.54));
+  transition: background-color 150ms ease;
+}
+
+.mui-autocomplete-search-clear:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .mui-autocomplete-search-clear:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.mui-autocomplete-listbox {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.mui-autocomplete-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.mui-autocomplete-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mui-autocomplete-option-active,
+.mui-autocomplete-option:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .mui-autocomplete-option-active,
+[data-theme="dark"] .mui-autocomplete-option:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.mui-autocomplete-option-selected {
+  background-color: color-mix(in srgb, var(--main) 12%, transparent);
+  color: var(--main);
+  font-weight: 600;
+}
+
+.mui-autocomplete-option-selected.mui-autocomplete-option-active,
+.mui-autocomplete-option-selected:hover {
+  background-color: color-mix(in srgb, var(--main) 18%, transparent);
+}
+
+.mui-autocomplete-option-disabled {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.38));
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.mui-autocomplete-option-check {
+  flex-shrink: 0;
+  color: var(--main);
+}
+
+.mui-autocomplete-state-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  font-size: 0.875rem;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.6));
+}
+
+.mui-autocomplete-empty {
+  font-style: italic;
+}

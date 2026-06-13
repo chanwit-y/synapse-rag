@@ -1,0 +1,153 @@
+/* ============================================================
+ * MUI Paper
+ * ============================================================ */
+:root {
+  --mui-paper-bg: #ffffff;
+  --mui-paper-fg: rgba(0, 0, 0, 0.87);
+
+  --mui-elevation-0: none;
+  --mui-elevation-1: 0px 2px 1px -1px rgba(0, 0, 0, 0.2),
+    0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12);
+  --mui-elevation-3: 0px 3px 3px -2px rgba(0, 0, 0, 0.2),
+    0px 3px 4px 0px rgba(0, 0, 0, 0.14), 0px 1px 8px 0px rgba(0, 0, 0, 0.12);
+  --mui-elevation-6: 0px 3px 5px -1px rgba(0, 0, 0, 0.2),
+    0px 6px 10px 0px rgba(0, 0, 0, 0.14), 0px 1px 18px 0px rgba(0, 0, 0, 0.12);
+  --mui-elevation-12: 0px 7px 8px -4px rgba(0, 0, 0, 0.2),
+    0px 12px 17px 2px rgba(0, 0, 0, 0.14),
+    0px 5px 22px 4px rgba(0, 0, 0, 0.12);
+  --mui-elevation-16: 0px 8px 10px -5px rgba(0, 0, 0, 0.2),
+    0px 16px 24px 2px rgba(0, 0, 0, 0.14),
+    0px 6px 30px 5px rgba(0, 0, 0, 0.12);
+  --mui-elevation-24: 0px 11px 15px -7px rgba(0, 0, 0, 0.2),
+    0px 24px 38px 3px rgba(0, 0, 0, 0.14),
+    0px 9px 46px 8px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] {
+  --mui-paper-bg: #121212;
+  --mui-paper-fg: #ffffff;
+}
+
+.mui-paper {
+  background-color: var(--mui-paper-bg);
+  color: var(--mui-paper-fg);
+  transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---- Rounded / Square ---- */
+.mui-paper-rounded {
+  border-radius: 4px;
+}
+
+.mui-paper-square {
+  border-radius: 0;
+}
+
+/* ---- Variant: elevation ---- */
+.mui-paper-elevation {
+  box-shadow: var(--_paper-shadow, var(--mui-elevation-1));
+}
+
+.mui-paper-elevation-0 {
+  --_paper-shadow: var(--mui-elevation-0);
+}
+.mui-paper-elevation-1 {
+  --_paper-shadow: var(--mui-elevation-1);
+}
+.mui-paper-elevation-2 {
+  --_paper-shadow: var(--mui-elevation-2);
+}
+.mui-paper-elevation-3 {
+  --_paper-shadow: var(--mui-elevation-3);
+}
+.mui-paper-elevation-4 {
+  --_paper-shadow: var(--mui-elevation-4);
+}
+.mui-paper-elevation-6 {
+  --_paper-shadow: var(--mui-elevation-6);
+}
+.mui-paper-elevation-8 {
+  --_paper-shadow: var(--mui-elevation-8);
+}
+.mui-paper-elevation-12 {
+  --_paper-shadow: var(--mui-elevation-12);
+}
+.mui-paper-elevation-16 {
+  --_paper-shadow: var(--mui-elevation-16);
+}
+.mui-paper-elevation-24 {
+  --_paper-shadow: var(--mui-elevation-24);
+}
+
+/*
+ * Dark-mode elevation overlays — MUI applies a semi-transparent white
+ * gradient whose opacity increases with elevation to simulate how
+ * surfaces become lighter when raised.
+ */
+[data-theme="dark"] .mui-paper-elevation {
+  background-image: var(--_paper-overlay, none);
+}
+
+[data-theme="dark"] .mui-paper-elevation-0 {
+  --_paper-overlay: none;
+}
+[data-theme="dark"] .mui-paper-elevation-1 {
+  --_paper-overlay: linear-gradient(
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.05)
+  );
+}
+[data-theme="dark"] .mui-paper-elevation-2 {
+  --_paper-overlay: linear-gradient(
+    rgba(255, 255, 255, 0.07),
+    rgba(255, 255, 255, 0.07)
+  );
+}
+[data-theme="dark"] .mui-paper-elevation-3 {
+  --_paper-overlay: linear-gradient(
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.08)
+  );
+}
+[data-theme="dark"] .mui-paper-elevation-4 {
+  --_paper-overlay: linear-gradient(
+    rgba(255, 255, 255, 0.09),
+    rgba(255, 255, 255, 0.09)
+  );
+}
+[data-theme="dark"] .mui-paper-elevation-6 {
+  --_paper-overlay: linear-gradient(
+    rgba(255, 255, 255, 0.11),
+    rgba(255, 255, 255, 0.11)
+  );
+}
+[data-theme="dark"] .mui-paper-elevation-8 {
+  --_paper-overlay: linear-gradient(
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.12)
+  );
+}
+[data-theme="dark"] .mui-paper-elevation-12 {
+  --_paper-overlay: linear-gradient(
+    rgba(255, 255, 255, 0.14),
+    rgba(255, 255, 255, 0.14)
+  );
+}
+[data-theme="dark"] .mui-paper-elevation-16 {
+  --_paper-overlay: linear-gradient(
+    rgba(255, 255, 255, 0.15),
+    rgba(255, 255, 255, 0.15)
+  );
+}
+[data-theme="dark"] .mui-paper-elevation-24 {
+  --_paper-overlay: linear-gradient(
+    rgba(255, 255, 255, 0.16),
+    rgba(255, 255, 255, 0.16)
+  );
+}
+
+/* ---- Variant: outlined ---- */
+.mui-paper-outlined {
+  box-shadow: none;
+  border: 1px solid var(--mui-inherit-border, rgba(0, 0, 0, 0.12));
+}

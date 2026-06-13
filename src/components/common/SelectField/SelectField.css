@@ -1,0 +1,626 @@
+/* ============================================================
+ * MUI SelectField
+ * ============================================================ */
+.mui-selectfield {
+  --main: var(--mui-primary);
+  --main-dark: var(--mui-primary-dark);
+
+  display: inline-flex;
+  flex-direction: column;
+  position: relative;
+  font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.4375em;
+  letter-spacing: 0.00938em;
+  color: var(--foreground, rgba(0, 0, 0, 0.87));
+}
+
+.mui-selectfield-fullwidth {
+  width: 100%;
+}
+
+/* ---- Color tokens ---- */
+.mui-selectfield-color-primary {
+  --main: var(--mui-primary);
+  --main-dark: var(--mui-primary-dark);
+}
+
+.mui-selectfield-color-secondary {
+  --main: var(--mui-secondary);
+  --main-dark: var(--mui-secondary-dark);
+}
+
+.mui-selectfield-color-error {
+  --main: var(--mui-error);
+  --main-dark: var(--mui-error-dark);
+}
+
+/* ---- Input wrapper ---- */
+.mui-selectfield-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* ---- Trigger button (acts like a select input) ---- */
+.mui-selectfield-select {
+  font: inherit;
+  letter-spacing: inherit;
+  color: currentColor;
+  border: 0;
+  outline: 0;
+  background: none;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  padding-right: 32px;
+}
+
+.mui-selectfield-value,
+.mui-selectfield-placeholder {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mui-selectfield-placeholder {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.42));
+}
+
+/* ---- Arrow icon ---- */
+.mui-selectfield-arrow {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.54));
+  transition:
+    color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-selectfield-focused .mui-selectfield-arrow {
+  color: var(--main);
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.mui-selectfield-error .mui-selectfield-arrow {
+  color: var(--mui-error);
+}
+
+.mui-selectfield-disabled .mui-selectfield-arrow {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.26));
+}
+
+/* ---- Sizes ---- */
+.mui-selectfield-medium .mui-selectfield-select {
+  padding: 16.5px 32px 16.5px 14px;
+}
+
+.mui-selectfield-small .mui-selectfield-select {
+  padding: 8.5px 32px 8.5px 14px;
+}
+
+.mui-selectfield-has-start .mui-selectfield-select {
+  padding-left: 0;
+}
+
+/* ============================================================
+ * Label
+ * ============================================================ */
+.mui-selectfield-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  pointer-events: none;
+  transform-origin: top left;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.6));
+  font-size: 1rem;
+  line-height: 1.4375em;
+  letter-spacing: 0.00938em;
+  transition:
+    color 200ms cubic-bezier(0, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0, 0, 0.2, 1),
+    max-width 200ms cubic-bezier(0, 0, 0.2, 1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 24px);
+}
+
+/* ---- Outlined label positions ---- */
+.mui-selectfield-outlined .mui-selectfield-label {
+  transform: translate(14px, 16px) scale(1);
+}
+
+.mui-selectfield-outlined.mui-selectfield-small .mui-selectfield-label {
+  transform: translate(14px, 9px) scale(1);
+}
+
+.mui-selectfield-outlined.mui-selectfield-label-shrink .mui-selectfield-label {
+  transform: translate(14px, -9px) scale(0.75);
+  max-width: calc(133% - 32px);
+}
+
+.mui-selectfield-outlined.mui-selectfield-has-start .mui-selectfield-label {
+  transform: translate(40px, 16px) scale(1);
+}
+
+.mui-selectfield-outlined.mui-selectfield-has-start.mui-selectfield-small .mui-selectfield-label {
+  transform: translate(40px, 9px) scale(1);
+}
+
+.mui-selectfield-outlined.mui-selectfield-has-start.mui-selectfield-label-shrink .mui-selectfield-label {
+  transform: translate(14px, -9px) scale(0.75);
+}
+
+/* ---- Filled label positions ---- */
+.mui-selectfield-filled .mui-selectfield-label {
+  transform: translate(12px, 16px) scale(1);
+}
+
+.mui-selectfield-filled.mui-selectfield-small .mui-selectfield-label {
+  transform: translate(12px, 9px) scale(1);
+}
+
+.mui-selectfield-filled.mui-selectfield-label-shrink .mui-selectfield-label {
+  transform: translate(12px, 7px) scale(0.75);
+}
+
+.mui-selectfield-filled.mui-selectfield-has-start .mui-selectfield-label {
+  transform: translate(40px, 16px) scale(1);
+}
+
+.mui-selectfield-filled.mui-selectfield-has-start.mui-selectfield-label-shrink .mui-selectfield-label {
+  transform: translate(12px, 7px) scale(0.75);
+}
+
+/* ---- Standard label positions ---- */
+.mui-selectfield-standard .mui-selectfield-label {
+  transform: translate(0, 16px) scale(1);
+}
+
+.mui-selectfield-standard.mui-selectfield-label-shrink .mui-selectfield-label {
+  transform: translate(0, -1.5px) scale(0.75);
+}
+
+.mui-selectfield-standard.mui-selectfield-has-start .mui-selectfield-label {
+  transform: translate(28px, 16px) scale(1);
+}
+
+.mui-selectfield-standard.mui-selectfield-has-start.mui-selectfield-label-shrink .mui-selectfield-label {
+  transform: translate(0, -1.5px) scale(0.75);
+}
+
+/* ---- Focus / Error label color ---- */
+.mui-selectfield-focused .mui-selectfield-label {
+  color: var(--main);
+}
+
+.mui-selectfield-error .mui-selectfield-label {
+  color: var(--mui-error);
+}
+
+/* ---- Disabled label ---- */
+.mui-selectfield-disabled .mui-selectfield-label {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.38));
+}
+
+/* ============================================================
+ * Outlined variant
+ * ============================================================ */
+.mui-selectfield-outlined .mui-selectfield-input-wrapper {
+  border-radius: 4px;
+}
+
+.mui-selectfield-outline {
+  position: absolute;
+  inset: -5px 0 0;
+  margin: 0;
+  padding: 0 8px;
+  pointer-events: none;
+  border-radius: inherit;
+  border: 1px solid var(--mui-inherit-border, rgba(0, 0, 0, 0.23));
+  overflow: hidden;
+  min-width: 0;
+  transition: border-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-selectfield-no-label .mui-selectfield-outline {
+  top: 0;
+}
+
+.mui-selectfield-no-label .mui-selectfield-outline-legend {
+  display: none;
+}
+
+.mui-selectfield-outlined:hover:not(.mui-selectfield-focused):not(.mui-selectfield-disabled):not(.mui-selectfield-error) .mui-selectfield-outline {
+  border-color: var(--foreground, rgba(0, 0, 0, 0.87));
+}
+
+.mui-selectfield-outlined.mui-selectfield-focused .mui-selectfield-outline {
+  border: 2px solid var(--main);
+}
+
+.mui-selectfield-outlined.mui-selectfield-error .mui-selectfield-outline {
+  border-color: var(--mui-error);
+}
+
+.mui-selectfield-outlined.mui-selectfield-error.mui-selectfield-focused .mui-selectfield-outline {
+  border: 2px solid var(--mui-error);
+}
+
+.mui-selectfield-outlined.mui-selectfield-disabled .mui-selectfield-outline {
+  border-color: var(--mui-disabled-bg, rgba(0, 0, 0, 0.12));
+}
+
+.mui-selectfield-outline-legend {
+  float: unset;
+  width: auto;
+  overflow: hidden;
+  display: block;
+  padding: 0;
+  height: 11px;
+  font-size: 0.75em;
+  visibility: hidden;
+  max-width: 0.01px;
+  transition: max-width 50ms cubic-bezier(0, 0, 0.2, 1) 0ms;
+  white-space: nowrap;
+}
+
+.mui-selectfield-outline-legend > span {
+  padding-left: 5px;
+  padding-right: 5px;
+  display: inline-block;
+  opacity: 0;
+  visibility: visible;
+}
+
+.mui-selectfield-label-shrink .mui-selectfield-outline-legend {
+  max-width: 100%;
+  transition: max-width 100ms cubic-bezier(0, 0, 0.2, 1) 50ms;
+}
+
+.mui-selectfield-outline-legend-empty {
+  padding: 0;
+}
+
+/* ============================================================
+ * Filled variant
+ * ============================================================ */
+.mui-selectfield-filled .mui-selectfield-input-wrapper {
+  background-color: var(--mui-filled-bg, rgba(0, 0, 0, 0.06));
+  border-radius: 4px 4px 0 0;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+[data-theme="dark"] .mui-selectfield-filled .mui-selectfield-input-wrapper {
+  --mui-filled-bg: rgba(255, 255, 255, 0.09);
+}
+
+.mui-selectfield-filled:hover:not(.mui-selectfield-focused):not(.mui-selectfield-disabled) .mui-selectfield-input-wrapper {
+  background-color: var(--mui-filled-bg-hover, rgba(0, 0, 0, 0.09));
+}
+
+[data-theme="dark"] .mui-selectfield-filled:hover:not(.mui-selectfield-focused):not(.mui-selectfield-disabled) .mui-selectfield-input-wrapper {
+  --mui-filled-bg-hover: rgba(255, 255, 255, 0.13);
+}
+
+.mui-selectfield-filled .mui-selectfield-input-wrapper::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-color: var(--mui-inherit-border, rgba(0, 0, 0, 0.42));
+  transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-selectfield-filled.mui-selectfield-focused .mui-selectfield-input-wrapper::after {
+  height: 2px;
+  background-color: var(--main);
+}
+
+.mui-selectfield-filled.mui-selectfield-error .mui-selectfield-input-wrapper::after {
+  background-color: var(--mui-error);
+}
+
+.mui-selectfield-filled.mui-selectfield-error.mui-selectfield-focused .mui-selectfield-input-wrapper::after {
+  height: 2px;
+  background-color: var(--mui-error);
+}
+
+.mui-selectfield-filled.mui-selectfield-disabled .mui-selectfield-input-wrapper {
+  background-color: var(--mui-disabled-bg, rgba(0, 0, 0, 0.12));
+}
+
+.mui-selectfield-filled.mui-selectfield-disabled .mui-selectfield-input-wrapper::after {
+  background-color: transparent;
+  border-bottom: 1px dotted var(--mui-disabled-fg, rgba(0, 0, 0, 0.42));
+}
+
+.mui-selectfield-filled .mui-selectfield-select {
+  padding: 25px 32px 8px 12px;
+}
+
+.mui-selectfield-filled.mui-selectfield-small .mui-selectfield-select {
+  padding: 21px 32px 4px 12px;
+}
+
+.mui-selectfield-filled.mui-selectfield-label-shrink .mui-selectfield-select {
+  padding-top: 25px;
+  padding-bottom: 8px;
+}
+
+.mui-selectfield-filled:not(.mui-selectfield-label-shrink) .mui-selectfield-select:not(:focus) {
+  padding-top: 16.5px;
+  padding-bottom: 16.5px;
+}
+
+.mui-selectfield-filled.mui-selectfield-small:not(.mui-selectfield-label-shrink) .mui-selectfield-select:not(:focus) {
+  padding-top: 8.5px;
+  padding-bottom: 8.5px;
+}
+
+.mui-selectfield-filled.mui-selectfield-no-label .mui-selectfield-select {
+  padding-top: 16.5px;
+  padding-bottom: 16.5px;
+}
+
+.mui-selectfield-filled.mui-selectfield-no-label.mui-selectfield-small .mui-selectfield-select {
+  padding-top: 8.5px;
+  padding-bottom: 8.5px;
+}
+
+/* ============================================================
+ * Standard variant
+ * ============================================================ */
+.mui-selectfield-standard .mui-selectfield-input-wrapper::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-color: var(--mui-inherit-border, rgba(0, 0, 0, 0.42));
+  transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-selectfield-standard:hover:not(.mui-selectfield-focused):not(.mui-selectfield-disabled) .mui-selectfield-input-wrapper::after {
+  height: 2px;
+  background-color: var(--foreground, rgba(0, 0, 0, 0.87));
+}
+
+.mui-selectfield-standard.mui-selectfield-focused .mui-selectfield-input-wrapper::after {
+  height: 2px;
+  background-color: var(--main);
+}
+
+.mui-selectfield-standard.mui-selectfield-error .mui-selectfield-input-wrapper::after {
+  background-color: var(--mui-error);
+}
+
+.mui-selectfield-standard.mui-selectfield-error.mui-selectfield-focused .mui-selectfield-input-wrapper::after {
+  height: 2px;
+  background-color: var(--mui-error);
+}
+
+.mui-selectfield-standard.mui-selectfield-disabled .mui-selectfield-input-wrapper::after {
+  background-color: transparent;
+  border-bottom: 1px dotted var(--mui-disabled-fg, rgba(0, 0, 0, 0.42));
+}
+
+.mui-selectfield-standard .mui-selectfield-select {
+  padding: 4px 32px 5px 0;
+  margin-top: 16px;
+}
+
+.mui-selectfield-standard.mui-selectfield-small .mui-selectfield-select {
+  padding: 4px 32px 5px 0;
+  margin-top: 12px;
+}
+
+.mui-selectfield-standard.mui-selectfield-no-label .mui-selectfield-select {
+  margin-top: 0;
+}
+
+.mui-selectfield-standard.mui-selectfield-no-label.mui-selectfield-small .mui-selectfield-select {
+  margin-top: 0;
+}
+
+.mui-selectfield-standard .mui-selectfield-arrow {
+  right: 0;
+}
+
+/* ============================================================
+ * Adornments
+ * ============================================================ */
+.mui-selectfield-adornment {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.54));
+  height: 0.01em;
+  max-height: 2em;
+}
+
+.mui-selectfield-adornment-start {
+  margin-right: 8px;
+}
+
+.mui-selectfield-outlined .mui-selectfield-adornment-start {
+  padding-left: 14px;
+}
+
+.mui-selectfield-filled .mui-selectfield-adornment-start {
+  padding-left: 12px;
+  margin-top: 16px;
+}
+
+.mui-selectfield-filled.mui-selectfield-no-label .mui-selectfield-adornment-start {
+  margin-top: 0;
+}
+
+.mui-selectfield-standard .mui-selectfield-adornment-start {
+  margin-top: 16px;
+}
+
+.mui-selectfield-standard.mui-selectfield-no-label .mui-selectfield-adornment-start {
+  margin-top: 0;
+}
+
+[data-theme="dark"] .mui-selectfield-adornment {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ============================================================
+ * Helper text
+ * ============================================================ */
+.mui-selectfield-helper {
+  font-size: 0.75rem;
+  line-height: 1.66;
+  letter-spacing: 0.03333em;
+  margin: 3px 14px 0;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.6));
+}
+
+.mui-selectfield-error .mui-selectfield-helper {
+  color: var(--mui-error);
+}
+
+.mui-selectfield-standard .mui-selectfield-helper {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* ============================================================
+ * Disabled state
+ * ============================================================ */
+.mui-selectfield-disabled .mui-selectfield-input-wrapper {
+  cursor: default;
+}
+
+.mui-selectfield-disabled .mui-selectfield-select {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.38));
+  -webkit-text-fill-color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.38));
+  cursor: default;
+}
+
+/* ============================================================
+ * Dropdown
+ * ============================================================ */
+.mui-selectfield-dropdown {
+  background: var(--background, #ffffff);
+  color: var(--foreground, rgba(0, 0, 0, 0.87));
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 4px;
+  box-shadow:
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: mui-selectfield-fade 120ms ease-out;
+}
+
+@keyframes mui-selectfield-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mui-selectfield-listbox {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.mui-selectfield-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.mui-selectfield-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mui-selectfield-option-active,
+.mui-selectfield-option:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .mui-selectfield-option-active,
+[data-theme="dark"] .mui-selectfield-option:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.mui-selectfield-option-selected {
+  background-color: color-mix(in srgb, var(--main) 12%, transparent);
+  color: var(--main);
+  font-weight: 600;
+}
+
+.mui-selectfield-option-selected.mui-selectfield-option-active,
+.mui-selectfield-option-selected:hover {
+  background-color: color-mix(in srgb, var(--main) 18%, transparent);
+}
+
+.mui-selectfield-option-disabled {
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.38));
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.mui-selectfield-option-check {
+  flex-shrink: 0;
+  color: var(--main);
+}
+
+.mui-selectfield-state-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  font-size: 0.875rem;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.6));
+}
+
+.mui-selectfield-empty {
+  font-style: italic;
+}

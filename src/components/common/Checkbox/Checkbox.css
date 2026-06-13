@@ -1,0 +1,165 @@
+/* Checkbox — palette tokens from Button.css (imported in Checkbox.tsx) */
+
+.mui-checkbox {
+  --main: var(--mui-primary);
+  --main-contrast: var(--mui-primary-contrast);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.43;
+  letter-spacing: 0.01071em;
+  color: var(--foreground, rgba(0, 0, 0, 0.87));
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.mui-checkbox:has(.mui-checkbox-input:disabled) {
+  cursor: default;
+  color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.38));
+}
+
+.mui-checkbox-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mui-checkbox-box-wrap {
+  flex-shrink: 0;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.ripple-checkbox-wave {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: var(--main);
+  opacity: 0;
+  pointer-events: none;
+  animation: ripple-checkbox-anim 600ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes ripple-checkbox-anim {
+  0% {
+    transform: scale(0);
+    opacity: 0.16;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0.12;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.mui-checkbox-box {
+  position: relative;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--mui-inherit-border, rgba(0, 0, 0, 0.54));
+  border-radius: 2px;
+  background-color: transparent;
+  transition:
+    background-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-checkbox-input:focus-visible + .mui-checkbox-box-wrap .mui-checkbox-box {
+  outline: 2px solid var(--main);
+  outline-offset: 2px;
+}
+
+.mui-checkbox:hover:not(:has(.mui-checkbox-input:disabled)) .mui-checkbox-box-wrap {
+  background-color: var(--mui-primary-hover, rgba(35, 69, 103, 0.04));
+}
+
+.mui-checkbox-color-secondary:hover:not(:has(.mui-checkbox-input:disabled)) .mui-checkbox-box-wrap {
+  background-color: var(--mui-secondary-hover, rgba(156, 39, 176, 0.04));
+}
+
+.mui-checkbox-color-error:hover:not(:has(.mui-checkbox-input:disabled)) .mui-checkbox-box-wrap {
+  background-color: var(--mui-error-hover, rgba(211, 47, 47, 0.04));
+}
+
+.mui-checkbox-input:checked + .mui-checkbox-box-wrap .mui-checkbox-box,
+.mui-checkbox-input:indeterminate + .mui-checkbox-box-wrap .mui-checkbox-box {
+  border-color: var(--main);
+  background-color: var(--main);
+}
+
+.mui-checkbox-input:checked + .mui-checkbox-box-wrap .mui-checkbox-box::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--main-contrast);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.mui-checkbox-input:indeterminate + .mui-checkbox-box-wrap .mui-checkbox-box::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 6px;
+  width: 10px;
+  height: 0;
+  border: 0;
+  border-bottom: 2px solid var(--main-contrast);
+  transform: none;
+}
+
+.mui-checkbox-input:disabled + .mui-checkbox-box-wrap .mui-checkbox-box {
+  border-color: var(--mui-disabled-bg, rgba(0, 0, 0, 0.12));
+  background-color: transparent;
+}
+
+.mui-checkbox-input:checked:disabled + .mui-checkbox-box-wrap .mui-checkbox-box,
+.mui-checkbox-input:indeterminate:disabled + .mui-checkbox-box-wrap .mui-checkbox-box {
+  border-color: transparent;
+  background-color: var(--mui-disabled-bg, rgba(0, 0, 0, 0.12));
+}
+
+.mui-checkbox-input:checked:disabled + .mui-checkbox-box-wrap .mui-checkbox-box::after {
+  border-color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.26));
+}
+
+.mui-checkbox-input:indeterminate:disabled + .mui-checkbox-box-wrap .mui-checkbox-box::after {
+  border-bottom-color: var(--mui-disabled-fg, rgba(0, 0, 0, 0.26));
+}
+
+.mui-checkbox-label {
+  padding-top: 0;
+}
+
+.mui-checkbox-color-secondary {
+  --main: var(--mui-secondary);
+  --main-contrast: var(--mui-secondary-contrast);
+}
+
+.mui-checkbox-color-error {
+  --main: var(--mui-error);
+  --main-contrast: var(--mui-error-contrast);
+}

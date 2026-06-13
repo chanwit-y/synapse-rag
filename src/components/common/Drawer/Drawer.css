@@ -1,0 +1,219 @@
+/* ── Backdrop ── */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  background-color: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.drawer-backdrop--open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer-backdrop--closing {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Panel ── */
+.drawer-panel {
+  position: fixed;
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 24px 48px -12px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Anchor: left ── */
+.drawer-panel--left {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  border-left: none;
+  border-radius: 0 16px 16px 0;
+  transform: translateX(-100%);
+}
+
+.drawer-backdrop--open .drawer-panel--left {
+  transform: translateX(0);
+}
+
+.drawer-backdrop--closing .drawer-panel--left {
+  transform: translateX(-100%);
+}
+
+/* ── Anchor: right ── */
+.drawer-panel--right {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-right: none;
+  border-radius: 16px 0 0 16px;
+  transform: translateX(100%);
+}
+
+.drawer-backdrop--open .drawer-panel--right {
+  transform: translateX(0);
+}
+
+.drawer-backdrop--closing .drawer-panel--right {
+  transform: translateX(100%);
+}
+
+/* ── Anchor: top ── */
+.drawer-panel--top {
+  top: 0;
+  left: 0;
+  right: 0;
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  transform: translateY(-100%);
+}
+
+.drawer-backdrop--open .drawer-panel--top {
+  transform: translateY(0);
+}
+
+.drawer-backdrop--closing .drawer-panel--top {
+  transform: translateY(-100%);
+}
+
+/* ── Anchor: bottom ── */
+.drawer-panel--bottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  transform: translateY(100%);
+}
+
+.drawer-backdrop--open .drawer-panel--bottom {
+  transform: translateY(0);
+}
+
+.drawer-backdrop--closing .drawer-panel--bottom {
+  transform: translateY(100%);
+}
+
+/* ── Sizes (width for left/right, height for top/bottom) ── */
+.drawer-panel--left.drawer-panel--sm,
+.drawer-panel--right.drawer-panel--sm {
+  width: 280px;
+}
+
+.drawer-panel--left.drawer-panel--md,
+.drawer-panel--right.drawer-panel--md {
+  width: 380px;
+}
+
+.drawer-panel--left.drawer-panel--lg,
+.drawer-panel--right.drawer-panel--lg {
+  width: 520px;
+}
+
+.drawer-panel--left.drawer-panel--xl,
+.drawer-panel--right.drawer-panel--xl {
+  width: 720px;
+}
+
+.drawer-panel--left.drawer-panel--full,
+.drawer-panel--right.drawer-panel--full {
+  width: 100vw;
+  border-radius: 0;
+}
+
+.drawer-panel--top.drawer-panel--sm,
+.drawer-panel--bottom.drawer-panel--sm {
+  height: 200px;
+}
+
+.drawer-panel--top.drawer-panel--md,
+.drawer-panel--bottom.drawer-panel--md {
+  height: 320px;
+}
+
+.drawer-panel--top.drawer-panel--lg,
+.drawer-panel--bottom.drawer-panel--lg {
+  height: 440px;
+}
+
+.drawer-panel--top.drawer-panel--xl,
+.drawer-panel--bottom.drawer-panel--xl {
+  height: 560px;
+}
+
+.drawer-panel--top.drawer-panel--full,
+.drawer-panel--bottom.drawer-panel--full {
+  height: 100vh;
+  border-radius: 0;
+}
+
+/* ── Inner structure ── */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.drawer-header h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.drawer-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.drawer-close-btn:hover {
+  background: var(--surface-strong);
+  color: var(--foreground);
+}
+
+.drawer-body {
+  padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.drawer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}

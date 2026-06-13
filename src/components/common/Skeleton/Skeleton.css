@@ -1,0 +1,75 @@
+/* ============================================================
+ * Skeleton - content placeholder
+ * ============================================================ */
+
+.mui-skeleton {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background-color: color-mix(
+    in srgb,
+    var(--muted-foreground, #456789) 16%,
+    transparent
+  );
+}
+
+.mui-skeleton-text {
+  border-radius: 4px;
+  /* Text skeletons sit on the text baseline like a line of text. */
+  transform-origin: 0 55%;
+}
+
+.mui-skeleton-rounded {
+  border-radius: 8px;
+}
+
+.mui-skeleton-rectangular {
+  border-radius: 0;
+}
+
+.mui-skeleton-circular {
+  border-radius: 9999px;
+}
+
+/* ---- Wave (shimmer) animation ---- */
+.mui-skeleton-wave::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--background, #fff) 65%, transparent),
+    transparent
+  );
+  animation: mui-skeleton-wave 1.6s linear infinite;
+}
+
+@keyframes mui-skeleton-wave {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ---- Pulse animation ---- */
+.mui-skeleton-pulse {
+  animation: mui-skeleton-pulse 1.6s ease-in-out 0.5s infinite;
+}
+
+@keyframes mui-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mui-skeleton-wave::after,
+  .mui-skeleton-pulse {
+    animation: none;
+  }
+}

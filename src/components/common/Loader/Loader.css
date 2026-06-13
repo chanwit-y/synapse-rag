@@ -1,0 +1,95 @@
+/* ============================================================
+ * Loader - circular spinner
+ * ============================================================ */
+
+.mui-loader {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--mui-primary, var(--accent, #234567));
+}
+
+.mui-loader-color-primary {
+  color: var(--mui-primary, var(--accent, #234567));
+}
+
+.mui-loader-color-secondary {
+  color: var(--mui-secondary, #9c27b0);
+}
+
+.mui-loader-color-error {
+  color: var(--mui-error, #d32f2f);
+}
+
+.mui-loader-color-inherit {
+  color: inherit;
+}
+
+.mui-loader-centered {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+.mui-loader-spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: mui-loader-spin 800ms linear infinite;
+}
+
+.mui-loader-size-small .mui-loader-spinner {
+  width: 16px;
+  height: 16px;
+}
+
+.mui-loader-size-medium .mui-loader-spinner {
+  width: 24px;
+  height: 24px;
+  border-width: 2.5px;
+}
+
+.mui-loader-size-large .mui-loader-spinner {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+}
+
+.mui-loader-label {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--muted-foreground, rgba(0, 0, 0, 0.6));
+}
+
+/* ---- Blur backdrop overlay ---- */
+.mui-loader-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in srgb, var(--background, #fff) 55%, transparent);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.mui-loader-backdrop-fixed {
+  position: fixed;
+  z-index: 1600;
+}
+
+.mui-loader-backdrop-content {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes mui-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

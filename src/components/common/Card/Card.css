@@ -1,0 +1,112 @@
+/* ============================================================
+ * MUI Card
+ * ============================================================ */
+.mui-card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: var(--mui-card-bg, #ffffff);
+  color: var(--mui-card-fg, rgba(0, 0, 0, 0.87));
+  transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] .mui-card {
+  --mui-card-bg: #1e1e1e;
+  --mui-card-fg: #ffffff;
+}
+
+/* ---- Variants ---- */
+.mui-card-elevation {
+  box-shadow: var(--mui-elevation-2);
+}
+
+.mui-card-outlined {
+  box-shadow: none;
+  border: 1px solid var(--mui-inherit-border, rgba(0, 0, 0, 0.12));
+}
+
+/* ---- Clickable ---- */
+.mui-card-clickable {
+  cursor: pointer;
+}
+
+.mui-card-clickable:hover {
+  box-shadow: var(--mui-elevation-8);
+}
+
+.mui-card-clickable:focus-visible {
+  outline: 2px solid var(--mui-primary);
+  outline-offset: 2px;
+}
+
+/* ---- Sub-components ---- */
+.mui-card-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+}
+
+.mui-card-header-avatar {
+  flex: 0 0 auto;
+}
+
+.mui-card-header-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mui-card-header-title {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.mui-card-header-subheader {
+  font-size: 0.875rem;
+  color: var(--mui-card-subheader-fg, rgba(0, 0, 0, 0.6));
+  line-height: 1.43;
+  margin: 0;
+}
+
+[data-theme="dark"] .mui-card-header-subheader {
+  --mui-card-subheader-fg: rgba(255, 255, 255, 0.7);
+}
+
+.mui-card-header-action {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: -4px;
+  margin-right: -8px;
+}
+
+.mui-card-content {
+  padding: 16px;
+}
+
+.mui-card-content:last-child {
+  padding-bottom: 24px;
+}
+
+.mui-card-actions {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  gap: 8px;
+}
+
+.mui-card-actions-right {
+  justify-content: flex-end;
+}
+
+.mui-card-media {
+  display: block;
+  width: 100%;
+  object-fit: cover;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}

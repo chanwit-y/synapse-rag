@@ -1,0 +1,171 @@
+/* Editable — click-to-edit inline text */
+
+.si-editable {
+  --editable-bg: transparent;
+  --editable-bg-hover: var(--surface, #f5f8fb);
+  --editable-border: var(--border, #c9dbed);
+  --editable-focus: var(--accent, #234567);
+  --editable-text: var(--foreground, rgba(0, 0, 0, 0.87));
+  --editable-placeholder: var(--muted-foreground, #456789);
+  --editable-radius: 6px;
+  --editable-height: 36px;
+  --editable-font-size: 0.9375rem;
+  --editable-px: 8px;
+
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: inherit;
+  font-size: var(--editable-font-size);
+  color: var(--editable-text);
+}
+
+.si-editable-full-width {
+  display: flex;
+  width: 100%;
+}
+
+/* ---- Label ---- */
+
+.si-editable-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--editable-placeholder);
+  line-height: 1.2;
+}
+
+/* ---- Display (read mode) ---- */
+
+.si-editable-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--editable-height);
+  padding: 4px var(--editable-px);
+  border-radius: var(--editable-radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.si-editable-display:hover {
+  background-color: var(--editable-bg-hover);
+}
+
+.si-editable-display:focus-visible {
+  outline: 2px solid var(--editable-focus);
+  outline-offset: 1px;
+}
+
+.si-editable-placeholder {
+  color: var(--editable-placeholder);
+  font-style: italic;
+}
+
+/* ---- Pencil icon ---- */
+
+.si-editable-icon {
+  flex-shrink: 0;
+  opacity: 0;
+  color: var(--editable-placeholder);
+  transition: opacity 150ms ease;
+}
+
+.si-editable-display:hover .si-editable-icon,
+.si-editable-display:focus-visible .si-editable-icon {
+  opacity: 1;
+}
+
+/* ---- Input (edit mode) ---- */
+
+.si-editable-input {
+  font: inherit;
+  font-size: var(--editable-font-size);
+  color: var(--editable-text);
+  min-height: var(--editable-height);
+  padding: 4px var(--editable-px);
+  border-radius: var(--editable-radius);
+  border: 2px solid var(--editable-focus);
+  background: var(--background, #fff);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+
+.si-editable-input::placeholder {
+  color: var(--editable-placeholder);
+}
+
+/* ---- Variant: outlined ---- */
+
+.si-editable-outlined .si-editable-display {
+  border-color: var(--editable-border);
+}
+
+.si-editable-outlined .si-editable-display:hover {
+  border-color: color-mix(in srgb, var(--editable-focus) 50%, transparent);
+}
+
+/* ---- Variant: filled ---- */
+
+.si-editable-filled .si-editable-display {
+  background-color: var(--editable-bg-hover);
+  border-bottom: 2px solid transparent;
+  border-radius: var(--editable-radius) var(--editable-radius) 0 0;
+}
+
+.si-editable-filled .si-editable-display:hover {
+  border-bottom-color: var(--editable-border);
+}
+
+.si-editable-filled .si-editable-input {
+  border: none;
+  border-bottom: 2px solid var(--editable-focus);
+  border-radius: var(--editable-radius) var(--editable-radius) 0 0;
+  background-color: var(--editable-bg-hover);
+}
+
+/* ---- Size: small ---- */
+
+.si-editable-sm {
+  --editable-height: 28px;
+  --editable-font-size: 0.8125rem;
+  --editable-px: 6px;
+}
+
+.si-editable-sm .si-editable-icon {
+  width: 12px;
+  height: 12px;
+}
+
+/* ---- Disabled ---- */
+
+.si-editable-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.si-editable-disabled .si-editable-display {
+  cursor: default;
+}
+
+/* ---- Read-only ---- */
+
+.si-editable-readonly .si-editable-display {
+  cursor: default;
+}
+
+.si-editable-readonly .si-editable-display:hover {
+  background-color: transparent;
+}
+
+.si-editable-readonly .si-editable-icon {
+  display: none;
+}

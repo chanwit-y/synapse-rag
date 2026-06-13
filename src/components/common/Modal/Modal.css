@@ -1,0 +1,131 @@
+/* ── Backdrop ── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(3px);
+  opacity: 0;
+  transition:
+    opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.modal-backdrop--open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-backdrop--closing {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Panel ── */
+.modal-panel {
+  position: relative;
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow:
+    0 24px 48px -12px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  outline: none;
+  transform: scale(0.9) translateY(20px);
+  opacity: 0;
+  transition:
+    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-backdrop--open .modal-panel {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+.modal-backdrop--closing .modal-panel {
+  transform: scale(0.9) translateY(20px);
+  opacity: 0;
+}
+
+/* ── Sizes ── */
+.modal-panel--sm {
+  width: 400px;
+}
+
+.modal-panel--md {
+  width: 560px;
+}
+
+.modal-panel--lg {
+  width: 720px;
+}
+
+.modal-panel--xl {
+  width: 960px;
+}
+
+.modal-panel--fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  border-radius: 0;
+}
+
+/* ── Inner structure ── */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.modal-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.modal-close-btn:hover {
+  background: var(--surface-strong);
+  color: var(--foreground);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+}

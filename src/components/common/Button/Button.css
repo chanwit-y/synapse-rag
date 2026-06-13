@@ -1,0 +1,283 @@
+/* ============================================================
+ * MUI Button - palette tokens
+ * ============================================================ */
+:root {
+  --mui-primary: #234567;
+  --mui-primary-dark: #012345;
+  --mui-primary-contrast: #ffffff;
+  --mui-primary-hover: rgba(35, 69, 103, 0.04);
+  --mui-primary-border: rgba(35, 69, 103, 0.5);
+
+  --mui-secondary: #9c27b0;
+  --mui-secondary-dark: #7b1fa2;
+  --mui-secondary-contrast: #ffffff;
+  --mui-secondary-hover: rgba(156, 39, 176, 0.04);
+  --mui-secondary-border: rgba(156, 39, 176, 0.5);
+
+  --mui-error: #d32f2f;
+  --mui-error-dark: #c62828;
+  --mui-error-contrast: #ffffff;
+  --mui-error-hover: rgba(211, 47, 47, 0.04);
+  --mui-error-border: rgba(211, 47, 47, 0.5);
+
+  --mui-inherit-hover: rgba(0, 0, 0, 0.04);
+  --mui-inherit-border: rgba(0, 0, 0, 0.23);
+
+  --mui-disabled-bg: rgba(0, 0, 0, 0.12);
+  --mui-disabled-fg: rgba(0, 0, 0, 0.26);
+
+  --mui-elevation-2: 0px 3px 1px -2px rgba(0, 0, 0, 0.2),
+    0px 2px 2px 0px rgba(0, 0, 0, 0.14), 0px 1px 5px 0px rgba(0, 0, 0, 0.12);
+  --mui-elevation-4: 0px 2px 4px -1px rgba(0, 0, 0, 0.2),
+    0px 4px 5px 0px rgba(0, 0, 0, 0.14), 0px 1px 10px 0px rgba(0, 0, 0, 0.12);
+  --mui-elevation-8: 0px 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0px 8px 10px 1px rgba(0, 0, 0, 0.14), 0px 3px 14px 2px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] {
+  --mui-primary: #6688b1;
+  --mui-primary-dark: #456789;
+  --mui-primary-contrast: #ffffff;
+  --mui-primary-hover: rgba(102, 136, 177, 0.14);
+  --mui-primary-border: rgba(102, 136, 177, 0.5);
+
+  --mui-secondary: #ce93d8;
+  --mui-secondary-dark: #ab47bc;
+  --mui-secondary-contrast: rgba(0, 0, 0, 0.87);
+  --mui-secondary-hover: rgba(206, 147, 216, 0.08);
+  --mui-secondary-border: rgba(206, 147, 216, 0.5);
+
+  --mui-error: #f44336;
+  --mui-error-dark: #d32f2f;
+  --mui-error-contrast: #ffffff;
+  --mui-error-hover: rgba(244, 67, 54, 0.08);
+  --mui-error-border: rgba(244, 67, 54, 0.5);
+
+  --mui-inherit-hover: rgba(255, 255, 255, 0.08);
+  --mui-inherit-border: rgba(255, 255, 255, 0.23);
+
+  --mui-disabled-bg: rgba(255, 255, 255, 0.12);
+  --mui-disabled-fg: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================================
+ * Ripple
+ * ============================================================ */
+.ripple-btn-wave {
+  position: absolute;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.3;
+  transform: scale(0);
+  pointer-events: none;
+  z-index: 0;
+  animation: ripple-btn-anim 1100ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes ripple-btn-anim {
+  0% {
+    transform: scale(0);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+ * Button base
+ * ============================================================ */
+.mui-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  user-select: none;
+  cursor: pointer;
+  border: 0;
+  outline: 0;
+  margin: 0;
+  background-color: transparent;
+  border-radius: 4px;
+  min-width: 64px;
+  font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.75;
+  letter-spacing: 0.02857em;
+  text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-btn:focus-visible {
+  outline: 2px solid var(--main, #234567);
+  outline-offset: 2px;
+}
+
+.mui-btn[disabled] {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ---- Sizes ---- */
+.mui-btn-size-small {
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+}
+.mui-btn-size-medium {
+  padding: 6px 16px;
+  font-size: 0.875rem;
+}
+.mui-btn-size-large {
+  padding: 8px 22px;
+  font-size: 0.9375rem;
+}
+
+.mui-btn-text.mui-btn-size-small {
+  padding: 4px 5px;
+}
+.mui-btn-text.mui-btn-size-medium {
+  padding: 6px 8px;
+}
+.mui-btn-text.mui-btn-size-large {
+  padding: 8px 11px;
+}
+
+.mui-btn-outlined.mui-btn-size-small {
+  padding: 3px 9px;
+}
+.mui-btn-outlined.mui-btn-size-medium {
+  padding: 5px 15px;
+}
+.mui-btn-outlined.mui-btn-size-large {
+  padding: 7px 21px;
+}
+
+/* ---- Color tokens ---- */
+.mui-btn-color-primary {
+  --main: var(--mui-primary);
+  --main-dark: var(--mui-primary-dark);
+  --contrast: var(--mui-primary-contrast);
+  --hover-bg: var(--mui-primary-hover);
+  --border: var(--mui-primary-border);
+}
+.mui-btn-color-secondary {
+  --main: var(--mui-secondary);
+  --main-dark: var(--mui-secondary-dark);
+  --contrast: var(--mui-secondary-contrast);
+  --hover-bg: var(--mui-secondary-hover);
+  --border: var(--mui-secondary-border);
+}
+.mui-btn-color-error {
+  --main: var(--mui-error);
+  --main-dark: var(--mui-error-dark);
+  --contrast: var(--mui-error-contrast);
+  --hover-bg: var(--mui-error-hover);
+  --border: var(--mui-error-border);
+}
+.mui-btn-color-inherit {
+  --main: currentColor;
+  --main-dark: currentColor;
+  --contrast: currentColor;
+  --hover-bg: var(--mui-inherit-hover);
+  --border: var(--mui-inherit-border);
+}
+
+/* ---- Variants ---- */
+.mui-btn-contained {
+  background-color: var(--main);
+  color: var(--contrast);
+  box-shadow: var(--mui-elevation-2);
+}
+.mui-btn-contained:hover {
+  background-color: var(--main-dark);
+  box-shadow: var(--mui-elevation-4);
+}
+.mui-btn-contained:active {
+  box-shadow: var(--mui-elevation-8);
+}
+.mui-btn-contained.mui-btn-no-elevation,
+.mui-btn-contained.mui-btn-no-elevation:hover,
+.mui-btn-contained.mui-btn-no-elevation:active {
+  box-shadow: none;
+}
+.mui-btn-contained[disabled] {
+  background-color: var(--mui-disabled-bg);
+  color: var(--mui-disabled-fg);
+  box-shadow: none;
+}
+
+.mui-btn-outlined {
+  color: var(--main);
+  border: 1px solid var(--border);
+  background-color: transparent;
+}
+.mui-btn-outlined:hover {
+  background-color: var(--hover-bg);
+  border-color: var(--main);
+}
+.mui-btn-outlined[disabled] {
+  color: var(--mui-disabled-fg);
+  border-color: var(--mui-disabled-bg);
+}
+
+.mui-btn-text {
+  color: var(--main);
+  background-color: transparent;
+}
+.mui-btn-text:hover {
+  background-color: var(--hover-bg);
+}
+.mui-btn-text[disabled] {
+  color: var(--mui-disabled-fg);
+}
+
+/* ---- Icons ---- */
+.mui-btn-start-icon {
+  display: inherit;
+  margin-right: 8px;
+  margin-left: -4px;
+}
+.mui-btn-end-icon {
+  display: inherit;
+  margin-left: 8px;
+  margin-right: -4px;
+}
+.mui-btn-size-small .mui-btn-start-icon {
+  margin-left: -2px;
+}
+.mui-btn-size-small .mui-btn-end-icon {
+  margin-right: -2px;
+}
+.mui-btn-start-icon > svg,
+.mui-btn-end-icon > svg {
+  width: 1.125em;
+  height: 1.125em;
+}
+
+/* Spinner */
+.mui-btn-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: mui-btn-spin 800ms linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes mui-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

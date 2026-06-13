@@ -1,0 +1,261 @@
+/* ── DataTable tokens ─────────────────────────────────── */
+.mui-datatable {
+  --dt-border: var(--border);
+  --dt-bg: var(--background);
+  --dt-head-bg: var(--surface);
+  --dt-head-fg: var(--foreground);
+  --dt-row-bg: var(--background);
+  --dt-row-hover: var(--surface);
+  --dt-row-stripe: var(--surface);
+  --dt-cell-fg: var(--foreground);
+  --dt-muted: var(--muted-foreground);
+  --dt-accent: var(--accent);
+  --dt-accent-fg: var(--accent-foreground);
+  --dt-radius: 8px;
+  --dt-density-y: 12px;
+  --dt-density-x: 16px;
+
+  width: 100%;
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius);
+  overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 1.43;
+  background: var(--dt-bg);
+}
+
+/* ── Density ──────────────────────────────────────────── */
+.mui-datatable-dense {
+  --dt-density-y: 6px;
+  --dt-density-x: 12px;
+  font-size: 0.8125rem;
+}
+
+.mui-datatable-comfortable {
+  --dt-density-y: 16px;
+  --dt-density-x: 20px;
+}
+
+/* ── Table ────────────────────────────────────────────── */
+.mui-datatable table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+/* ── Head ─────────────────────────────────────────────── */
+.mui-datatable thead {
+  background: var(--dt-head-bg);
+}
+
+.mui-datatable thead th {
+  padding: var(--dt-density-y) var(--dt-density-x);
+  text-align: left;
+  font-weight: 600;
+  color: var(--dt-head-fg);
+  white-space: nowrap;
+  border-bottom: 2px solid var(--dt-border);
+  user-select: none;
+  position: relative;
+}
+
+/* ── Sorting ──────────────────────────────────────────── */
+.mui-datatable-sortable {
+  cursor: pointer;
+}
+
+.mui-datatable-sortable:hover {
+  background: var(--dt-row-hover);
+}
+
+.mui-datatable-sort-icon {
+  display: inline-flex;
+  margin-left: 4px;
+  vertical-align: middle;
+  opacity: 0.5;
+  font-size: 0.75rem;
+}
+
+.mui-datatable-sort-active .mui-datatable-sort-icon {
+  opacity: 1;
+}
+
+/* ── Body ─────────────────────────────────────────────── */
+.mui-datatable tbody tr {
+  background: var(--dt-row-bg);
+  transition: background-color 0.15s ease;
+}
+
+.mui-datatable-hoverable tbody tr:hover {
+  background: var(--dt-row-hover);
+}
+
+.mui-datatable-striped tbody tr:nth-child(even) {
+  background: var(--dt-row-stripe);
+}
+
+.mui-datatable-striped.mui-datatable-hoverable tbody tr:hover {
+  background: var(--dt-row-hover);
+}
+
+.mui-datatable tbody td {
+  padding: var(--dt-density-y) var(--dt-density-x);
+  color: var(--dt-cell-fg);
+  border-bottom: 1px solid var(--dt-border);
+}
+
+.mui-datatable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Empty state ──────────────────────────────────────── */
+.mui-datatable-empty {
+  padding: 40px var(--dt-density-x);
+  text-align: center;
+  color: var(--dt-muted);
+}
+
+/* ── Footer / pagination bar ──────────────────────────── */
+.mui-datatable-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px var(--dt-density-x);
+  border-top: 1px solid var(--dt-border);
+  background: var(--dt-head-bg);
+  font-size: 0.8125rem;
+  color: var(--dt-muted);
+}
+
+.mui-datatable-footer-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mui-datatable-footer-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mui-datatable-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dt-cell-fg);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.mui-datatable-page-btn:hover:not(:disabled) {
+  background: var(--dt-row-hover);
+}
+
+.mui-datatable-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mui-datatable-page-btn-active {
+  background: var(--dt-accent);
+  color: var(--dt-accent-fg);
+  border-color: var(--dt-accent);
+}
+
+.mui-datatable-page-btn-active:hover:not(:disabled) {
+  background: var(--dt-accent);
+}
+
+/* ── Page-size select ─────────────────────────────────── */
+.mui-datatable-page-size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mui-datatable-page-size select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dt-cell-fg);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+/* ── Overflow wrapper ─────────────────────────────────── */
+.mui-datatable-scroll {
+  overflow-x: auto;
+}
+
+/* ── Selection checkbox column ────────────────────────── */
+.mui-datatable-select-col {
+  width: 48px;
+  text-align: center !important;
+}
+
+.mui-datatable-select-col input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--dt-accent);
+  cursor: pointer;
+}
+
+/* ── Editable cells ──────────────────────────────────── */
+.mui-datatable-cell-editable {
+  cursor: pointer;
+  position: relative;
+}
+
+.mui-datatable-cell-editable:hover {
+  background: var(--dt-row-hover);
+}
+
+.mui-datatable-edit-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+  opacity: 0;
+  color: var(--dt-muted);
+  flex-shrink: 0;
+  transition: opacity 150ms ease;
+}
+
+.mui-datatable-cell-editable:hover .mui-datatable-edit-icon {
+  opacity: 0.7;
+}
+
+.mui-datatable-cell-editing {
+  padding: 4px !important;
+}
+
+.mui-datatable-edit-input {
+  font: inherit;
+  font-size: inherit;
+  color: var(--dt-cell-fg);
+  width: 100%;
+  padding: calc(var(--dt-density-y) - 4px) calc(var(--dt-density-x) - 4px);
+  border: 2px solid var(--dt-accent);
+  border-radius: 4px;
+  background: var(--dt-bg);
+  outline: none;
+  box-sizing: border-box;
+  line-height: inherit;
+}
+
+.mui-datatable-edit-input:focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dt-accent) 25%, transparent);
+}
+
+/* ── Dark overrides (handled via CSS vars, no extra block needed) ── */
