@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type MouseEvent } from "react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import {
   ChevronRight,
   ChevronDown,
@@ -18,6 +19,8 @@ export interface TreeNodeItemProps {
   selectedNodePath: string | null;
   setSelectedNodePath: (path: string | null) => void;
   nodePath: string;
+  /** Id of the folder this node lives in, or null at the collection root. */
+  parentFolderId: string | null;
   selectedNode: TreeNode | null;
   setSelectedNode: (node: TreeNode | null) => void;
   groupIndex: number;
@@ -36,6 +39,7 @@ export default function TreeNodeItem({
   selectedNodePath,
   setSelectedNodePath,
   nodePath,
+  parentFolderId,
   selectedNode,
   setSelectedNode,
   groupIndex,
@@ -48,6 +52,38 @@ export default function TreeNodeItem({
   const isFile = node.type === "file";
   const indentLevel = level > 0 ? level * 20 + 8 : 8;
   const isSelected = selectedNodePath === nodePath;
+
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } =
+    useDraggable({
+      id: node.id,
+      data: {
+        draggedId: node.id,
+        collectionId: node.collectionId,
+        name: node.name,
+        type: node.type,
+      },
+      disabled: readOnlyTree,
+    });
+
+  // A folder accepts drops into itself; a file/leaf forwards drops to its
+  // parent folder (or the collection root when top-level).
+  const { setNodeRef: setDropRef, isOver, active } = useDroppable({
+    id: `drop:${node.id}`,
+    data: {
+      targetFolderId: isFolder ? node.id : parentFolderId,
+      collectionId: node.collectionId,
+    },
+    disabled: readOnlyTree,
+  });
+
+  const setRowRef = (el: HTMLDivElement | null) => {
+    setDragRef(el);
+    setDropRef(el);
+  };
+
+  // Highlight a folder only when a *different* node is dragged over it.
+  const showDropTarget =
+    isFolder && isOver && active?.id !== node.id;
 
   useEffect(() => {
     if (!isFolder) return;
@@ -72,11 +108,16 @@ export default function TreeNodeItem({
   return (
     <div>
       <div
+        ref={setRowRef}
+        {...attributes}
+        {...listeners}
         className={`flex items-center gap-1 px-2 py-1.5 rounded-l cursor-pointer transition-colors group ${
-          isSelected
-            ? "bg-accent/10 text-accent dark:bg-accent/20 dark:text-brand-100"
-            : "hover:bg-surface-strong text-foreground"
-        }`}
+          showDropTarget
+            ? "bg-accent/20 ring-1 ring-accent/50"
+            : isSelected
+              ? "bg-accent/10 text-accent dark:bg-accent/20 dark:text-brand-100"
+              : "hover:bg-surface-strong text-foreground"
+        } ${isDragging ? "opacity-40" : ""}`}
         style={{ paddingLeft: `${indentLevel}px` }}
         onClick={handleClick}
         data-tree-interactive="true"
@@ -145,6 +186,7 @@ export default function TreeNodeItem({
                 selectedNodePath={selectedNodePath}
                 setSelectedNodePath={setSelectedNodePath}
                 nodePath={`${nodePath}/${child.name}`}
+                parentFolderId={node.id}
                 selectedNode={selectedNode}
                 setSelectedNode={setSelectedNode}
                 groupIndex={groupIndex}

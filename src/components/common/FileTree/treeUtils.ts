@@ -128,6 +128,95 @@ export function removeNodeByIdInPlace(
   return false;
 }
 
+/** Collect the id of a node and all of its descendants. */
+export function collectNodeAndDescendantIds(
+  node: TreeNode,
+  acc: Set<string> = new Set(),
+): Set<string> {
+  acc.add(node.id);
+  if (node.type === "folder" && node.children?.length) {
+    for (const child of node.children) collectNodeAndDescendantIds(child, acc);
+  }
+  return acc;
+}
+
+/**
+ * Return a name that does not clash with any sibling in `siblings`, appending
+ * ` (2)`, ` (3)`, … before the file extension when needed. Folders dedupe on
+ * the whole name.
+ */
+export function dedupeName(
+  name: string,
+  type: "folder" | "file",
+  siblings: TreeNode[],
+): string {
+  const taken = new Set(siblings.map((s) => s.name));
+  if (!taken.has(name)) return name;
+
+  const dot = type === "file" ? name.lastIndexOf(".") : -1;
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+
+  let n = 2;
+  let candidate = `${base} (${n})${ext}`;
+  while (taken.has(candidate)) {
+    n += 1;
+    candidate = `${base} (${n})${ext}`;
+  }
+  return candidate;
+}
+
+/**
+ * Move the node `draggedId` into the folder `targetFolderId` (or the root when
+ * `null`), returning a NEW directories array. Returns `null` when the move is a
+ * no-op or invalid: dropping a node onto itself, into one of its own
+ * descendants, or into the folder it already lives in. Auto-renames on a
+ * name clash in the destination.
+ */
+export function moveNodeInTree(
+  directories: TreeNode[],
+  draggedId: string,
+  targetFolderId: string | null,
+): TreeNode[] | null {
+  if (draggedId === targetFolderId) return null;
+
+  const found = findNodeById(directories, draggedId);
+  if (!found) return null;
+  const draggedNode = found.node;
+
+  // Can't drop a folder into itself or any of its descendants.
+  if (draggedNode.type === "folder") {
+    const subtree = collectNodeAndDescendantIds(draggedNode);
+    if (targetFolderId != null && subtree.has(targetFolderId)) return null;
+  }
+
+  const next: TreeNode[] = JSON.parse(JSON.stringify(directories));
+
+  // Resolve the destination container (and confirm the target is a folder).
+  let destination: TreeNode[];
+  if (targetFolderId == null) {
+    destination = next;
+  } else {
+    const target = findNodeById(next, targetFolderId);
+    if (!target || target.node.type !== "folder") return null;
+    target.node.children = target.node.children ?? [];
+    destination = target.node.children;
+  }
+
+  // No-op when it already lives directly in the destination.
+  if (destination.some((n) => n.id === draggedId)) return null;
+
+  const moving = findNodeById(next, draggedId);
+  if (!moving) return null;
+  const movingNode = moving.node;
+
+  removeNodeByIdInPlace(next, draggedId);
+  movingNode.name = dedupeName(movingNode.name, movingNode.type, destination);
+  destination.push(movingNode);
+
+  return next;
+}
+
 export function getSiblingContainerList(
   directories: TreeNode[],
   pathSegments: string[],

@@ -1,6 +1,17 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { File as FileIcon, Folder as FolderIcon } from "lucide-react";
 import { PanelLeftClose, PanelLeftOpen, PlusIcon } from "lucide-react";
 import TreeView from "./TreeView";
 import type { FileType, TreeNode, TreeViewGroup } from "./types";
@@ -9,6 +20,7 @@ import { useSnackbar } from "@/components/common/Snackbar/Snackbar";
 import {
   countFiles,
   findNodeByPath,
+  moveNodeInTree,
   removeNodeByIdInPlace,
 } from "./treeUtils";
 
@@ -103,6 +115,70 @@ export default function FileSidebar({
     group: TreeViewGroup;
     groupIndex: number;
   } | null>(null);
+
+  const [activeDrag, setActiveDrag] = useState<{
+    name: string;
+    type: "folder" | "file";
+  } | null>(null);
+
+  // Require a 5px move before a drag starts so plain clicks still select/open.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const data = event.active.data.current as
+      | { name?: string; type?: "folder" | "file" }
+      | undefined;
+    if (data?.name && data.type) {
+      setActiveDrag({ name: data.name, type: data.type });
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDrag(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const a = active.data.current as
+      | { draggedId?: string; collectionId?: string }
+      | undefined;
+    const o = over.data.current as
+      | { targetFolderId?: string | null; collectionId?: string }
+      | undefined;
+    if (!a?.draggedId || !a.collectionId || !o) return;
+
+    // Moves stay within a single collection.
+    if (a.collectionId !== o.collectionId) return;
+
+    const groupIndex = collections.findIndex((g) => g.id === a.collectionId);
+    if (groupIndex === -1) return;
+    const group = collections[groupIndex];
+
+    const moved = moveNodeInTree(
+      group.directories,
+      a.draggedId,
+      o.targetFolderId ?? null,
+    );
+    if (!moved) return;
+
+    const previous = collections;
+    const updated = collections.map((g, i) =>
+      i === groupIndex ? { ...g, directories: moved } : g,
+    );
+    onCollectionsChange(updated);
+
+    try {
+      await onUpdateDirectories?.(group.id, moved);
+    } catch (err) {
+      console.error("Failed to move item:", err);
+      onCollectionsChange(previous);
+      showSnackbar({
+        variant: "error",
+        message: "Failed to move item. Please try again.",
+      });
+    }
+  };
 
   const isResizingRef = useRef(false);
   const startXRef = useRef(0);
@@ -533,7 +609,7 @@ export default function FileSidebar({
           <div className="flex-1 overflow-hidden">
             {isLoading ? (
               <SkeletonTree />
-            ) : (
+            ) : readOnlyTree ? (
               <TreeView
                 data={collections}
                 onNodeClick={handleNodeClick}
@@ -548,6 +624,42 @@ export default function FileSidebar({
                 selectedNodeId={selectedNodeId}
                 readOnlyTree={readOnlyTree}
               />
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={pointerWithin}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <TreeView
+                  data={collections}
+                  onNodeClick={handleNodeClick}
+                  onAddFile={handleAddFile}
+                  onAddFolder={handleAddFolder}
+                  onRequestDeleteNode={handleRequestDeleteNode}
+                  onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
+                  onRequestDeleteGroup={
+                    onDeleteCollection ? handleRequestDeleteGroup : undefined
+                  }
+                  selectedNodePath={selectedNodePath}
+                  selectedNodeId={selectedNodeId}
+                  readOnlyTree={readOnlyTree}
+                />
+                <DragOverlay dropAnimation={null}>
+                  {activeDrag ? (
+                    <div className="flex items-center gap-1.5 rounded-md border border-accent/50 bg-surface px-2 py-1 text-sm text-foreground shadow-md">
+                      {activeDrag.type === "folder" ? (
+                        <FolderIcon className="w-4 h-4 text-brand-500 dark:text-brand-400 shrink-0" />
+                      ) : (
+                        <FileIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="truncate max-w-[200px]">
+                        {activeDrag.name}
+                      </span>
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
             )}
           </div>
         </div>

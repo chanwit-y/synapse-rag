@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDroppable } from "@dnd-kit/core";
 import {
   ChevronRight,
   ChevronDown,
@@ -63,6 +64,18 @@ export default function TreeViewGroupItem({
   const [isExpanded, setIsExpanded] = useState(true);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [contentHeight, setContentHeight] = useState<number>(0);
+
+  // Root drop zone: dropping here moves an item to the collection's top level.
+  const { setNodeRef: setRootDropRef, isOver: isOverRoot } = useDroppable({
+    id: `drop-root:${group.id}`,
+    data: { targetFolderId: null, collectionId: group.id },
+    disabled: readOnlyTree,
+  });
+
+  const setContentRefs = (el: HTMLDivElement | null) => {
+    contentRef.current = el;
+    setRootDropRef(el);
+  };
 
   useEffect(() => {
     const el = contentRef.current;
@@ -165,8 +178,10 @@ export default function TreeViewGroupItem({
         }}
       >
         <div
-          ref={contentRef}
-          className="pt-1 pl-4 ml-3 border-l border-dotted border-border"
+          ref={setContentRefs}
+          className={`pt-1 pl-4 ml-3 border-l border-dotted transition-colors ${
+            isOverRoot ? "border-accent/60 bg-accent/5" : "border-border"
+          }`}
         >
           {group.directories.map((node) => (
             <TreeNodeItem
@@ -177,6 +192,7 @@ export default function TreeViewGroupItem({
               selectedNodePath={selectedNodePath}
               setSelectedNodePath={setSelectedNodePath}
               nodePath={node.name}
+              parentFolderId={null}
               selectedNode={selectedNode}
               setSelectedNode={setSelectedNode}
               groupIndex={groupIndex}
