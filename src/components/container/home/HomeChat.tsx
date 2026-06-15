@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   BookOpen,
   Check,
@@ -17,9 +24,21 @@ import Autocomplete from "@/components/common/Autocomplete/Autocomplete";
 import SelectField from "@/components/common/SelectField/SelectField";
 import Button from "@/components/common/Button/Button";
 import Typography from "@/components/common/Typography/Typography";
+import { ChatMarkdown } from "@/components/common/ChatMarkdown";
+import { useLayoutStore } from "@/store/layout-store";
 import type { RagRecord } from "@/components/container/rag/types";
 import type { AiModelRecord } from "@/components/container/ai-model/types";
 import { chatWithRagFromDbAction } from "@/server/actions";
+
+function subscribeToColorScheme(callback: () => void) {
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", callback);
+  return () => media.removeEventListener("change", callback);
+}
+
+function getPrefersDark() {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
 
 type ChatMessage =
   | { id: string; role: "user"; content: string }
@@ -100,6 +119,14 @@ export default function HomeChat({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const theme = useLayoutStore((s) => s.theme);
+  const prefersDark = useSyncExternalStore(
+    subscribeToColorScheme,
+    getPrefersDark,
+    () => false,
+  );
+  const resolvedTheme = theme === "system" ? (prefersDark ? "dark" : "light") : theme;
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -369,6 +396,8 @@ export default function HomeChat({
                   >
                     {m.role === "assistant" && m.isThinking ? (
                       <ThinkingDots />
+                    ) : m.role === "assistant" && !isAssistantTyping ? (
+                      <ChatMarkdown content={m.content} theme={resolvedTheme} />
                     ) : (
                       <>
                         {m.content}
