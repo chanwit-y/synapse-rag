@@ -31,6 +31,22 @@ export interface TreeViewProps {
     selectedNodePath: string | null,
   ) => void;
   onRequestDeleteGroup?: (group: TreeViewGroup, groupIndex: number) => void;
+  editingNodeId?: string | null;
+  onStartRenameNode?: (nodeId: string) => void;
+  onSubmitRenameNode?: (
+    node: TreeNode,
+    nodePath: string,
+    groupIndex: number,
+    value: string,
+  ) => void;
+  onCancelRename?: () => void;
+  editingCollectionId?: string | null;
+  onStartRenameGroup?: (collectionId: string) => void;
+  onSubmitRenameGroup?: (
+    group: TreeViewGroup,
+    groupIndex: number,
+    value: string,
+  ) => void;
   selectedNodePath?: string | null;
   selectedNodeId?: string | null;
   readOnlyTree?: boolean;
@@ -44,6 +60,13 @@ export default function TreeView({
   onRequestDeleteNode,
   onImportFromAzure,
   onRequestDeleteGroup,
+  editingNodeId,
+  onStartRenameNode,
+  onSubmitRenameNode,
+  onCancelRename,
+  editingCollectionId,
+  onStartRenameGroup,
+  onSubmitRenameGroup,
   selectedNodePath: externalSelectedNodePath,
   selectedNodeId: externalSelectedNodeId,
   readOnlyTree,
@@ -106,6 +129,13 @@ export default function TreeView({
             onRequestDeleteNode={onRequestDeleteNode}
             onImportFromAzure={onImportFromAzure}
             onRequestDeleteGroup={onRequestDeleteGroup}
+            editingNodeId={editingNodeId}
+            onStartRenameNode={onStartRenameNode}
+            onSubmitRenameNode={onSubmitRenameNode}
+            onCancelRename={onCancelRename}
+            editingCollectionId={editingCollectionId}
+            onStartRenameGroup={onStartRenameGroup}
+            onSubmitRenameGroup={onSubmitRenameGroup}
             readOnlyTree={readOnlyTree}
           />
         ))}

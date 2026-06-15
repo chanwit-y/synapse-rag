@@ -36,6 +36,8 @@ export {
   listCollectionsAction,
   createCollectionAction,
   deleteCollectionAction,
+  renameCollectionAction,
+  renameDocumentItemAction,
   syncCollectionDirectoriesAction,
   deleteDocumentItemAction,
   saveDocumentContentAction,

@@ -37,6 +37,28 @@ export async function deleteCollectionAction(
   }
 }
 
+export async function renameCollectionAction(
+  collectionId: string,
+  name: string,
+): Promise<ActionResult<{ id: string; name: string }>> {
+  try {
+    return actionSuccess(await documentService.renameCollection(collectionId, name));
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function renameDocumentItemAction(
+  itemId: string,
+  name: string,
+): Promise<ActionResult<{ id: string; name: string }>> {
+  try {
+    return actionSuccess(await documentService.renameItem(itemId, name));
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 export async function syncCollectionDirectoriesAction(
   collectionId: string,
   directories: TreeNode[],

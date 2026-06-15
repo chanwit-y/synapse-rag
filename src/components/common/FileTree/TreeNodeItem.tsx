@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
+import InlineEditInput from "./InlineEditInput";
 import {
   ChevronRight,
   ChevronDown,
@@ -29,6 +30,15 @@ export interface TreeNodeItemProps {
     nodePath: string,
     groupIndex: number,
   ) => void;
+  editingNodeId?: string | null;
+  onStartRenameNode?: (nodeId: string) => void;
+  onSubmitRenameNode?: (
+    node: TreeNode,
+    nodePath: string,
+    groupIndex: number,
+    value: string,
+  ) => void;
+  onCancelRename?: () => void;
   readOnlyTree?: boolean;
 }
 
@@ -44,8 +54,13 @@ export default function TreeNodeItem({
   setSelectedNode,
   groupIndex,
   onRequestDeleteNode,
+  editingNodeId,
+  onStartRenameNode,
+  onSubmitRenameNode,
+  onCancelRename,
   readOnlyTree,
 }: TreeNodeItemProps) {
+  const isEditing = !readOnlyTree && editingNodeId === node.id;
   const [isExpanded, setIsExpanded] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
   const isFolder = node.type === "folder";
@@ -105,12 +120,20 @@ export default function TreeNodeItem({
     onNodeClick?.(node, nodePath);
   };
 
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (isEditing || readOnlyTree) return;
+    if (e.key === "F2") {
+      e.preventDefault();
+      onStartRenameNode?.(node.id);
+    }
+  };
+
   return (
     <div>
       <div
         ref={setRowRef}
-        {...attributes}
-        {...listeners}
+        {...(isEditing ? {} : attributes)}
+        {...(isEditing ? {} : listeners)}
         className={`flex items-center gap-1 px-2 py-1.5 rounded-l cursor-pointer transition-colors group ${
           showDropTarget
             ? "bg-accent/20 ring-1 ring-accent/50"
@@ -120,6 +143,7 @@ export default function TreeNodeItem({
         } ${isDragging ? "opacity-40" : ""}`}
         style={{ paddingLeft: `${indentLevel}px` }}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         data-tree-interactive="true"
       >
         {isFolder && hasChildren && (
@@ -141,10 +165,28 @@ export default function TreeNodeItem({
         ) : (
           <File className="w-4 h-4 text-muted-foreground shrink-0" />
         )}
-        <span className="text-sm truncate flex-1 min-w-0" title={node.name}>
-          {node.name}
-        </span>
-        {!readOnlyTree && (
+        {isEditing ? (
+          <InlineEditInput
+            initialValue={node.name}
+            kind={node.type}
+            onCommit={(value) =>
+              onSubmitRenameNode?.(node, nodePath, groupIndex, value)
+            }
+            onCancel={() => onCancelRename?.()}
+          />
+        ) : (
+          <span
+            className="text-sm truncate flex-1 min-w-0"
+            title={node.name}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              if (!readOnlyTree) onStartRenameNode?.(node.id);
+            }}
+          >
+            {node.name}
+          </span>
+        )}
+        {!readOnlyTree && !isEditing && (
           <button
             type="button"
             className="ml-2 p-1 rounded transition-colors opacity-0 group-hover:opacity-100
@@ -191,6 +233,10 @@ export default function TreeNodeItem({
                 setSelectedNode={setSelectedNode}
                 groupIndex={groupIndex}
                 onRequestDeleteNode={onRequestDeleteNode}
+                editingNodeId={editingNodeId}
+                onStartRenameNode={onStartRenameNode}
+                onSubmitRenameNode={onSubmitRenameNode}
+                onCancelRename={onCancelRename}
                 readOnlyTree={readOnlyTree}
               />
             ))}

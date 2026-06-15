@@ -19,6 +19,7 @@ import FileSidebarModals from "./FileSidebarModals";
 import { useSnackbar } from "@/components/common/Snackbar/Snackbar";
 import {
   countFiles,
+  findNodeById,
   findNodeByPath,
   moveNodeInTree,
   removeNodeByIdInPlace,
@@ -48,6 +49,19 @@ export interface FileSidebarProps {
   onDeleteCollection?: (collectionId: string) => Promise<void>;
   /** Called when the user clicks "Import from Azure DevOps" for a collection. */
   onImportFromAzure?: (collectionId: string, folderId: string | null) => void;
+  /** Persist a renamed file/folder. Throws on failure (caller reverts). */
+  onRenameItem?: (
+    itemId: string,
+    newName: string,
+    collectionId: string,
+  ) => Promise<void>;
+  /** Persist a renamed collection. Throws on failure (caller reverts). */
+  onRenameCollection?: (collectionId: string, newName: string) => Promise<void>;
+  /**
+   * Sync the open editor after a rename that moved the currently-selected file —
+   * either it was the renamed file or one of its ancestor folders was renamed.
+   */
+  onRenamedSelection?: (updatedFile: TreeNode, newNodePath: string) => void;
 
   collapsed?: boolean;
   onToggleCollapsed: () => void;
@@ -71,6 +85,9 @@ export default function FileSidebar({
   onDeleteFile,
   onDeleteCollection,
   onImportFromAzure,
+  onRenameItem,
+  onRenameCollection,
+  onRenamedSelection,
   collapsed = false,
   onToggleCollapsed,
   width = 256,
@@ -120,6 +137,12 @@ export default function FileSidebar({
     name: string;
     type: "folder" | "file";
   } | null>(null);
+
+  // Inline rename: at most one node OR one collection is being edited at a time.
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editingCollectionId, setEditingCollectionId] = useState<string | null>(
+    null,
+  );
 
   // Require a 5px move before a drag starts so plain clicks still select/open.
   const sensors = useSensors(
@@ -548,6 +571,130 @@ export default function FileSidebar({
     }
   };
 
+  const handleStartRenameNode = (nodeId: string) => {
+    setEditingCollectionId(null);
+    setEditingNodeId(nodeId);
+  };
+
+  const handleStartRenameGroup = (collectionId: string) => {
+    setEditingNodeId(null);
+    setEditingCollectionId(collectionId);
+  };
+
+  const handleCancelRename = () => {
+    setEditingNodeId(null);
+    setEditingCollectionId(null);
+  };
+
+  const handleSubmitRenameNode = async (
+    node: TreeNode,
+    nodePath: string,
+    groupIndex: number,
+    value: string,
+  ) => {
+    setEditingNodeId(null);
+
+    const group = collections[groupIndex];
+    if (!group) return;
+
+    const trimmed = value.trim();
+    if (!trimmed) return; // empty → treat as cancel
+
+    // Mirror the add flow: extensionless files get a `.md` suffix.
+    const normalized =
+      node.type === "file" && !trimmed.includes(".") ? `${trimmed}.md` : trimmed;
+
+    if (normalized === node.name) return; // unchanged → silent no-op
+
+    // Block a collision with a sibling (case-insensitive, excluding self).
+    const segments = nodePath.split("/");
+    const parentSegments = segments.slice(0, -1);
+    const siblings =
+      parentSegments.length === 0
+        ? group.directories
+        : (findNodeByPath(group.directories, parentSegments)?.children ?? []);
+    const clash = siblings.some(
+      (sibling) =>
+        sibling.id !== node.id &&
+        sibling.name.toLowerCase() === normalized.toLowerCase(),
+    );
+    if (clash) {
+      showSnackbar({
+        variant: "error",
+        message: `A ${node.type} named "${normalized}" already exists here.`,
+      });
+      return;
+    }
+
+    const previous = collections;
+    const updated: TreeViewGroup[] = JSON.parse(JSON.stringify(collections));
+    const target = findNodeById(updated[groupIndex].directories, node.id);
+    if (!target) return;
+    target.node.name = normalized;
+    onCollectionsChange(updated);
+
+    try {
+      await onRenameItem?.(node.id, normalized, group.id);
+
+      // Keep the open editor in sync when the rename moved the selected file —
+      // either it was renamed directly or one of its ancestor folders was.
+      if (selectedNodeId) {
+        const match = findNodeById(
+          updated[groupIndex].directories,
+          selectedNodeId,
+        );
+        if (
+          match &&
+          (selectedNodeId === node.id || match.path !== selectedNodePath)
+        ) {
+          onRenamedSelection?.(match.node, match.path);
+        }
+      }
+
+      showSnackbar({ variant: "success", message: `Renamed to "${normalized}".` });
+    } catch (err) {
+      console.error("Failed to rename item:", err);
+      onCollectionsChange(previous);
+      showSnackbar({
+        variant: "error",
+        message: `Failed to rename ${node.type}. Please try again.`,
+      });
+    }
+  };
+
+  const handleSubmitRenameGroup = async (
+    group: TreeViewGroup,
+    groupIndex: number,
+    value: string,
+  ) => {
+    setEditingCollectionId(null);
+
+    const trimmed = value.trim();
+    // Duplicate collection names are allowed; only block empty / unchanged.
+    if (!trimmed || trimmed === group.name) return;
+
+    const previous = collections;
+    const updated = collections.map((g, i) =>
+      i === groupIndex ? { ...g, name: trimmed } : g,
+    );
+    onCollectionsChange(updated);
+
+    try {
+      await onRenameCollection?.(group.id, trimmed);
+      showSnackbar({
+        variant: "success",
+        message: `Collection renamed to "${trimmed}".`,
+      });
+    } catch (err) {
+      console.error("Failed to rename collection:", err);
+      onCollectionsChange(previous);
+      showSnackbar({
+        variant: "error",
+        message: "Failed to rename collection. Please try again.",
+      });
+    }
+  };
+
   const footerButtonLabel = collapsed ? "Show sidebar" : "Hide sidebar";
 
   return (
@@ -641,6 +788,17 @@ export default function FileSidebar({
                   onRequestDeleteGroup={
                     onDeleteCollection ? handleRequestDeleteGroup : undefined
                   }
+                  editingNodeId={editingNodeId}
+                  onStartRenameNode={
+                    onRenameItem ? handleStartRenameNode : undefined
+                  }
+                  onSubmitRenameNode={handleSubmitRenameNode}
+                  onCancelRename={handleCancelRename}
+                  editingCollectionId={editingCollectionId}
+                  onStartRenameGroup={
+                    onRenameCollection ? handleStartRenameGroup : undefined
+                  }
+                  onSubmitRenameGroup={handleSubmitRenameGroup}
                   selectedNodePath={selectedNodePath}
                   selectedNodeId={selectedNodeId}
                   readOnlyTree={readOnlyTree}

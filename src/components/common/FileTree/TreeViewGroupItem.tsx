@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { TreeNode, TreeViewGroup, FileType } from "./types";
 import TreeNodeItem from "./TreeNodeItem";
+import InlineEditInput from "./InlineEditInput";
 
 export interface TreeViewGroupItemProps {
   group: TreeViewGroup;
@@ -43,6 +44,22 @@ export interface TreeViewGroupItemProps {
     selectedNodePath: string | null,
   ) => void;
   onRequestDeleteGroup?: (group: TreeViewGroup, groupIndex: number) => void;
+  editingNodeId?: string | null;
+  onStartRenameNode?: (nodeId: string) => void;
+  onSubmitRenameNode?: (
+    node: TreeNode,
+    nodePath: string,
+    groupIndex: number,
+    value: string,
+  ) => void;
+  onCancelRename?: () => void;
+  editingCollectionId?: string | null;
+  onStartRenameGroup?: (collectionId: string) => void;
+  onSubmitRenameGroup?: (
+    group: TreeViewGroup,
+    groupIndex: number,
+    value: string,
+  ) => void;
   readOnlyTree?: boolean;
 }
 
@@ -59,8 +76,16 @@ export default function TreeViewGroupItem({
   onRequestDeleteNode,
   onImportFromAzure,
   onRequestDeleteGroup,
+  editingNodeId,
+  onStartRenameNode,
+  onSubmitRenameNode,
+  onCancelRename,
+  editingCollectionId,
+  onStartRenameGroup,
+  onSubmitRenameGroup,
   readOnlyTree,
 }: TreeViewGroupItemProps) {
+  const isEditingGroup = !readOnlyTree && editingCollectionId === group.id;
   const [isExpanded, setIsExpanded] = useState(true);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [contentHeight, setContentHeight] = useState<number>(0);
@@ -97,7 +122,17 @@ export default function TreeViewGroupItem({
         className="flex items-center justify-between px-2 py-2 text-xs font-semibold
           text-muted-foreground uppercase tracking-wide
           hover:bg-surface-strong cursor-pointer transition-colors"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => {
+          if (!isEditingGroup) setIsExpanded(!isExpanded);
+        }}
+        onKeyDown={(e) => {
+          if (isEditingGroup || readOnlyTree) return;
+          if (e.key === "F2") {
+            e.preventDefault();
+            onStartRenameGroup?.(group.id);
+          }
+        }}
+        tabIndex={readOnlyTree ? undefined : 0}
         data-tree-interactive="true"
       >
         <div className="flex items-center gap-1 min-w-0 flex-1 mr-1">
@@ -108,9 +143,26 @@ export default function TreeViewGroupItem({
               <ChevronRight className="w-3.5 h-3.5" />
             )}
           </span>
-          <span className="truncate" title={group.name}>
-            {group.name}
-          </span>
+          {isEditingGroup ? (
+            <InlineEditInput
+              initialValue={group.name}
+              kind="collection"
+              className="min-w-0 flex-1 rounded border border-accent bg-background px-1 py-0.5 text-xs font-semibold uppercase tracking-wide text-foreground outline-none focus:ring-1 focus:ring-accent"
+              onCommit={(value) => onSubmitRenameGroup?.(group, groupIndex, value)}
+              onCancel={() => onCancelRename?.()}
+            />
+          ) : (
+            <span
+              className="truncate"
+              title={group.name}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                if (!readOnlyTree) onStartRenameGroup?.(group.id);
+              }}
+            >
+              {group.name}
+            </span>
+          )}
         </div>
         {!readOnlyTree && (
           <div className="shrink-0 flex items-center gap-0.5">
@@ -197,6 +249,10 @@ export default function TreeViewGroupItem({
               setSelectedNode={setSelectedNode}
               groupIndex={groupIndex}
               onRequestDeleteNode={onRequestDeleteNode}
+              editingNodeId={editingNodeId}
+              onStartRenameNode={onStartRenameNode}
+              onSubmitRenameNode={onSubmitRenameNode}
+              onCancelRename={onCancelRename}
               readOnlyTree={readOnlyTree}
             />
           ))}

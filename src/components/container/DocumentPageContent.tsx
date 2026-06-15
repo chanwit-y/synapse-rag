@@ -18,6 +18,8 @@ import {
   listChatModelsAction,
   listCollectionsAction,
   listDocumentHistoryAction,
+  renameCollectionAction,
+  renameDocumentItemAction,
   saveDocumentContentAction,
   saveDocumentTranslationAction,
   syncCollectionDirectoriesAction,
@@ -164,6 +166,34 @@ export default function DocumentPageContent({
       });
     },
     [withLoading],
+  );
+
+  const handleRenameItem = useCallback(
+    async (itemId: string, newName: string) => {
+      await withLoading(async () => {
+        unwrapAction(await renameDocumentItemAction(itemId, newName));
+      });
+    },
+    [withLoading],
+  );
+
+  const handleRenameCollection = useCallback(
+    async (collectionId: string, newName: string) => {
+      await withLoading(async () => {
+        unwrapAction(await renameCollectionAction(collectionId, newName));
+      });
+    },
+    [withLoading],
+  );
+
+  // The sidebar drives the optimistic rename; here we only realign the open
+  // editor's title/path when the renamed node was (or contained) the open file.
+  const handleRenamedSelection = useCallback(
+    (updatedFile: TreeNode, newNodePath: string) => {
+      setSelectedFile(updatedFile);
+      setSelectedPath(newNodePath);
+    },
+    [],
   );
 
   const handleContentChange = useCallback(
@@ -380,6 +410,9 @@ export default function DocumentPageContent({
           onUpdateDirectories={handleUpdateDirectories}
           onDeleteFile={handleDeleteFile}
           onDeleteCollection={handleDeleteCollection}
+          onRenameItem={handleRenameItem}
+          onRenameCollection={handleRenameCollection}
+          onRenamedSelection={handleRenamedSelection}
           onImportFromAzure={handleOpenAzureImport}
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((c) => !c)}

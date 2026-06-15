@@ -92,6 +92,43 @@ export class DocumentService {
     return toTreeViewGroup(assertFound(collection, "Failed to create collection"), []);
   }
 
+  async renameCollection(
+    collectionId: string,
+    name: string,
+  ): Promise<{ id: string; name: string }> {
+    const numericId = parseId(collectionId);
+    if (numericId == null) {
+      throw new ServiceError("Invalid collection id", "VALIDATION");
+    }
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new ServiceError("Collection name is required", "VALIDATION");
+    }
+
+    const updated = await collectionRepository.update(numericId, { name: trimmed });
+    const row = assertFound(updated, "Collection not found");
+    return { id: toIdString(row.id), name: row.name };
+  }
+
+  /** Rename a single file or folder. Name normalization/dedup happens client-side. */
+  async renameItem(
+    itemId: string,
+    name: string,
+  ): Promise<{ id: string; name: string }> {
+    const numericId = parseId(itemId);
+    if (numericId == null) {
+      throw new ServiceError("Invalid item id", "VALIDATION");
+    }
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new ServiceError("Name is required", "VALIDATION");
+    }
+
+    const updated = await itemRepository.update(numericId, { name: trimmed });
+    const row = assertFound(updated, "Item not found");
+    return { id: toIdString(row.id), name: row.name };
+  }
+
   async syncDirectories(
     collectionId: string,
     directories: TreeNode[],
