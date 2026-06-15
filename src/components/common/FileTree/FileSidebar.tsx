@@ -7,6 +7,7 @@ import type { FileType, TreeNode, TreeViewGroup } from "./types";
 import FileSidebarModals from "./FileSidebarModals";
 import { useSnackbar } from "@/components/common/Snackbar/Snackbar";
 import {
+  countFiles,
   findNodeByPath,
   removeNodeByIdInPlace,
 } from "./treeUtils";
@@ -31,6 +32,8 @@ export interface FileSidebarProps {
   onUpdateDirectories?: (groupId: string, directories: TreeNode[]) => Promise<void>;
   /** Called to delete a file node from the backend. */
   onDeleteFile?: (fileId: string) => Promise<void>;
+  /** Called to delete an entire collection from the backend. */
+  onDeleteCollection?: (collectionId: string) => Promise<void>;
   /** Called when the user clicks "Import from Azure DevOps" for a collection. */
   onImportFromAzure?: (collectionId: string) => void;
 
@@ -54,6 +57,7 @@ export default function FileSidebar({
   onCreateCollection,
   onUpdateDirectories,
   onDeleteFile,
+  onDeleteCollection,
   onImportFromAzure,
   collapsed = false,
   onToggleCollapsed,
@@ -89,6 +93,14 @@ export default function FileSidebar({
   const [selectedNodeForDelete, setSelectedNodeForDelete] = useState<{
     node: TreeNode;
     path: string;
+    groupIndex: number;
+  } | null>(null);
+
+  const [isCollectionDeleteModalOpen, setIsCollectionDeleteModalOpen] =
+    useState(false);
+  const [isDeletingCollection, setIsDeletingCollection] = useState(false);
+  const [selectedGroupForDelete, setSelectedGroupForDelete] = useState<{
+    group: TreeViewGroup;
     groupIndex: number;
   } | null>(null);
 
@@ -369,6 +381,68 @@ export default function FileSidebar({
     }
   };
 
+  const handleRequestDeleteGroup = (
+    group: TreeViewGroup,
+    groupIndex: number,
+  ) => {
+    setSelectedGroupForDelete({ group, groupIndex });
+    setIsCollectionDeleteModalOpen(true);
+  };
+
+  const handleCloseCollectionDeleteModal = () => {
+    if (isDeletingCollection) return;
+    setIsCollectionDeleteModalOpen(false);
+    setSelectedGroupForDelete(null);
+  };
+
+  const handleConfirmDeleteCollection = async () => {
+    if (!selectedGroupForDelete || isDeletingCollection) return;
+
+    const target = selectedGroupForDelete;
+    const previousCollections = collections;
+    const updatedCollections = collections.filter(
+      (group) => group.id !== target.group.id,
+    );
+
+    onCollectionsChange(updatedCollections);
+    setIsCollectionDeleteModalOpen(false);
+    setSelectedGroupForDelete(null);
+
+    setIsDeletingCollection(true);
+    try {
+      await onDeleteCollection?.(target.group.id);
+
+      // If the open document lives in this collection, clear the editor.
+      if (selectedNodeId) {
+        const containsOpenFile = (nodes: TreeNode[]): boolean =>
+          nodes.some(
+            (node) =>
+              node.id === selectedNodeId ||
+              (node.type === "folder" &&
+                !!node.children?.length &&
+                containsOpenFile(node.children)),
+          );
+        if (containsOpenFile(target.group.directories)) {
+          onClearSelection?.();
+        }
+      }
+
+      showSnackbar({
+        variant: "success",
+        message: `Collection "${target.group.name}" deleted.`,
+      });
+    } catch (err) {
+      console.error("Failed to delete collection:", err);
+      onCollectionsChange(previousCollections);
+      showSnackbar({
+        variant: "error",
+        message: "Failed to delete collection. Please try again.",
+      });
+    } finally {
+      setIsDeletingCollection(false);
+    }
+  };
+
   const footerButtonLabel = collapsed ? "Show sidebar" : "Hide sidebar";
 
   return (
@@ -438,6 +512,9 @@ export default function FileSidebar({
                 onAddFolder={handleAddFolder}
                 onRequestDeleteNode={handleRequestDeleteNode}
                 onImportFromAzure={onImportFromAzure}
+                onRequestDeleteGroup={
+                  onDeleteCollection ? handleRequestDeleteGroup : undefined
+                }
                 selectedNodePath={selectedNodePath}
                 selectedNodeId={selectedNodeId}
                 readOnlyTree={readOnlyTree}
@@ -479,6 +556,18 @@ export default function FileSidebar({
         onConfirmDelete={handleConfirmDelete}
         isDeletingItem={isDeletingItem}
         selectedNodeForDelete={selectedNodeForDelete}
+        isCollectionDeleteModalOpen={isCollectionDeleteModalOpen}
+        onCloseCollectionDeleteModal={handleCloseCollectionDeleteModal}
+        onConfirmDeleteCollection={handleConfirmDeleteCollection}
+        isDeletingCollection={isDeletingCollection}
+        collectionForDelete={
+          selectedGroupForDelete
+            ? {
+                name: selectedGroupForDelete.group.name,
+                fileCount: countFiles(selectedGroupForDelete.group.directories),
+              }
+            : null
+        }
       />
     </>
   );

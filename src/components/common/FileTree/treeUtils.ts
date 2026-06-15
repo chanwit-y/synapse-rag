@@ -41,6 +41,16 @@ export function assignCollectionId(
   });
 }
 
+export function countFiles(nodes: TreeNode[]): number {
+  return nodes.reduce((total, node) => {
+    if (node.type === "file") return total + 1;
+    if (node.type === "folder" && node.children?.length) {
+      return total + countFiles(node.children);
+    }
+    return total;
+  }, 0);
+}
+
 export function collectFileIds(nodes: TreeNode[], acc: Set<string>) {
   nodes.forEach((node) => {
     if (node.type === "file") acc.add(node.id);

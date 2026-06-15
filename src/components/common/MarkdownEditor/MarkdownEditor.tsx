@@ -28,7 +28,9 @@ import {
   StrikethroughIcon,
   UnderlineIcon,
 } from './icons';
+import { getCodeString } from 'rehype-rewrite';
 import { rehypeHighlight, remarkHighlight, remarkHiddenText } from './highlightPlugins';
+import Mermaid from './Mermaid';
 import {
   getToolbarButtonCenter,
   insertAtMdEditorCursor,
@@ -61,6 +63,18 @@ type PositionedPopoverState = {
   x: number;
   y: number;
 };
+
+// Anchor a popover centered directly below its toolbar button. `x` is the
+// button's horizontal center and `y` is just below it (see getToolbarButtonCenter),
+// so translateX(-50%) centers the box on the button and lines the CSS arrow
+// (fixed at left:50%) up with it.
+function popoverStyle(state: PositionedPopoverState) {
+  return {
+    left: `${state.x}px`,
+    top: `${state.y}px`,
+    transform: 'translateX(-50%)',
+  };
+}
 
 type EditorCommandCtx = {
   selectedText?: string;
@@ -678,9 +692,27 @@ export default function MarkdownEditor({
           />
         );
       },
-      code: ({ inline, ...props }: HTMLAttributes<HTMLElement> & { inline?: boolean }) => {
+      code: ({
+        inline,
+        className,
+        children,
+        node,
+        ...props
+      }: HTMLAttributes<HTMLElement> & {
+        inline?: boolean;
+        node?: { children?: Parameters<typeof getCodeString>[0] };
+      }) => {
+        if (!inline && /\blanguage-mermaid\b/.test(className ?? '')) {
+          // The preview tokenizes code into elements, so `children` is React
+          // nodes, not text. Read the raw source from the hast node instead.
+          const chart = (
+            node?.children ? getCodeString(node.children) : String(children ?? '')
+          ).replace(/\n$/, '');
+          return <Mermaid chart={chart} theme={theme} />;
+        }
         return (
           <code
+            className={className}
             style={{
               backgroundColor: inline ? (theme === 'dark' ? '#2a2a2a' : 'lightgray') : 'transparent',
               color: inline && theme === 'dark' ? '#E5E5E5' : undefined,
@@ -688,7 +720,9 @@ export default function MarkdownEditor({
               borderRadius: '4px',
             }}
             {...props}
-          />
+          >
+            {children}
+          </code>
         );
       },
     }),
@@ -786,7 +820,7 @@ export default function MarkdownEditor({
         <div
           ref={imageUploadPopoverRef}
           className="image-upload-popover"
-          style={{ left: `${imageUploadPopover.x - 320}px`, top: `${imageUploadPopover.y - 60}px`, transform: 'translateX(-50%)' }}
+          style={popoverStyle(imageUploadPopover)}
         >
           <h3>Upload Image</h3>
           {isImageProcessing ? (
@@ -812,7 +846,7 @@ export default function MarkdownEditor({
         <div
           ref={linkPopoverRef}
           className="link-popover"
-          style={{ left: `${linkPopover.x - 320}px`, top: `${linkPopover.y - 60}px`, transform: 'translateX(-50%)' }}
+          style={popoverStyle(linkPopover)}
         >
           <h3>Insert Link</h3>
           <form onSubmit={handleLinkSubmit}>
@@ -843,7 +877,7 @@ export default function MarkdownEditor({
         <div
           ref={headingPopoverRef}
           className="heading-popover"
-          style={{ left: `${headingPopover.x - 320}px`, top: `${headingPopover.y - 60}px`, transform: 'translateX(-50%)' }}
+          style={popoverStyle(headingPopover)}
         >
           <h3>Insert Heading</h3>
           <label htmlFor="heading-level">Heading Level</label>

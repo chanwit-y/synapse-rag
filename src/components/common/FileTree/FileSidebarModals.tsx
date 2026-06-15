@@ -39,6 +39,12 @@ export interface FileSidebarModalsProps {
   onConfirmDelete: () => void;
   isDeletingItem: boolean;
   selectedNodeForDelete: SelectedNodeForDelete;
+
+  isCollectionDeleteModalOpen: boolean;
+  onCloseCollectionDeleteModal: () => void;
+  onConfirmDeleteCollection: () => void;
+  isDeletingCollection: boolean;
+  collectionForDelete: { name: string; fileCount: number } | null;
 }
 
 export default function FileSidebarModals({
@@ -63,6 +69,12 @@ export default function FileSidebarModals({
   onConfirmDelete,
   isDeletingItem,
   selectedNodeForDelete,
+
+  isCollectionDeleteModalOpen,
+  onCloseCollectionDeleteModal,
+  onConfirmDeleteCollection,
+  isDeletingCollection,
+  collectionForDelete,
 }: FileSidebarModalsProps) {
   const isDeleteBlocked =
     selectedNodeForDelete?.node.type === "folder" &&
@@ -210,6 +222,49 @@ export default function FileSidebarModals({
               : "."}
           </p>
         )}
+      </Modal>
+
+      {/* Delete Collection Confirmation Modal */}
+      <Modal
+        open={isCollectionDeleteModalOpen}
+        onClose={onCloseCollectionDeleteModal}
+        size="sm"
+        title="Delete Collection"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outlined"
+              color="inherit"
+              size="small"
+              onClick={onCloseCollectionDeleteModal}
+              disabled={isDeletingCollection}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              onClick={onConfirmDeleteCollection}
+              disabled={isDeletingCollection}
+              loading={isDeletingCollection}
+            >
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          This will permanently delete{" "}
+          <span className="font-semibold text-foreground">
+            &quot;{collectionForDelete?.name ?? "this collection"}&quot;
+          </span>
+          {collectionForDelete && collectionForDelete.fileCount > 0
+            ? ` and its ${collectionForDelete.fileCount} document${
+                collectionForDelete.fileCount === 1 ? "" : "s"
+              }.`
+            : "."}
+        </p>
       </Modal>
     </>
   );

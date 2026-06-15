@@ -7,6 +7,7 @@ import {
   CloudDownload,
   Folder,
   FileText,
+  Trash2,
 } from "lucide-react";
 import type { TreeNode, TreeViewGroup, FileType } from "./types";
 import TreeNodeItem from "./TreeNodeItem";
@@ -36,6 +37,7 @@ export interface TreeViewGroupItemProps {
     groupIndex: number,
   ) => void;
   onImportFromAzure?: (collectionId: string) => void;
+  onRequestDeleteGroup?: (group: TreeViewGroup, groupIndex: number) => void;
   readOnlyTree?: boolean;
 }
 
@@ -51,6 +53,7 @@ export default function TreeViewGroupItem({
   onAddFolder,
   onRequestDeleteNode,
   onImportFromAzure,
+  onRequestDeleteGroup,
   readOnlyTree,
 }: TreeViewGroupItemProps) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -131,6 +134,20 @@ export default function TreeViewGroupItem({
             >
               <Folder className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
+            {onRequestDeleteGroup && (
+              <button
+                type="button"
+                className="group/del p-1 ml-0.5 rounded transition-colors hover:bg-destructive/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRequestDeleteGroup(group, groupIndex);
+                }}
+                aria-label="Delete collection"
+                title="Delete collection"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-muted-foreground transition-colors group-hover/del:text-destructive" />
+              </button>
+            )}
           </div>
         )}
       </div>

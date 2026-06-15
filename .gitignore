@@ -40,6 +40,9 @@ yarn-error.log*
 # images imported from Azure DevOps user stories
 /public/azure-imports
 
+# images uploaded from the document markdown editor
+/public/document-images
+
 # vercel
 .vercel
 
@@ -51,3 +54,6 @@ next-env.d.ts
 
 resource
 cmd/epic.sh
+
+# claude code local settings (personal, not shared)
+.claude/settings.local.json

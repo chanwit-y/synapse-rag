@@ -35,9 +35,11 @@ export {
 export {
   listCollectionsAction,
   createCollectionAction,
+  deleteCollectionAction,
   syncCollectionDirectoriesAction,
   deleteDocumentItemAction,
   saveDocumentContentAction,
+  uploadDocumentImageAction,
   listDocumentHistoryAction,
   ensureDocumentTranslationAction,
   saveDocumentTranslationAction,

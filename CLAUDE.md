@@ -20,7 +20,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Copy `.env.example` to `.env`:
 - `DATABASE_URL` - Path to the SQLite file (e.g. `./.data/synapse-rumi.db`). A `file:` prefix is stripped automatically; `:memory:` is supported.
-- `OPENAI_API_KEY` - Required for LangChain chat/embeddings.
+- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` - Per-provider **fallback** keys. A model normally uses the API key linked to it in the DB; these env vars are only used when no key is linked (see `src/server/services/llm`).
+- `AZURE_ORG` (required for the Azure import feature) plus optional `AZURE_PROJECT` / `AZURE_TEAM` defaults. The Azure DevOps **PAT is not an env var** — it's stored in the DB as an API key with provider `Azure DevOps` (the single active key for that provider is used at request time).
 - `SQLITE_LIB_PATH` *(macOS only, optional)* - Path to a non-Apple `libsqlite3`. See the SQLite note below.
 
 There is **no Docker / PostgreSQL**. The database is a local SQLite file created on first run (`db:migrate` or starting the app).
@@ -57,6 +58,10 @@ Server Component / Client (server action call)
 - Import the DB client and schema from `@/server/db`.
 
 **LLM connector** (`src/server/services/llm/`): provider-agnostic, Strategy + Registry pattern. `getChatModelFromDb(modelId)` / `getEmbeddingsFromDb(modelId)` resolve a model's provider + linked API key from the DB and return a LangChain `BaseChatModel` / `Embeddings`, so callers use a uniform `.invoke()` / `.embedDocuments()` regardless of provider. Add a provider by writing a strategy in `llm/providers/` and registering it in `llm/registry.ts`. Anthropic has no embeddings API (use OpenAI/Google for embedding models). `langchain-openai.ts` is a deprecated back-compat shim.
+
+**Azure DevOps import** (`src/server/services/azure/`): pulls work-item trees (epics → children → user stories) from Azure DevOps and imports selected user stories as `items` (with version `histories`) under a `collection`. `client.ts` handles auth (resolves the active `Azure DevOps` API key from the DB as a PAT), the REST/WIQL/batch calls, and attachment download; `azure.service.ts` converts work-item HTML descriptions to markdown with `turndown` and rewrites/saves attachments locally. Exposed via `azure.actions.ts` and consumed on the Document page.
+
+**Vector search**: RAG chunk embeddings are stored as float32 BLOBs; similarity uses `vec_distance_l2()` (see `RagChunkRepository.findSimilarByRagIds`).
 
 ### Database schema
 Located in `src/server/db/schema/` (one file per table, re-exported from `index.ts`; relations in `relations.ts`, shared enums in `enums.ts`):

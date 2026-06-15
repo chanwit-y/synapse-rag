@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
 import {
   collectionRepository,
@@ -9,6 +11,23 @@ import type { ContentLang } from "@/server/db/schema/enums";
 import { getChatModelFromDb } from "./llm";
 import { toTreeViewGroup } from "./mappers";
 import { assertFound, parseId, ServiceError, toIdString } from "./utils";
+
+/** Where editor-uploaded images are written, and the public URL they resolve to. */
+const UPLOAD_IMAGE_DIR = path.join(process.cwd(), "public", "document-images");
+const UPLOAD_IMAGE_URL_BASE = "/document-images";
+const MAX_UPLOAD_IMAGE_BYTES = 10 * 1024 * 1024;
+
+const EXT_BY_IMAGE_TYPE: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/svg+xml": "svg",
+  "image/bmp": "bmp",
+  "image/x-icon": "ico",
+  "image/avif": "avif",
+};
 
 /** Flatten a LangChain message `content` (string or content-part array) to plain text. */
 function messageContentToString(content: unknown): string {
@@ -140,6 +159,17 @@ export class DocumentService {
     assertFound(row, "Item not found");
   }
 
+  async deleteCollection(collectionId: string): Promise<void> {
+    const numericId = parseId(collectionId);
+    if (numericId == null) {
+      throw new ServiceError("Invalid collection id", "VALIDATION");
+    }
+
+    // FK cascade removes the collection's items (and their histories / rag links).
+    const row = await collectionRepository.delete(numericId);
+    assertFound(row, "Collection not found");
+  }
+
   async saveFileContent(params: {
     id: string | null;
     name: string;
@@ -269,6 +299,32 @@ export class DocumentService {
     }
 
     await itemRepository.update(numericId, { contentTh: content });
+  }
+
+  /**
+   * Persist an editor-uploaded image under `public/document-images/` and return
+   * its public URL (e.g. `/document-images/<sha1>.png`). The filename is content
+   * -addressed, so re-uploading the same image reuses the same file.
+   */
+  async uploadImage(file: File): Promise<{ path: string }> {
+    if (!file || file.size === 0) {
+      throw new ServiceError("No image file provided", "VALIDATION");
+    }
+    if (!file.type.startsWith("image/")) {
+      throw new ServiceError("Uploaded file is not an image", "VALIDATION");
+    }
+    if (file.size > MAX_UPLOAD_IMAGE_BYTES) {
+      throw new ServiceError("Image is larger than 10MB", "VALIDATION");
+    }
+
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const ext = EXT_BY_IMAGE_TYPE[file.type.toLowerCase()] ?? "png";
+    const fileName = `${createHash("sha1").update(bytes).digest("hex")}.${ext}`;
+
+    await mkdir(UPLOAD_IMAGE_DIR, { recursive: true });
+    await writeFile(path.join(UPLOAD_IMAGE_DIR, fileName), bytes);
+
+    return { path: `${UPLOAD_IMAGE_URL_BASE}/${fileName}` };
   }
 
   private async translate(source: string, modelId: string): Promise<string> {

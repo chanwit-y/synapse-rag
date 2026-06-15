@@ -26,6 +26,7 @@ export interface TreeViewProps {
     groupIndex: number,
   ) => void;
   onImportFromAzure?: (collectionId: string) => void;
+  onRequestDeleteGroup?: (group: TreeViewGroup, groupIndex: number) => void;
   selectedNodePath?: string | null;
   selectedNodeId?: string | null;
   readOnlyTree?: boolean;
@@ -38,6 +39,7 @@ export default function TreeView({
   onAddFolder,
   onRequestDeleteNode,
   onImportFromAzure,
+  onRequestDeleteGroup,
   selectedNodePath: externalSelectedNodePath,
   selectedNodeId: externalSelectedNodeId,
   readOnlyTree,
@@ -99,6 +101,7 @@ export default function TreeView({
             onAddFolder={onAddFolder}
             onRequestDeleteNode={onRequestDeleteNode}
             onImportFromAzure={onImportFromAzure}
+            onRequestDeleteGroup={onRequestDeleteGroup}
             readOnlyTree={readOnlyTree}
           />
         ))}

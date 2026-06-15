@@ -291,6 +291,53 @@ body .w-md-editor-text-input {
   display: none;
 }
 
+.mermaid-diagram {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-loading {
+  margin: 12px 0;
+  font-size: 0.85rem;
+  color: #888;
+  font-style: italic;
+}
+
+.mermaid-error {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #f0b7b7;
+  border-radius: 6px;
+  background-color: #fdf2f2;
+  color: #bf092f;
+}
+
+.dark .mermaid-error {
+  border-color: #5c2626;
+  background-color: #2a1717;
+  color: #f4a6a6;
+}
+
+.mermaid-error-title {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.mermaid-error pre {
+  margin: 0;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .image-upload-spinner {
   display: inline-block;
   width: 18px;

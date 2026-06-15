@@ -11,6 +11,7 @@ import SelectField from "@/components/common/SelectField/SelectField";
 import { useApiLoading } from "@/hooks/useApiLoading";
 import {
   createCollectionAction,
+  deleteCollectionAction,
   deleteDocumentItemAction,
   ensureDocumentTranslationAction,
   importAzureUserStoriesAction,
@@ -20,6 +21,7 @@ import {
   saveDocumentContentAction,
   saveDocumentTranslationAction,
   syncCollectionDirectoriesAction,
+  uploadDocumentImageAction,
 } from "@/server/actions";
 import Drawer from "@/components/common/Drawer/Drawer";
 import Modal from "@/components/common/Modal/Modal";
@@ -142,6 +144,22 @@ export default function DocumentPageContent({
     async (fileId: string) => {
       await withLoading(async () => {
         unwrapAction(await deleteDocumentItemAction(fileId));
+      });
+    },
+    [withLoading],
+  );
+
+  const handleUploadImage = useCallback(async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const { path } = unwrapAction(await uploadDocumentImageAction(formData));
+    return path;
+  }, []);
+
+  const handleDeleteCollection = useCallback(
+    async (collectionId: string) => {
+      await withLoading(async () => {
+        unwrapAction(await deleteCollectionAction(collectionId));
       });
     },
     [withLoading],
@@ -351,6 +369,7 @@ export default function DocumentPageContent({
           onCreateCollection={handleCreateCollection}
           onUpdateDirectories={handleUpdateDirectories}
           onDeleteFile={handleDeleteFile}
+          onDeleteCollection={handleDeleteCollection}
           onImportFromAzure={handleOpenAzureImport}
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((c) => !c)}
@@ -372,6 +391,7 @@ export default function DocumentPageContent({
             setThSeed("");
           }}
           selectedNodePath={selectedPath}
+          selectedNodeId={selectedFile?.id ?? null}
           title="Documents"
           className="h-full! shrink-0"
         />
@@ -453,6 +473,7 @@ export default function DocumentPageContent({
                   fullHeight
                   onChange={handleContentChange}
                   onSave={handleSave}
+                  onUploadImage={handleUploadImage}
                 />
               </div>
             </>

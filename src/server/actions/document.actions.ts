@@ -26,6 +26,17 @@ export async function createCollectionAction(
   }
 }
 
+export async function deleteCollectionAction(
+  collectionId: string,
+): Promise<ActionResult<void>> {
+  try {
+    await documentService.deleteCollection(collectionId);
+    return actionSuccess(undefined);
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 export async function syncCollectionDirectoriesAction(
   collectionId: string,
   directories: TreeNode[],
@@ -57,6 +68,20 @@ export async function saveDocumentContentAction(params: {
 }): Promise<ActionResult<{ id: string }>> {
   try {
     return actionSuccess(await documentService.saveFileContent(params));
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function uploadDocumentImageAction(
+  formData: FormData,
+): Promise<ActionResult<{ path: string }>> {
+  try {
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      return actionFailure(new Error("No image file provided"));
+    }
+    return actionSuccess(await documentService.uploadImage(file));
   } catch (error) {
     return actionFailure(error);
   }
