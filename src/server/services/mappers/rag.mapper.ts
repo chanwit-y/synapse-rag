@@ -18,6 +18,7 @@ export function toRagRecord(
     documentIds: items.map((item) => toIdString(item.id)),
     documentNames: items.map((item) => item.name),
     method: row.method,
+    chunkStrategy: row.chunkStrategy,
     chunkSize: row.chunkSize,
     chunkOverlap: row.chunkOverlap,
     embeddingModel: row.embeddingModel ?? undefined,

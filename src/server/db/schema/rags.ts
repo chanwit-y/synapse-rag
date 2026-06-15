@@ -1,5 +1,9 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { ragMethodValues, ragStatusValues } from "./enums";
+import {
+  ragChunkStrategyValues,
+  ragMethodValues,
+  ragStatusValues,
+} from "./enums";
 import { models } from "./models";
 
 export const rags = sqliteTable("rags", {
@@ -11,6 +15,9 @@ export const rags = sqliteTable("rags", {
   method: text("method", { enum: ragMethodValues })
     .notNull()
     .default("semantic"),
+  chunkStrategy: text("chunk_strategy", { enum: ragChunkStrategyValues })
+    .notNull()
+    .default("fixed"),
   chunkSize: integer("chunk_size").notNull().default(512),
   chunkOverlap: integer("chunk_overlap").notNull().default(50),
   embeddingModel: text("embedding_model"),

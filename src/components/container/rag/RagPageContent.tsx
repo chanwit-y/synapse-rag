@@ -24,6 +24,7 @@ import {
 import type { AiModelRecord } from "@/components/container/ai-model/types";
 import type { DocumentOption } from "./types";
 import type { RagChunkUpsert } from "@/server/services/rag-chunk.service";
+import { CHUNK_STRATEGY_LABELS } from "./mockData";
 
 const METHOD_LABELS: Record<RagMethod, string> = {
   semantic: "Semantic",
@@ -221,11 +222,17 @@ export default function RagPageContent({
       },
       {
         accessorKey: "chunkSize",
-        header: "Chunk size",
+        header: "Chunking",
         cell: ({ row }) => (
-          <span className="font-mono text-xs text-muted-foreground">
-            {row.original.chunkSize} / {row.original.chunkOverlap} overlap
-          </span>
+          <div className="flex flex-col">
+            <span className="text-xs text-foreground">
+              {CHUNK_STRATEGY_LABELS[row.original.chunkStrategy] ??
+                row.original.chunkStrategy}
+            </span>
+            <span className="font-mono text-xs text-muted-foreground">
+              {row.original.chunkSize} / {row.original.chunkOverlap} overlap
+            </span>
+          </div>
         ),
       },
       {
@@ -354,6 +361,7 @@ export default function RagPageContent({
                 name: editing.name,
                 documentIds: editing.documentIds,
                 method: editing.method,
+                chunkStrategy: editing.chunkStrategy,
                 chunkSize: editing.chunkSize,
                 chunkOverlap: editing.chunkOverlap,
                 embeddingModel:
@@ -371,15 +379,24 @@ export default function RagPageContent({
         open={deleteTarget != null}
         onClose={() => setDeleteTarget(null)}
         size="sm"
-        title="Delete RAG configuration?"
+        title="Delete RAG"
         footer={
-          <Flex gap={6} justify="flex-end" style={{ width: "100%" }}>
-            <Button variant="text" onClick={() => setDeleteTarget(null)}>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outlined"
+              color="inherit"
+              size="small"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
             <Button
               variant="contained"
+              color="error"
+              size="small"
               disabled={isLoading}
+              loading={isLoading}
               onClick={() =>
                 void runAction(async () => {
                   if (!deleteTarget) return;
@@ -390,22 +407,19 @@ export default function RagPageContent({
                   await refreshRags();
                 })
               }
-              startIcon={<Trash2 size={16} />}
             >
               Delete
             </Button>
-          </Flex>
+          </div>
         }
       >
-        <div className="flex flex-col gap-2">
-          <Typography variant="body2">
-            This will remove{" "}
-            <span className="font-medium">{deleteTarget?.name}</span>.
-          </Typography>
-          <Typography variant="caption" color="muted">
-            You can create it again later if needed.
-          </Typography>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          This will permanently delete{" "}
+          <span className="font-semibold text-foreground">
+            &quot;{deleteTarget?.name ?? "this RAG"}&quot;
+          </span>
+          .
+        </p>
       </Modal>
     </div>
   );

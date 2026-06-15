@@ -1,5 +1,8 @@
 export type RagMethod = "semantic" | "keyword" | "hybrid";
 
+/** How a document's text is split into chunks before embedding. */
+export type RagChunkStrategy = "fixed" | "recursive" | "markdown" | "sentence";
+
 export type RagStatus = "ready" | "processing" | "failed";
 
 export type RagRecord = {
@@ -8,6 +11,7 @@ export type RagRecord = {
   documentIds: string[];
   documentNames: string[];
   method: RagMethod;
+  chunkStrategy: RagChunkStrategy;
   chunkSize: number;
   chunkOverlap: number;
   embeddingModel?: string;
@@ -46,6 +50,7 @@ export type RagFormValues = {
   name: string;
   documentIds: string[];
   method: RagMethod;
+  chunkStrategy: RagChunkStrategy;
   chunkSize: number;
   chunkOverlap: number;
   embeddingModel: string;

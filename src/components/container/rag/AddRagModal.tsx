@@ -12,9 +12,16 @@ import Flex from "@/components/common/Flex/Flex";
 import Typography from "@/components/common/Typography/Typography";
 import { Layers, Pencil, Sparkles, Trash2 } from "lucide-react";
 import DocumentMultiSelect from "./DocumentMultiSelect";
-import { RAG_METHOD_OPTIONS } from "./mockData";
+import { CHUNK_STRATEGY_OPTIONS, RAG_METHOD_OPTIONS } from "./mockData";
 import { generateChunksFromDocuments, truncatePreview } from "./chunkUtils";
-import type { ChunkRecord, ContentLang, DocumentOption, RagFormValues, RagMethod } from "./types";
+import type {
+  ChunkRecord,
+  ContentLang,
+  DocumentOption,
+  RagChunkStrategy,
+  RagFormValues,
+  RagMethod,
+} from "./types";
 
 function LangBadge({ lang }: { lang: ContentLang }) {
   const isThai = lang === "th";
@@ -36,6 +43,7 @@ const DEFAULT_FORM: RagFormValues = {
   name: "",
   documentIds: [],
   method: "semantic",
+  chunkStrategy: "fixed",
   chunkSize: 512,
   chunkOverlap: 64,
   embeddingModel: "text-embedding-3-small",
@@ -129,7 +137,13 @@ export default function AddRagModal({
     const seedForm = { ...DEFAULT_FORM, ...initialValues };
     const selected = documents.filter((d) => seedForm.documentIds.includes(d.id));
     return selected.length > 0
-      ? generateChunksFromDocuments(selected, seedForm.chunkSize, seedForm.chunkOverlap, "th")
+      ? generateChunksFromDocuments(
+          selected,
+          seedForm.chunkSize,
+          seedForm.chunkOverlap,
+          "th",
+          seedForm.chunkStrategy,
+        )
       : [];
   });
   const [hasChunked, setHasChunked] = useState(() => chunks.length > 0);
@@ -242,11 +256,18 @@ export default function AddRagModal({
       form.chunkSize,
       form.chunkOverlap,
       contentLang,
+      form.chunkStrategy,
     );
     setChunks(normalizeChunkIndices(result));
     setHasChunked(true);
     setIsChunking(false);
-  }, [selectedDocuments, form.chunkSize, form.chunkOverlap]);
+  }, [
+    selectedDocuments,
+    form.chunkSize,
+    form.chunkOverlap,
+    form.chunkStrategy,
+    contentLang,
+  ]);
 
   const canSubmit =
     form.name.trim().length > 0 &&
@@ -329,6 +350,28 @@ export default function AddRagModal({
                 })
               }
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <SelectField
+              variant="outlined"
+              label="Chunk strategy"
+              fullWidth
+              options={CHUNK_STRATEGY_OPTIONS.map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
+              value={form.chunkStrategy}
+              onChange={(value) =>
+                patchForm({
+                  chunkStrategy: (value ?? "fixed") as RagChunkStrategy,
+                })
+              }
+            />
+            <Typography variant="caption" color="muted">
+              How documents are split. Chunk size caps every strategy; oversized
+              sections fall back to a recursive split with overlap.
+            </Typography>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

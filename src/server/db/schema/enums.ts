@@ -41,5 +41,13 @@ export type ModelType = (typeof modelTypeValues)[number];
 export const ragMethodValues = ["semantic", "keyword", "hybrid"] as const;
 export type RagMethod = (typeof ragMethodValues)[number];
 
+export const ragChunkStrategyValues = [
+  "fixed",
+  "recursive",
+  "markdown",
+  "sentence",
+] as const;
+export type RagChunkStrategy = (typeof ragChunkStrategyValues)[number];
+
 export const ragStatusValues = ["ready", "processing", "failed"] as const;
 export type RagStatus = (typeof ragStatusValues)[number];

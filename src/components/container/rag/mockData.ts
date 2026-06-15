@@ -91,6 +91,7 @@ export const INITIAL_RAG_RECORDS: RagRecord[] = [
     documentIds: ["doc-1"],
     documentNames: ["introduction.md"],
     method: "semantic",
+    chunkStrategy: "fixed",
     chunkSize: 512,
     chunkOverlap: 64,
     embeddingModel: "text-embedding-3-small",
@@ -105,6 +106,7 @@ export const INITIAL_RAG_RECORDS: RagRecord[] = [
     documentIds: ["doc-2", "doc-3"],
     documentNames: ["api-reference.md", "best-practices.md"],
     method: "hybrid",
+    chunkStrategy: "markdown",
     chunkSize: 768,
     chunkOverlap: 128,
     embeddingModel: "text-embedding-3-large",
@@ -119,6 +121,7 @@ export const INITIAL_RAG_RECORDS: RagRecord[] = [
     documentIds: ["doc-4"],
     documentNames: ["standup-2025-01.md"],
     method: "keyword",
+    chunkStrategy: "recursive",
     chunkSize: 256,
     chunkOverlap: 32,
     embeddingModel: "text-embedding-3-small",
@@ -134,6 +137,20 @@ export const RAG_METHOD_OPTIONS = [
   { value: "keyword", label: "Keyword (BM25)" },
   { value: "hybrid", label: "Hybrid (semantic + keyword)" },
 ] as const;
+
+export const CHUNK_STRATEGY_OPTIONS = [
+  { value: "fixed", label: "Fixed size (char window)" },
+  { value: "recursive", label: "Recursive (paragraph → sentence)" },
+  { value: "markdown", label: "Markdown (by heading)" },
+  { value: "sentence", label: "Sentence" },
+] as const;
+
+export const CHUNK_STRATEGY_LABELS: Record<string, string> = {
+  fixed: "Fixed",
+  recursive: "Recursive",
+  markdown: "Markdown",
+  sentence: "Sentence",
+};
 
 export const EMBEDDING_MODEL_OPTIONS = [
   { value: "text-embedding-3-small", label: "text-embedding-3-small" },
