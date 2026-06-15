@@ -25,7 +25,11 @@ export interface TreeViewProps {
     nodePath: string,
     groupIndex: number,
   ) => void;
-  onImportFromAzure?: (collectionId: string) => void;
+  onImportFromAzure?: (
+    collectionId: string,
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+  ) => void;
   onRequestDeleteGroup?: (group: TreeViewGroup, groupIndex: number) => void;
   selectedNodePath?: string | null;
   selectedNodeId?: string | null;

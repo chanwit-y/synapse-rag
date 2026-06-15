@@ -35,7 +35,7 @@ export interface FileSidebarProps {
   /** Called to delete an entire collection from the backend. */
   onDeleteCollection?: (collectionId: string) => Promise<void>;
   /** Called when the user clicks "Import from Azure DevOps" for a collection. */
-  onImportFromAzure?: (collectionId: string) => void;
+  onImportFromAzure?: (collectionId: string, folderId: string | null) => void;
 
   collapsed?: boolean;
   onToggleCollapsed: () => void;
@@ -211,6 +211,35 @@ export default function FileSidebar({
     setItemType("folder");
     setItemName("");
     setIsAddItemModalOpen(true);
+  };
+
+  // Resolve which folder an Azure import should land in, from the current tree
+  // selection (mirrors handleAddItem): a selected folder is the target, a
+  // selected file targets its parent folder, and a selection outside this
+  // collection (or none) falls back to the collection root (null).
+  const handleImportFromAzure = (
+    collectionId: string,
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+  ) => {
+    let folderId: string | null = null;
+
+    const group = collections.find((g) => g.id === collectionId);
+    if (group && selectedNode && selectedNodePath) {
+      const segments = selectedNodePath.split("/");
+      const node = findNodeByPath(group.directories, segments);
+      // Only honour the selection if it actually belongs to this collection.
+      if (node && node.id === selectedNode.id) {
+        if (node.type === "folder") {
+          folderId = node.id;
+        } else if (segments.length > 1) {
+          const parent = findNodeByPath(group.directories, segments.slice(0, -1));
+          if (parent && parent.type === "folder") folderId = parent.id;
+        }
+      }
+    }
+
+    onImportFromAzure?.(collectionId, folderId);
   };
 
   const handleCloseAddItemModal = () => {
@@ -511,7 +540,7 @@ export default function FileSidebar({
                 onAddFile={handleAddFile}
                 onAddFolder={handleAddFolder}
                 onRequestDeleteNode={handleRequestDeleteNode}
-                onImportFromAzure={onImportFromAzure}
+                onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
                 onRequestDeleteGroup={
                   onDeleteCollection ? handleRequestDeleteGroup : undefined
                 }

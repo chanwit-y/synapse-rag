@@ -78,6 +78,7 @@ export default function DocumentPageContent({
   const [compareOpen, setCompareOpen] = useState(false);
   const [azureOpen, setAzureOpen] = useState(false);
   const [azureCollectionId, setAzureCollectionId] = useState<string | null>(null);
+  const [azureFolderId, setAzureFolderId] = useState<string | null>(null);
   const [viewLang, setViewLang] = useState<ViewLang>("en");
   const [thContents, setThContents] = useState<Record<string, string>>({});
   const [thSeed, setThSeed] = useState("");
@@ -321,17 +322,26 @@ export default function DocumentPageContent({
     ],
   );
 
-  const handleOpenAzureImport = useCallback((collectionId: string) => {
-    setAzureCollectionId(collectionId);
-    setAzureOpen(true);
-  }, []);
+  const handleOpenAzureImport = useCallback(
+    (collectionId: string, folderId: string | null) => {
+      setAzureCollectionId(collectionId);
+      setAzureFolderId(folderId);
+      setAzureOpen(true);
+    },
+    [],
+  );
 
   const handleImportUserStories = useCallback(
     async (project: string, workItemIds: number[]) => {
       if (!azureCollectionId) return;
       await withLoading(async () => {
         const result = unwrapAction(
-          await importAzureUserStoriesAction(azureCollectionId, project, workItemIds),
+          await importAzureUserStoriesAction(
+            azureCollectionId,
+            project,
+            workItemIds,
+            azureFolderId,
+          ),
         );
         const listResult = await listCollectionsAction();
         if (listResult.success) {
@@ -347,7 +357,7 @@ export default function DocumentPageContent({
         });
       });
     },
-    [azureCollectionId, withLoading, showSnackbar],
+    [azureCollectionId, azureFolderId, withLoading, showSnackbar],
   );
 
   return (

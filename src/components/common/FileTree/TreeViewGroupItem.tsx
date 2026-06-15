@@ -36,7 +36,11 @@ export interface TreeViewGroupItemProps {
     nodePath: string,
     groupIndex: number,
   ) => void;
-  onImportFromAzure?: (collectionId: string) => void;
+  onImportFromAzure?: (
+    collectionId: string,
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+  ) => void;
   onRequestDeleteGroup?: (group: TreeViewGroup, groupIndex: number) => void;
   readOnlyTree?: boolean;
 }
@@ -103,7 +107,7 @@ export default function TreeViewGroupItem({
                 className="p-1 hover:bg-surface rounded transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onImportFromAzure(group.id);
+                  onImportFromAzure(group.id, selectedNode, selectedNodePath);
                 }}
                 title="Import user stories from Azure DevOps"
               >

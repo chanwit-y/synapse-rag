@@ -263,6 +263,7 @@ export class AzureService {
     collectionId: string,
     project: string,
     workItemIds: number[],
+    folderId?: string | null,
   ): Promise<ImportUserStoriesResult> {
     const numericCollectionId = parseId(collectionId);
     if (numericCollectionId == null) {
@@ -272,6 +273,23 @@ export class AzureService {
 
     const collection = await collectionRepository.findById(numericCollectionId);
     assertFound(collection, "Collection not found");
+
+    // Resolve the target sub-folder. Only honour it when it's an existing
+    // folder inside this collection; anything else falls back to the root.
+    let targetFolderId: number | null = null;
+    if (folderId != null) {
+      const numericFolderId = parseId(folderId);
+      if (numericFolderId != null) {
+        const folder = await itemRepository.findById(numericFolderId);
+        if (
+          folder &&
+          folder.collectionId === numericCollectionId &&
+          folder.type === "folder"
+        ) {
+          targetFolderId = numericFolderId;
+        }
+      }
+    }
 
     const ids = [...new Set(workItemIds)].filter((n) => Number.isInteger(n) && n > 0);
     if (ids.length === 0) {
@@ -307,7 +325,7 @@ export class AzureService {
 
       const created = await itemRepository.create({
         collectionId: numericCollectionId,
-        folderId: null,
+        folderId: targetFolderId,
         type: "file",
         name,
         content,

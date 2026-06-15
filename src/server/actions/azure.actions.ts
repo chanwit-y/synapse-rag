@@ -55,10 +55,16 @@ export async function importAzureUserStoriesAction(
   collectionId: string,
   project: string,
   workItemIds: number[],
+  folderId?: string | null,
 ): Promise<ActionResult<ImportUserStoriesResult>> {
   try {
     return actionSuccess(
-      await azureService.importUserStories(collectionId, project, workItemIds),
+      await azureService.importUserStories(
+        collectionId,
+        project,
+        workItemIds,
+        folderId,
+      ),
     );
   } catch (error) {
     return actionFailure(error);
