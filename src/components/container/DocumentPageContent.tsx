@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
-import { FileSidebar } from "@/components/common/FileTree";
+import { FileSidebar, findNodeById, findNodeByPath, flattenFileNodes } from "@/components/common/FileTree";
 import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
 
 // The markdown editor pulls in @uiw/react-md-editor (+ remark/rehype/katex),
@@ -20,7 +20,7 @@ const MarkdownEditor = dynamic(
   },
 );
 import { useLayoutStore } from "@/store/layout-store";
-import { Clock, FileText } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock, FileText } from "lucide-react";
 import ApiLoadingBackdrop from "@/components/common/ApiLoadingBackdrop/ApiLoadingBackdrop";
 import SelectField from "@/components/common/SelectField/SelectField";
 import { useApiLoading } from "@/hooks/useApiLoading";
@@ -88,6 +88,11 @@ export default function DocumentPageContent({
   const [width, setWidth] = useState(280);
   const [selectedFile, setSelectedFile] = useState<TreeNode | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  // Docs you can step back to — only links push here; sidebar selection clears it.
+  const [backStack, setBackStack] = useState<{ id: string; name: string }[]>([]);
+  // Drives a breadcrumb-triggered reveal in the sidebar; tick re-fires repeats.
+  const [reveal, setReveal] = useState<{ id: string; collectionId: string; tick: number } | null>(null);
+  const revealTickRef = useRef(0);
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [editorContent, setEditorContent] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -162,6 +167,96 @@ export default function DocumentPageContent({
     },
     [fileContents, withLoading],
   );
+
+  // Flat list of every file across all collections — the candidate set for
+  // `[[` cross-document links in the editor.
+  const documents = useMemo(
+    () => collections.flatMap((group) => flattenFileNodes(group.directories)),
+    [collections],
+  );
+
+  // Open a document by its item id (from a clicked `?item=` link or a direct
+  // URL). Resolves the node + path across all collections, selects it, and
+  // syncs the URL so the link is shareable. Missing targets surface a notice.
+  // Following a link pushes the current doc onto the back stack; navigating
+  // "back" passes `push: false` so it doesn't grow the stack again.
+  const openItemById = useCallback(
+    (id: string, options?: { push?: boolean }) => {
+      for (const group of collections) {
+        const found = findNodeById(group.directories, id);
+        if (found && found.node.type === "file") {
+          if ((options?.push ?? true) && selectedFile && selectedFile.id !== id) {
+            setBackStack((stack) => [...stack, { id: selectedFile.id, name: selectedFile.name }]);
+          }
+          handleSelectFile(found.node, found.path);
+          window.history.replaceState(null, "", `?item=${id}`);
+          return;
+        }
+      }
+      showSnackbar({
+        variant: "error",
+        message: "Document not found — it may have been deleted.",
+      });
+    },
+    [collections, handleSelectFile, selectedFile, showSnackbar],
+  );
+
+  // Step back to the previous document in the link trail (multi-hop).
+  const goBack = useCallback(() => {
+    if (backStack.length === 0) return;
+    const prev = backStack[backStack.length - 1];
+    setBackStack((stack) => stack.slice(0, -1));
+    openItemById(prev.id, { push: false });
+  }, [backStack, openItemById]);
+
+  // Sidebar selection is a fresh navigation context, so it clears the trail.
+  const handleSidebarSelect = useCallback(
+    (file: TreeNode, path: string) => {
+      setBackStack([]);
+      handleSelectFile(file, path);
+    },
+    [handleSelectFile],
+  );
+
+  // Reveal a breadcrumb segment in the sidebar (expand + scroll + highlight),
+  // opening the sidebar first if it's collapsed.
+  const revealInSidebar = useCallback((id: string, collectionId: string) => {
+    setCollapsed(false);
+    revealTickRef.current += 1;
+    setReveal({ id, collectionId, tick: revealTickRef.current });
+  }, []);
+
+  // Clickable trail for the open doc: Collection › Folder › … › File.md.
+  const breadcrumb = useMemo(() => {
+    if (!selectedFile || !selectedPath) return [];
+    const group = collections.find((g) => g.id === selectedFile.collectionId);
+    const parts = selectedPath.split("/").filter(Boolean);
+    const crumbs: { id: string; label: string }[] = [];
+    if (group) crumbs.push({ id: group.id, label: group.name });
+    const acc: string[] = [];
+    for (const part of parts) {
+      acc.push(part);
+      const node = group ? findNodeByPath(group.directories, [...acc]) : null;
+      crumbs.push({ id: node?.id ?? `${selectedFile.collectionId}:${acc.join("/")}`, label: part });
+    }
+    return crumbs;
+  }, [collections, selectedFile, selectedPath]);
+
+  // On first load, honor a `?item=<id>` deep link by opening that document.
+  // Wait until the document set is actually populated so we don't give up
+  // before the tree has hydrated.
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandled.current) return;
+    const id = new URLSearchParams(window.location.search).get("item");
+    if (!id) {
+      deepLinkHandled.current = true;
+      return;
+    }
+    if (documents.length === 0) return;
+    deepLinkHandled.current = true;
+    openItemById(id);
+  }, [documents, openItemById]);
 
   const handleCreateCollection = useCallback(
     async (name: string): Promise<TreeViewGroup> =>
@@ -457,16 +552,18 @@ export default function DocumentPageContent({
           onToggleCollapsed={() => setCollapsed((c) => !c)}
           width={width}
           onWidthChange={setWidth}
-          onSelectFile={handleSelectFile}
+          onSelectFile={handleSidebarSelect}
           onClearSelection={() => {
             setSelectedFile(null);
             setSelectedPath(null);
             setEditorContent("");
             setViewLang("en");
             setThSeed("");
+            setBackStack([]);
           }}
           selectedNodePath={selectedPath}
           selectedNodeId={selectedFile?.id ?? null}
+          revealTarget={reveal}
           title="Documents"
           className="h-full! shrink-0"
         />
@@ -476,13 +573,43 @@ export default function DocumentPageContent({
             <>
               <div className="shrink-0 border-b border-border px-6 py-4">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h1 className="truncate text-lg font-semibold text-foreground">
-                      {selectedFile.name}
-                    </h1>
-                    <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-                      {selectedPath}
-                    </p>
+                  <div className="flex min-w-0 items-start gap-3">
+                    {backStack.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={goBack}
+                        className="mt-0.5 inline-flex shrink-0 items-center justify-center rounded-md border border-border bg-surface p-2 text-foreground hover:bg-surface/70"
+                        aria-label="Back"
+                        title={`Back to ${backStack[backStack.length - 1].name}`}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </button>
+                    ) : null}
+                    <div className="min-w-0">
+                      <h1 className="truncate text-lg font-semibold text-foreground">
+                        {selectedFile.name}
+                      </h1>
+                      <nav
+                        aria-label="Document path"
+                        className="mt-0.5 flex items-center overflow-x-auto font-mono text-xs text-muted-foreground"
+                      >
+                        {breadcrumb.map((crumb, i) => (
+                          <span key={crumb.id} className="flex shrink-0 items-center">
+                            {i > 0 ? (
+                              <ChevronRight className="mx-0.5 h-3 w-3 shrink-0 opacity-50" />
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => revealInSidebar(crumb.id, selectedFile.collectionId)}
+                              className="max-w-[14rem] truncate rounded px-1 py-0.5 transition-colors hover:bg-surface-strong hover:text-foreground"
+                              title={`Reveal "${crumb.label}" in the sidebar`}
+                            >
+                              {crumb.label}
+                            </button>
+                          </span>
+                        ))}
+                      </nav>
+                    </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {viewLang === "th" && chatModels.length > 1 ? (
@@ -549,6 +676,8 @@ export default function DocumentPageContent({
                   onChange={handleContentChange}
                   onSave={handleSave}
                   onUploadImage={handleUploadImage}
+                  documents={documents}
+                  onOpenItem={openItemById}
                 />
               </div>
             </>

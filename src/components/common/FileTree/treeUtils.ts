@@ -108,6 +108,37 @@ export function findNodeById(
   return null;
 }
 
+/** A flat view of one file node: its id, name, collection-relative path, and owning collection. */
+export interface FlatFileNode {
+  id: string;
+  name: string;
+  /** Collection-relative path, node names joined by "/" (matches the breadcrumb format). */
+  path: string;
+  collectionId: string;
+}
+
+/** Collect every file (not folder) under `nodes` with its collection-relative path. */
+export function flattenFileNodes(
+  nodes: TreeNode[],
+  prefix: string[] = [],
+  out: FlatFileNode[] = [],
+): FlatFileNode[] {
+  for (const node of nodes) {
+    const currentPath = [...prefix, node.name];
+    if (node.type === "file") {
+      out.push({
+        id: node.id,
+        name: node.name,
+        path: currentPath.join("/"),
+        collectionId: node.collectionId,
+      });
+    } else if (node.children?.length) {
+      flattenFileNodes(node.children, currentPath, out);
+    }
+  }
+  return out;
+}
+
 export function removeNodeByIdInPlace(
   nodes: TreeNode[],
   nodeId: string,

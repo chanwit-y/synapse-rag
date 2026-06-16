@@ -36,7 +36,9 @@ import {
   insertAtMdEditorCursor,
   normalizePublicPath,
 } from './editorUtils';
+import { getCaretCoordinates } from './caretCoordinates';
 import type { TreeNode } from '../FileTree/types';
+import type { FlatFileNode } from '../FileTree/treeUtils';
 
 export type MarkdownEditorProps = {
   selectedFile: TreeNode | null;
@@ -49,7 +51,43 @@ export type MarkdownEditorProps = {
   onUploadImage?: (file: File) => Promise<string>;
   onAnalyzeImage?: (file: File, question: string) => Promise<string>;
   onChange?: (value: string) => void;
+  /** Files available as `[[` link targets (all collections). */
+  documents?: FlatFileNode[];
+  /** Called when an internal `?item=<id>` link is clicked in the preview. */
+  onOpenItem?: (id: string) => void;
 };
+
+/** Internal cross-document link href, e.g. `?item=42`. */
+const INTERNAL_LINK_RE = /^\?item=([^&#]+)$/;
+/** How many `[[` suggestions to show at once. */
+const MENTION_LIMIT = 8;
+
+type MentionState = {
+  open: boolean;
+  /** Index in the textarea value where the triggering `[[` starts. */
+  triggerStart: number;
+  query: string;
+  items: FlatFileNode[];
+  activeIndex: number;
+  /** Viewport coords for the dropdown's top-left. */
+  x: number;
+  y: number;
+};
+
+const MENTION_CLOSED: MentionState = {
+  open: false,
+  triggerStart: 0,
+  query: '',
+  items: [],
+  activeIndex: 0,
+  x: 0,
+  y: 0,
+};
+
+/** Escape `[` and `]` so a path used as link text can't break the markdown link. */
+function escapeLinkText(text: string): string {
+  return text.replace(/([[\]])/g, '\\$1');
+}
 
 type TooltipState = {
   visible: boolean;
@@ -195,6 +233,8 @@ export default function MarkdownEditor({
   onUploadImage,
   onAnalyzeImage,
   onChange,
+  documents,
+  onOpenItem,
 }: MarkdownEditorProps) {
   const { showSnackbar } = useSnackbar();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -271,6 +311,124 @@ export default function MarkdownEditor({
     },
     [setValue]
   );
+
+  // --- `[[` cross-document link autocomplete --------------------------------
+  const [mention, setMention] = useState<MentionState>(MENTION_CLOSED);
+  const mentionRef = useLatestRef(mention);
+  const mentionPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Recompute the `[[` suggestion menu from the current caret context. Called
+  // on every value change; opens when the caret sits inside an unclosed `[[…`.
+  const updateMention = useCallback(() => {
+    const docs = documents;
+    const textarea = document.querySelector('.w-md-editor-text-input') as HTMLTextAreaElement | null;
+    if (!docs || docs.length === 0 || !textarea) {
+      setMention((m) => (m.open ? MENTION_CLOSED : m));
+      return;
+    }
+
+    const caret = textarea.selectionStart ?? 0;
+    const before = textarea.value.slice(0, caret);
+    const open = before.lastIndexOf('[[');
+    // A trigger is active only when an unclosed `[[` precedes the caret with no
+    // intervening `]`, newline, or another `[`.
+    if (open === -1 || /[[\]\n]/.test(before.slice(open + 2))) {
+      setMention((m) => (m.open ? MENTION_CLOSED : m));
+      return;
+    }
+
+    const query = before.slice(open + 2);
+    const lower = query.toLowerCase();
+    const currentId = selectedFile?.id ?? null;
+    const currentCollection = selectedFile?.collectionId ?? null;
+
+    const matches = docs
+      .filter((d) => d.id !== currentId && d.name.toLowerCase().includes(lower))
+      .sort((a, b) => {
+        const ac = a.collectionId === currentCollection ? 0 : 1;
+        const bc = b.collectionId === currentCollection ? 0 : 1;
+        if (ac !== bc) return ac - bc;
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, MENTION_LIMIT);
+
+    if (matches.length === 0) {
+      setMention((m) => (m.open ? MENTION_CLOSED : m));
+      return;
+    }
+
+    const coords = getCaretCoordinates(textarea, open);
+    const rect = textarea.getBoundingClientRect();
+    setMention({
+      open: true,
+      triggerStart: open,
+      query,
+      items: matches,
+      activeIndex: 0,
+      x: rect.left + coords.left,
+      y: rect.top + coords.top + coords.height,
+    });
+  }, [documents, selectedFile]);
+
+  // Replace the `[[query` trigger with a standard markdown link to `doc`.
+  const insertMentionLink = useCallback(
+    (doc: FlatFileNode, triggerStart: number) => {
+      setMention(MENTION_CLOSED);
+      const textarea = document.querySelector('.w-md-editor-text-input') as HTMLTextAreaElement | null;
+      if (!textarea) return;
+
+      const caret = textarea.selectionStart ?? textarea.value.length;
+      const link = `[${escapeLinkText(doc.path)}](?item=${doc.id})`;
+      const before = textarea.value.slice(0, triggerStart);
+      const after = textarea.value.slice(caret);
+      const next = before + link + after;
+
+      setValue(next);
+      onChange?.(next);
+
+      const newCaret = before.length + link.length;
+      setTimeout(() => {
+        const ta = document.querySelector('.w-md-editor-text-input') as HTMLTextAreaElement | null;
+        if (!ta) return;
+        ta.focus();
+        ta.setSelectionRange(newCaret, newCaret);
+      }, 10);
+    },
+    [onChange, setValue]
+  );
+
+  // Keyboard navigation while the menu is open (arrows/Enter/Tab/Escape).
+  useEffect(() => {
+    if (!mention.open) return;
+    const textarea = document.querySelector('.w-md-editor-text-input') as HTMLTextAreaElement | null;
+    if (!textarea) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const current = mentionRef.current;
+      if (!current.open || current.items.length === 0) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMention((m) => ({ ...m, activeIndex: (m.activeIndex + 1) % m.items.length }));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMention((m) => ({
+          ...m,
+          activeIndex: (m.activeIndex - 1 + m.items.length) % m.items.length,
+        }));
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        const doc = current.items[current.activeIndex];
+        if (doc) insertMentionLink(doc, current.triggerStart);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setMention(MENTION_CLOSED);
+      }
+    };
+
+    textarea.addEventListener('keydown', onKeyDown, true);
+    return () => textarea.removeEventListener('keydown', onKeyDown, true);
+  }, [mention.open, mentionRef, insertMentionLink]);
+  // --------------------------------------------------------------------------
 
   const openAtToolbarButton = useCallback(
     (ariaLabel: string, setPopover: (s: PositionedPopoverState) => void) => {
@@ -484,8 +642,9 @@ export default function MarkdownEditor({
       const newValue = val || '';
       setValue(newValue);
       onChange?.(newValue);
+      updateMention();
     },
-    [onChange]
+    [onChange, updateMention]
   );
 
   const saveCommand = useMemo<ICommand>(
@@ -655,11 +814,21 @@ export default function MarkdownEditor({
       ) {
         setHeadingPopover({ visible: false, x: 0, y: 0 });
       }
+
+      // Close the `[[` menu on any click outside its dropdown (including the
+      // textarea, since moving the caret away ends the trigger context).
+      if (
+        mentionRef.current.open &&
+        mentionPopoverRef.current &&
+        !mentionPopoverRef.current.contains(target)
+      ) {
+        setMention(MENTION_CLOSED);
+      }
     };
 
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
-  }, [headingPopover.visible, imageUploadPopover.visible, linkPopover.visible]);
+  }, [headingPopover.visible, imageUploadPopover.visible, linkPopover.visible, mentionRef]);
 
   const previewComponents = useMemo(
     () => ({
@@ -675,9 +844,30 @@ export default function MarkdownEditor({
           {...props}
         />
       ),
-      a: ({ ...props }: AnchorHTMLAttributes<HTMLAnchorElement>) => (
-        <a style={{ color: '#0BA6DF', fontSize: '.95rem' }} {...props} />
-      ),
+      a: ({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement>) => {
+        const match = typeof href === 'string' ? INTERNAL_LINK_RE.exec(href) : null;
+        if (match && onOpenItem) {
+          const id = decodeURIComponent(match[1]);
+          return (
+            <a
+              href={href}
+              style={{ color: '#0BA6DF', fontSize: '.95rem', cursor: 'pointer' }}
+              onClick={(e) => {
+                e.preventDefault();
+                onOpenItem(id);
+              }}
+              {...props}
+            >
+              {children}
+            </a>
+          );
+        }
+        return (
+          <a href={href} style={{ color: '#0BA6DF', fontSize: '.95rem' }} {...props}>
+            {children}
+          </a>
+        );
+      },
       img: ({ src, alt, ...props }: ImgHTMLAttributes<HTMLImageElement>) => {
         let imageSrc = typeof src === 'string' ? src : undefined;
         if (imageSrc?.startsWith('/api/upload/')) imageSrc = imageSrc.replace('/api/upload/', '/upload/');
@@ -726,7 +916,7 @@ export default function MarkdownEditor({
         );
       },
     }),
-    [theme]
+    [theme, onOpenItem]
   );
 
   const commands = useMemo(
@@ -897,6 +1087,33 @@ export default function MarkdownEditor({
             <option value="5">Heading 5</option>
             <option value="6">Heading 6</option>
           </select>
+        </div>
+      )}
+
+      {mention.open && (
+        <div
+          ref={mentionPopoverRef}
+          className="md-mention-popover"
+          style={{ position: 'fixed', left: `${mention.x}px`, top: `${mention.y}px` }}
+        >
+          {mention.items.map((doc, i) => (
+            <button
+              key={doc.id}
+              type="button"
+              className={`md-mention-item${i === mention.activeIndex ? ' is-active' : ''}`}
+              // Keep textarea focus so the caret/selection survives the click.
+              onMouseDown={(e) => {
+                e.preventDefault();
+                insertMentionLink(doc, mention.triggerStart);
+              }}
+              onMouseEnter={() => setMention((m) => ({ ...m, activeIndex: i }))}
+            >
+              <span className="md-mention-name">{doc.name}</span>
+              {doc.path !== doc.name ? (
+                <span className="md-mention-path">{doc.path}</span>
+              ) : null}
+            </button>
+          ))}
         </div>
       )}
     </div>

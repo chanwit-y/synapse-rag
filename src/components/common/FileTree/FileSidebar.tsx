@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -71,6 +71,12 @@ export interface FileSidebarProps {
   onClearSelection?: () => void;
   selectedNodePath?: string | null;
   selectedNodeId?: string | null;
+  /**
+   * Reveal a node/collection in the tree (e.g. from a breadcrumb click):
+   * expands its collection, scrolls it into view and briefly highlights it.
+   * `id` is a node id or a collection id; `tick` re-triggers a repeat reveal.
+   */
+  revealTarget?: { id: string; collectionId: string; tick: number } | null;
   isLoading?: boolean;
   readOnlyTree?: boolean;
   title?: string;
@@ -96,12 +102,38 @@ export default function FileSidebar({
   onClearSelection,
   selectedNodePath,
   selectedNodeId,
+  revealTarget,
   isLoading = false,
   readOnlyTree,
   title = "Collection",
   className,
 }: FileSidebarProps) {
   const { showSnackbar } = useSnackbar();
+
+  const asideRef = useRef<HTMLElement | null>(null);
+  // Force a collection open / highlight a row while a breadcrumb reveal is active.
+  const [forceExpandGroupId, setForceExpandGroupId] = useState<string | null>(null);
+  const [highlightNodeId, setHighlightNodeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!revealTarget) return;
+    setForceExpandGroupId(revealTarget.collectionId);
+    setHighlightNodeId(revealTarget.id);
+    // Expansion may animate, so scroll on the next frame once the row exists.
+    const raf = requestAnimationFrame(() => {
+      const root = asideRef.current;
+      if (!root) return;
+      const sel = `[data-node-id="${CSS.escape(revealTarget.id)}"]`;
+      const groupSel = `[data-group-id="${CSS.escape(revealTarget.id)}"]`;
+      const el = root.querySelector(sel) ?? root.querySelector(groupSel);
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+    const clear = setTimeout(() => setHighlightNodeId(null), 1500);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(clear);
+    };
+  }, [revealTarget]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [collectionName, setCollectionName] = useState("");
@@ -700,6 +732,7 @@ export default function FileSidebar({
   return (
     <>
       <aside
+        ref={asideRef}
         className={`relative flex flex-col h-[calc(100vh-4rem)] overflow-hidden
           border-r border-border bg-background ${className ?? ""}`}
         style={{
@@ -770,6 +803,9 @@ export default function FileSidebar({
                 selectedNodePath={selectedNodePath}
                 selectedNodeId={selectedNodeId}
                 readOnlyTree={readOnlyTree}
+                highlightNodeId={highlightNodeId}
+                forceExpandGroupId={forceExpandGroupId}
+                revealTick={revealTarget?.tick}
               />
             ) : (
               <DndContext
@@ -802,6 +838,9 @@ export default function FileSidebar({
                   selectedNodePath={selectedNodePath}
                   selectedNodeId={selectedNodeId}
                   readOnlyTree={readOnlyTree}
+                  highlightNodeId={highlightNodeId}
+                  forceExpandGroupId={forceExpandGroupId}
+                  revealTick={revealTarget?.tick}
                 />
                 <DragOverlay dropAnimation={null}>
                   {activeDrag ? (

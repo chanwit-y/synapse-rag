@@ -40,6 +40,10 @@ export interface TreeNodeItemProps {
   ) => void;
   onCancelRename?: () => void;
   readOnlyTree?: boolean;
+  /** Id of a node to highlight briefly (e.g. revealed from a breadcrumb click). */
+  highlightNodeId?: string | null;
+  /** Whether this node is the last among its siblings (drives the └ terminator). */
+  isLast?: boolean;
 }
 
 export default function TreeNodeItem({
@@ -59,6 +63,8 @@ export default function TreeNodeItem({
   onSubmitRenameNode,
   onCancelRename,
   readOnlyTree,
+  highlightNodeId,
+  isLast,
 }: TreeNodeItemProps) {
   const isEditing = !readOnlyTree && editingNodeId === node.id;
   const [isExpanded, setIsExpanded] = useState(false);
@@ -67,6 +73,16 @@ export default function TreeNodeItem({
   const isFile = node.type === "file";
   const indentLevel = level > 0 ? level * 20 + 8 : 8;
   const isSelected = selectedNodePath === nodePath;
+  const isHighlighted = !!highlightNodeId && highlightNodeId === node.id;
+
+  // Tree connector geometry. Each node draws its own elbow joining it to the
+  // parent trunk: a vertical stub down to the row centre, a horizontal tick to
+  // the row, and (only when this isn't the last sibling) a continuation that
+  // carries the trunk past this node's subtree to the next sibling. Omitting
+  // the continuation on the last sibling yields the └ terminator.
+  const GUIDE_W = 12; // elbow stub width
+  const ROW_HALF = 16; // approx vertical centre of a row
+  const trunkX = indentLevel - GUIDE_W;
 
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } =
     useDraggable({
@@ -129,7 +145,27 @@ export default function TreeNodeItem({
   };
 
   return (
-    <div>
+    <div className="relative">
+      {/* vertical stub from the top of this node down to the elbow */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute border-l border-dotted border-border"
+        style={{ left: trunkX, top: 0, height: ROW_HALF }}
+      />
+      {/* horizontal elbow tick joining the trunk to this row */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute border-t border-dotted border-border"
+        style={{ left: trunkX, top: ROW_HALF, width: GUIDE_W }}
+      />
+      {/* continuation: carry the trunk past this node to the next sibling */}
+      {!isLast && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute border-l border-dotted border-border"
+          style={{ left: trunkX, top: ROW_HALF, bottom: 0 }}
+        />
+      )}
       <div
         ref={setRowRef}
         {...(isEditing ? {} : attributes)}
@@ -140,11 +176,12 @@ export default function TreeNodeItem({
             : isSelected
               ? "bg-accent/10 text-accent dark:bg-accent/20 dark:text-brand-100"
               : "hover:bg-surface-strong text-foreground"
-        } ${isDragging ? "opacity-40" : ""}`}
+        } ${isHighlighted ? "ring-2 ring-inset ring-accent/70" : ""} ${isDragging ? "opacity-40" : ""}`}
         style={{ paddingLeft: `${indentLevel}px` }}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         data-tree-interactive="true"
+        data-node-id={node.id}
       >
         {isFolder && hasChildren && (
           <span className="flex items-center justify-center w-4 h-4">
@@ -213,17 +250,18 @@ export default function TreeNodeItem({
           style={{ transitionProperty: "max-height, opacity" }}
         >
           <div
-            className={`transform transition-all duration-300 ease-in-out ml-3 border-l border-dotted border-border ${
+            className={`transform transition-all duration-300 ease-in-out ml-3 ${
               isExpanded
                 ? "translate-y-0 opacity-100"
                 : "-translate-y-4 opacity-0"
             }`}
           >
-            {node.children!.map((child) => (
+            {node.children!.map((child, childIndex) => (
               <TreeNodeItem
                 key={child.id}
                 node={child}
                 level={level + 1}
+                isLast={childIndex === node.children!.length - 1}
                 onNodeClick={onNodeClick}
                 selectedNodePath={selectedNodePath}
                 setSelectedNodePath={setSelectedNodePath}
@@ -238,6 +276,7 @@ export default function TreeNodeItem({
                 onSubmitRenameNode={onSubmitRenameNode}
                 onCancelRename={onCancelRename}
                 readOnlyTree={readOnlyTree}
+                highlightNodeId={highlightNodeId}
               />
             ))}
           </div>

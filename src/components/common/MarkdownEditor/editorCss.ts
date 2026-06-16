@@ -351,4 +351,63 @@ body .w-md-editor-text-input {
 @keyframes spinUpload {
   to { transform: rotate(360deg); }
 }
+
+/* Cross-document link autocomplete (the [[ menu) */
+.md-mention-popover {
+  position: fixed;
+  z-index: 1003;
+  min-width: 220px;
+  max-width: 360px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.dark .md-mention-popover {
+  background: #1f1f1f;
+  border-color: #404040;
+}
+
+.md-mention-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.md-mention-item.is-active,
+.md-mention-item:hover {
+  background-color: rgba(11, 166, 223, 0.12);
+}
+
+.md-mention-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.dark .md-mention-name {
+  color: #ededed;
+}
+
+.md-mention-path {
+  font-size: 0.72rem;
+  color: #888;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.dark .md-mention-path {
+  color: #9a9a9a;
+}
 `;

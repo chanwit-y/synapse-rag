@@ -61,6 +61,12 @@ export interface TreeViewGroupItemProps {
     value: string,
   ) => void;
   readOnlyTree?: boolean;
+  /** Id of a node/collection to highlight briefly when revealed. */
+  highlightNodeId?: string | null;
+  /** When this matches the group id, force the group open (breadcrumb reveal). */
+  forceExpandGroupId?: string | null;
+  /** Bumped on each reveal so a repeat reveal of the same group re-expands it. */
+  revealTick?: number;
 }
 
 export default function TreeViewGroupItem({
@@ -84,11 +90,19 @@ export default function TreeViewGroupItem({
   onStartRenameGroup,
   onSubmitRenameGroup,
   readOnlyTree,
+  highlightNodeId,
+  forceExpandGroupId,
+  revealTick,
 }: TreeViewGroupItemProps) {
   const isEditingGroup = !readOnlyTree && editingCollectionId === group.id;
   const [isExpanded, setIsExpanded] = useState(true);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [contentHeight, setContentHeight] = useState<number>(0);
+
+  // A breadcrumb reveal forces this collection open if it was collapsed.
+  useEffect(() => {
+    if (revealTick && forceExpandGroupId === group.id) setIsExpanded(true);
+  }, [revealTick, forceExpandGroupId, group.id]);
 
   // Root drop zone: dropping here moves an item to the collection's top level.
   const { setNodeRef: setRootDropRef, isOver: isOverRoot } = useDroppable({
@@ -119,9 +133,12 @@ export default function TreeViewGroupItem({
   return (
     <div>
       <div
-        className="flex items-center justify-between px-2 py-2 text-xs font-semibold
+        className={`flex items-center justify-between px-2 py-2 text-xs font-semibold
           text-muted-foreground uppercase tracking-wide
-          hover:bg-surface-strong cursor-pointer transition-colors"
+          hover:bg-surface-strong cursor-pointer transition-colors ${
+            highlightNodeId === group.id ? "ring-2 ring-inset ring-accent/70" : ""
+          }`}
+        data-group-id={group.id}
         onClick={() => {
           if (!isEditingGroup) setIsExpanded(!isExpanded);
         }}
@@ -231,15 +248,16 @@ export default function TreeViewGroupItem({
       >
         <div
           ref={setContentRefs}
-          className={`pt-1 pl-4 ml-3 border-l border-dotted transition-colors ${
-            isOverRoot ? "border-accent/60 bg-accent/5" : "border-border"
+          className={`pt-1 pl-4 ml-3 rounded transition-colors ${
+            isOverRoot ? "bg-accent/5 ring-1 ring-accent/40" : ""
           }`}
         >
-          {group.directories.map((node) => (
+          {group.directories.map((node, nodeIndex) => (
             <TreeNodeItem
               key={node.id}
               node={node}
               level={0}
+              isLast={nodeIndex === group.directories.length - 1}
               onNodeClick={onNodeClick}
               selectedNodePath={selectedNodePath}
               setSelectedNodePath={setSelectedNodePath}
@@ -254,6 +272,7 @@ export default function TreeViewGroupItem({
               onSubmitRenameNode={onSubmitRenameNode}
               onCancelRename={onCancelRename}
               readOnlyTree={readOnlyTree}
+              highlightNodeId={highlightNodeId}
             />
           ))}
         </div>

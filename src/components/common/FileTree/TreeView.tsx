@@ -50,6 +50,12 @@ export interface TreeViewProps {
   selectedNodePath?: string | null;
   selectedNodeId?: string | null;
   readOnlyTree?: boolean;
+  /** Id of a node/collection to highlight briefly when revealed. */
+  highlightNodeId?: string | null;
+  /** Collection id to force open on reveal. */
+  forceExpandGroupId?: string | null;
+  /** Bumped on each reveal so repeats re-trigger expansion. */
+  revealTick?: number;
 }
 
 export default function TreeView({
@@ -70,6 +76,9 @@ export default function TreeView({
   selectedNodePath: externalSelectedNodePath,
   selectedNodeId: externalSelectedNodeId,
   readOnlyTree,
+  highlightNodeId,
+  forceExpandGroupId,
+  revealTick,
 }: TreeViewProps) {
   const [selectedNodePath, setSelectedNodePath] = useState<string | null>(
     externalSelectedNodePath ?? null,
@@ -137,6 +146,9 @@ export default function TreeView({
             onStartRenameGroup={onStartRenameGroup}
             onSubmitRenameGroup={onSubmitRenameGroup}
             readOnlyTree={readOnlyTree}
+            highlightNodeId={highlightNodeId}
+            forceExpandGroupId={forceExpandGroupId}
+            revealTick={revealTick}
           />
         ))}
       </div>

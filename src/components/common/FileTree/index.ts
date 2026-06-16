@@ -18,6 +18,8 @@ export {
   applyIconsToNodes,
   findNodeByPath,
   findNodeById,
+  flattenFileNodes,
   removeNodeByIdInPlace,
   getSiblingContainerList,
 } from "./treeUtils";
+export type { FlatFileNode } from "./treeUtils";
