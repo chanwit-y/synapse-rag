@@ -5,6 +5,7 @@ import {
   aiInstructionService,
   getChatModelFromDb,
   getEmbeddingsFromDb,
+  queryExpansionService,
 } from "@/server/services";
 import {
   itemRepository,
@@ -45,6 +46,9 @@ export type LangChainRagChatOutput = {
 
 /** Max source images offered to the model for a single answer. */
 const MAX_SOURCE_IMAGES = 6;
+
+/** Reciprocal Rank Fusion constant — dampens the contribution of lower ranks. */
+const RRF_K = 60;
 
 /** Markdown image: ![alt](src "title") — src up to the first space or ')'. */
 const MD_IMAGE_RE = /!\[([^\]]*)\]\(\s*(<[^>]+>|[^)\s]+)[^)]*\)/g;
@@ -153,20 +157,46 @@ export async function chatWithRagFromDbAction(
       const embeddings = await getEmbeddingsFromDb(embeddingModel.id, {
         model: embeddingModel.modelId,
       });
-      const [queryVector] = await embeddings.embedDocuments([prompt]);
 
-      const chunks = await ragChunkRepository.findSimilarByRagIds(
-        ragIdsNumeric,
-        queryVector ?? [],
-        topK,
+      // Multi-query retrieval: search the original query plus a few alternative
+      // phrasings, then fuse the ranked lists with RRF to widen recall. Expansion
+      // is best-effort — an empty list degrades to searching the original alone.
+      const expansions = await queryExpansionService.expandQuery(prompt, input.modelId);
+      const queries = [prompt, ...expansions];
+
+      const vectors = await embeddings.embedDocuments(queries);
+
+      const searches = await Promise.allSettled(
+        vectors.map((vector) =>
+          ragChunkRepository.findSimilarByRagIds(ragIdsNumeric, vector ?? [], topK),
+        ),
       );
 
-      contextChunks = chunks.map((c) => ({
-        ragId: String(c.ragId),
-        chunkId: String(c.id),
-        content: c.content,
-        metadata: (c.metadata ?? null) as Record<string, unknown> | null,
-      }));
+      // Reciprocal Rank Fusion: a chunk surfacing across multiple phrasings (or
+      // high in any one) ranks higher. Only rank is needed, which the repo gives us.
+      const fused = new Map<
+        number,
+        { score: number; chunk: Awaited<ReturnType<typeof ragChunkRepository.findSimilarByRagIds>>[number] }
+      >();
+      for (const search of searches) {
+        if (search.status !== "fulfilled") continue;
+        search.value.forEach((chunk, rank) => {
+          const contribution = 1 / (RRF_K + rank + 1);
+          const existing = fused.get(chunk.id);
+          if (existing) existing.score += contribution;
+          else fused.set(chunk.id, { score: contribution, chunk });
+        });
+      }
+
+      contextChunks = [...fused.values()]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, topK)
+        .map(({ chunk: c }) => ({
+          ragId: String(c.ragId),
+          chunkId: String(c.id),
+          content: c.content,
+          metadata: (c.metadata ?? null) as Record<string, unknown> | null,
+        }));
     }
 
     // Images live in the source documents but chunking can drop the `![](...)`

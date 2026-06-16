@@ -5,6 +5,7 @@ export { AiInstructionService, aiInstructionService } from "./ai-instruction.ser
 export { AiModelService, aiModelService } from "./ai-model.service";
 export { RagService, ragService } from "./rag.service";
 export { RagChunkService, ragChunkService } from "./rag-chunk.service";
+export { QueryExpansionService, queryExpansionService } from "./query-expansion.service";
 export { DocumentService, documentService } from "./document.service";
 export { AzureService, azureService } from "./azure";
 export type {
