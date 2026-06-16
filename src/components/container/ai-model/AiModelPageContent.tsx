@@ -369,35 +369,45 @@ export default function AiModelPageContent({
         open={deleteTarget != null}
         onClose={() => setDeleteTarget(null)}
         size="sm"
-        title="Delete AI model?"
+        title="Delete AI model"
         footer={
-          <Flex gap={6} justify="flex-end" style={{ width: "100%" }}>
-            <Button variant="text" onClick={() => setDeleteTarget(null)} disabled={isLoading}>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outlined"
+              color="inherit"
+              size="small"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
             <Button
               variant="contained"
+              color="error"
+              size="small"
               onClick={handleDeleteModel}
               disabled={isLoading}
-              startIcon={<Trash2 size={16} />}
+              loading={isLoading}
             >
               Delete
             </Button>
-          </Flex>
+          </div>
         }
       >
         <div className="flex flex-col gap-2">
-          <Typography variant="body2">
-            This will remove <span className="font-medium">{deleteTarget?.name}</span>.
-          </Typography>
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete{" "}
+            <span className="font-semibold text-foreground">
+              &quot;{deleteTarget?.name ?? "this model"}&quot;
+            </span>
+            .
+          </p>
           {deleteTarget?.isDefault && (
-            <Typography variant="caption" color="muted">
-              This model is marked as default. You may want to set another default after deleting.
-            </Typography>
+            <p className="text-sm text-muted-foreground">
+              This model is marked as default. You may want to set another
+              default after deleting.
+            </p>
           )}
-          <Typography variant="caption" color="muted">
-            You can add it again later if needed.
-          </Typography>
         </div>
       </Modal>
     </div>

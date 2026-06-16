@@ -284,31 +284,38 @@ export default function ApiKeyPageContent({
         open={deleteTarget != null}
         onClose={() => setDeleteTarget(null)}
         size="sm"
-        title="Delete API key?"
+        title="Delete API key"
         footer={
-          <Flex gap={6} justify="flex-end" style={{ width: "100%" }}>
-            <Button variant="text" onClick={() => setDeleteTarget(null)} disabled={isLoading}>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outlined"
+              color="inherit"
+              size="small"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
             <Button
               variant="contained"
+              color="error"
+              size="small"
               onClick={() => void handleDeleteKey()}
               disabled={isLoading}
-              startIcon={<Trash2 size={16} />}
+              loading={isLoading}
             >
               Delete
             </Button>
-          </Flex>
+          </div>
         }
       >
-        <div className="flex flex-col gap-2">
-          <Typography variant="body2">
-            This will remove <span className="font-medium">{deleteTarget?.name}</span>.
-          </Typography>
-          <Typography variant="caption" color="muted">
-            You can add it again later if needed.
-          </Typography>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          This will permanently delete{" "}
+          <span className="font-semibold text-foreground">
+            &quot;{deleteTarget?.name ?? "this API key"}&quot;
+          </span>
+          .
+        </p>
       </Modal>
     </div>
   );
