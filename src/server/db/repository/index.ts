@@ -29,6 +29,13 @@ export {
 } from "./api-key.repository";
 
 export {
+  AiInstructionRepository,
+  aiInstructionRepository,
+  type AiInstruction,
+  type NewAiInstruction,
+} from "./ai-instruction.repository";
+
+export {
   ModelRepository,
   modelRepository,
   type Model,

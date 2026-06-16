@@ -1,6 +1,8 @@
 "use server";
 
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {
+  aiInstructionService,
   getChatModelFromDb,
   getEmbeddingsFromDb,
 } from "@/server/services";
@@ -21,6 +23,8 @@ export type LangChainRagChatInput = {
   prompt: string;
   ragIds: string[];
   topK?: number;
+  /** Optional AI instruction template id — its content is injected as a system prompt. */
+  instructionId?: string | null;
 };
 
 export type LangChainRagChatOutput = {
@@ -122,8 +126,16 @@ export async function chatWithRagFromDbAction(
           ].join("\n")
         : prompt;
 
+    const instruction = input.instructionId
+      ? (await aiInstructionService.getContent(input.instructionId)).trim()
+      : "";
+
     const llm = await getChatModelFromDb(input.modelId);
-    const result = await llm.invoke(contextBlock);
+    const result = await llm.invoke(
+      instruction
+        ? [new SystemMessage(instruction), new HumanMessage(contextBlock)]
+        : contextBlock,
+    );
 
     return actionSuccess({
       content: normalizeMessageContent(result.content),

@@ -15,6 +15,7 @@ import {
   Cpu,
   Loader2,
   RefreshCw,
+  ScrollText,
   Send,
   Sparkles,
   User,
@@ -36,6 +37,7 @@ const ChatMarkdown = dynamic(
 );
 import type { RagRecord } from "@/components/container/rag/types";
 import type { AiModelRecord } from "@/components/container/ai-model/types";
+import type { AiInstructionRecord } from "@/components/container/ai-instruction/types";
 import { chatWithRagFromDbAction } from "@/server/actions";
 
 function subscribeToColorScheme(callback: () => void) {
@@ -86,9 +88,11 @@ function sleep(ms: number) {
 export default function HomeChat({
   rags,
   chatModels,
+  instructions,
 }: {
   rags: RagRecord[];
   chatModels: AiModelRecord[];
+  instructions: AiInstructionRecord[];
 }) {
   const ragOptions = useMemo(
     () =>
@@ -115,6 +119,14 @@ export default function HomeChat({
     [chatModels],
   );
 
+  const instructionOptions = useMemo(
+    () => [
+      { value: "", label: "None" },
+      ...instructions.map((i) => ({ value: i.id, label: i.name })),
+    ],
+    [instructions],
+  );
+
   const defaultModelId =
     chatModels.find((m) => m.isDefault && m.status === "active")?.id ??
     chatModels.find((m) => m.status === "active")?.id ??
@@ -123,6 +135,7 @@ export default function HomeChat({
 
   const [selectedRagIds, setSelectedRagIds] = useState<(string | number)[]>([]);
   const [modelId, setModelId] = useState<string | number | null>(defaultModelId);
+  const [instructionId, setInstructionId] = useState<string | number | null>("");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
@@ -199,6 +212,7 @@ export default function HomeChat({
           prompt: trimmed,
           ragIds: selectedRagIds.map(String),
           topK: 8,
+          instructionId: instructionId ? String(instructionId) : null,
         });
 
         if (!result.success) {
@@ -227,7 +241,7 @@ export default function HomeChat({
         inputRef.current?.focus();
       }
     },
-    [isSending, modelId, selectedRagIds, typeIntoAssistantMessage],
+    [isSending, modelId, selectedRagIds, instructionId, typeIntoAssistantMessage],
   );
 
   const send = useCallback(() => sendPrompt(input), [input, sendPrompt]);
@@ -340,6 +354,23 @@ export default function HomeChat({
                 options={modelOptions}
                 value={modelId}
                 onChange={setModelId}
+                fullWidth
+              />
+            </ToolbarField>
+
+            <ToolbarField
+              icon={<ScrollText size={13} />}
+              label="Instruction"
+              active={Boolean(instructionId)}
+            >
+              <SelectField
+                size="small"
+                placeholder={
+                  instructions.length ? "Select instruction" : "No instructions"
+                }
+                options={instructionOptions}
+                value={instructionId ?? ""}
+                onChange={setInstructionId}
                 fullWidth
               />
             </ToolbarField>

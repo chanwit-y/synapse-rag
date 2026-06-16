@@ -9,6 +9,14 @@ export {
 } from "./api-key.actions";
 
 export {
+  listAiInstructionsAction,
+  listActiveAiInstructionsAction,
+  createAiInstructionAction,
+  updateAiInstructionAction,
+  deleteAiInstructionAction,
+} from "./ai-instruction.actions";
+
+export {
   listAiModelsAction,
   listEmbeddingModelsAction,
   listChatModelsAction,

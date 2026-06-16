@@ -35,6 +35,10 @@ export function isModelProvider(value: ApiKeyProvider): value is ModelProvider {
 export const activeStatusValues = ["active", "inactive"] as const;
 export type ActiveStatus = (typeof activeStatusValues)[number];
 
+/** Status for an AI instruction template (same shape as activeStatusValues). */
+export const aiInstructionStatusValues = ["active", "inactive"] as const;
+export type AiInstructionStatus = (typeof aiInstructionStatusValues)[number];
+
 export const modelTypeValues = ["chat", "embedding", "completion"] as const;
 export type ModelType = (typeof modelTypeValues)[number];
 

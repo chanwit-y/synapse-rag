@@ -1,6 +1,7 @@
 export { ServiceError, assertFound, maskKey, parseId, toIdString, toIsoString } from "./utils";
 
 export { ApiKeyService, apiKeyService } from "./api-key.service";
+export { AiInstructionService, aiInstructionService } from "./ai-instruction.service";
 export { AiModelService, aiModelService } from "./ai-model.service";
 export { RagService, ragService } from "./rag.service";
 export { RagChunkService, ragChunkService } from "./rag-chunk.service";

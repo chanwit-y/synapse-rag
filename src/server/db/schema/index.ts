@@ -3,6 +3,7 @@ export * from "./collections";
 export * from "./items";
 export * from "./histories";
 export * from "./api-keys";
+export * from "./ai-instructions";
 export * from "./models";
 export * from "./rags";
 export * from "./rag-chunks";
