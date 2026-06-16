@@ -6,7 +6,11 @@ import {
   getChatModelFromDb,
   getEmbeddingsFromDb,
 } from "@/server/services";
-import { modelRepository, ragChunkRepository } from "@/server/db/repository";
+import {
+  itemRepository,
+  modelRepository,
+  ragChunkRepository,
+} from "@/server/db/repository";
 import { actionFailure, actionSuccess, type ActionResult } from "./types";
 
 export type LangChainChatTestInput = {
@@ -27,6 +31,8 @@ export type LangChainRagChatInput = {
   instructionId?: string | null;
 };
 
+type ChatSourceImage = { src: string; alt: string };
+
 export type LangChainRagChatOutput = {
   content: string;
   contextChunks: Array<{
@@ -36,6 +42,58 @@ export type LangChainRagChatOutput = {
     metadata: Record<string, unknown> | null;
   }>;
 };
+
+/** Max source images offered to the model for a single answer. */
+const MAX_SOURCE_IMAGES = 6;
+
+/** Markdown image: ![alt](src "title") — src up to the first space or ')'. */
+const MD_IMAGE_RE = /!\[([^\]]*)\]\(\s*(<[^>]+>|[^)\s]+)[^)]*\)/g;
+/** HTML image: <img ... src="..."> (single or double quotes). */
+const HTML_IMAGE_RE = /<img\b[^>]*?\bsrc\s*=\s*(["'])(.*?)\1[^>]*>/gi;
+
+/** Extract image references ({src, alt}) from markdown/HTML, deduped by src. */
+function extractImages(texts: string[]): ChatSourceImage[] {
+  const bySrc = new Map<string, ChatSourceImage>();
+
+  const add = (rawSrc: string, alt: string) => {
+    const src = rawSrc.replace(/^<|>$/g, "").trim();
+    if (!src || bySrc.has(src)) return;
+    bySrc.set(src, { src, alt: alt.trim() });
+  };
+
+  for (const text of texts) {
+    if (!text) continue;
+    for (const m of text.matchAll(MD_IMAGE_RE)) add(m[2], m[1] ?? "");
+    for (const m of text.matchAll(HTML_IMAGE_RE)) add(m[2], "");
+  }
+
+  return [...bySrc.values()].slice(0, MAX_SOURCE_IMAGES);
+}
+
+/**
+ * Resolve source images for the retrieved chunks. Images are pulled from each
+ * chunk's *source document* (not the chunk text), because chunking can split
+ * an `![](...)` reference across a boundary and lose it. Documents are visited
+ * in retrieval order so the most relevant images come first.
+ */
+async function resolveSourceImages(
+  chunks: LangChainRagChatOutput["contextChunks"],
+): Promise<ChatSourceImage[]> {
+  const documentIds: number[] = [];
+  const seen = new Set<number>();
+  for (const chunk of chunks) {
+    const rawId = (chunk.metadata as { documentId?: unknown } | null)?.documentId;
+    const id = Number(rawId);
+    if (Number.isInteger(id) && id > 0 && !seen.has(id)) {
+      seen.add(id);
+      documentIds.push(id);
+    }
+  }
+  if (documentIds.length === 0) return [];
+
+  const docs = await Promise.all(documentIds.map((id) => itemRepository.findById(id)));
+  return extractImages(docs.map((doc) => doc?.content ?? ""));
+}
 
 function normalizeMessageContent(content: unknown): string {
   if (typeof content === "string") return content;
@@ -111,6 +169,24 @@ export async function chatWithRagFromDbAction(
       }));
     }
 
+    // Images live in the source documents but chunking can drop the `![](...)`
+    // markdown, so resolve them from the source docs and offer them to the model
+    // with an instruction to embed the relevant ones inline (exact paths).
+    const sourceImages =
+      contextChunks.length > 0 ? await resolveSourceImages(contextChunks) : [];
+
+    const imagesBlock =
+      sourceImages.length > 0
+        ? [
+            "",
+            "Available images from the source documents. When the answer refers to",
+            "screenshots or images, embed the relevant ones inline at the right place",
+            "(e.g. in place of a 'Screenshots:' list) using this EXACT Markdown — do",
+            "not alter or invent paths, and only include images that are relevant:",
+            ...sourceImages.map((img) => `![${img.alt || "Image"}](${img.src})`),
+          ]
+        : [];
+
     const contextBlock =
       contextChunks.length > 0
         ? [
@@ -120,6 +196,7 @@ export async function chatWithRagFromDbAction(
               (c, i) =>
                 `[#${i + 1} rag:${c.ragId} chunk:${c.chunkId}]\n${c.content}`,
             ),
+            ...imagesBlock,
             "",
             "User question:",
             prompt,

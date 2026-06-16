@@ -445,6 +445,7 @@ export default function HomeChat({
                         ) : null}
                       </>
                     )}
+
                   </div>
 
                   {m.role === "assistant" && !m.isThinking && m.content.length > 0 ? (
