@@ -18,6 +18,23 @@ export class ItemRepository {
     });
   }
 
+  /**
+   * Like {@link findByCollectionId} but omits the heavy content columns
+   * (`content`, `contentTh`, `contentThHash`) — used to build the document
+   * tree, whose payload otherwise carries every document's full text.
+   */
+  findTreeByCollectionId(collectionId: number) {
+    return this.database.query.items.findMany({
+      where: eq(items.collectionId, collectionId),
+      orderBy: asc(items.name),
+      columns: {
+        content: false,
+        contentTh: false,
+        contentThHash: false,
+      },
+    });
+  }
+
   findRootsByCollectionId(collectionId: number) {
     return this.database.query.items.findMany({
       where: and(

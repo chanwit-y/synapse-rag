@@ -14,14 +14,8 @@ import { assertFound, parseId, ServiceError } from "./utils";
 
 export class RagService {
   async list(): Promise<RagRecord[]> {
-    const rows = await ragRepository.findAll();
-
-    return Promise.all(
-      rows.map(async (row) => {
-        const withItems = await ragRepository.findWithItems(row.id);
-        return toRagRecord(assertFound(withItems, "RAG config not found"));
-      }),
-    );
+    const rows = await ragRepository.findAllWithItems();
+    return rows.map((row) => toRagRecord(row));
   }
 
   async listDocuments(): Promise<DocumentOption[]> {

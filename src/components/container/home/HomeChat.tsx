@@ -24,8 +24,16 @@ import Autocomplete from "@/components/common/Autocomplete/Autocomplete";
 import SelectField from "@/components/common/SelectField/SelectField";
 import Button from "@/components/common/Button/Button";
 import Typography from "@/components/common/Typography/Typography";
-import { ChatMarkdown } from "@/components/common/ChatMarkdown";
+import dynamic from "next/dynamic";
 import { useLayoutStore } from "@/store/layout-store";
+
+// react-markdown + remark/rehype + katex is heavy and only needed to render
+// assistant replies; load it lazily to keep it out of the home route's
+// initial JS.
+const ChatMarkdown = dynamic(
+  () => import("@/components/common/ChatMarkdown").then((m) => m.ChatMarkdown),
+  { ssr: false },
+);
 import type { RagRecord } from "@/components/container/rag/types";
 import type { AiModelRecord } from "@/components/container/ai-model/types";
 import { chatWithRagFromDbAction } from "@/server/actions";

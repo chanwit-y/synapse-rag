@@ -40,6 +40,7 @@ export {
   renameDocumentItemAction,
   syncCollectionDirectoriesAction,
   deleteDocumentItemAction,
+  getDocumentItemContentAction,
   saveDocumentContentAction,
   uploadDocumentImageAction,
   listDocumentHistoryAction,

@@ -76,10 +76,21 @@ export class DocumentService {
 
     return Promise.all(
       collections.map(async (collection) => {
-        const items = await itemRepository.findByCollectionId(collection.id);
+        // Tree only needs structure — content is fetched lazily on open.
+        const items = await itemRepository.findTreeByCollectionId(collection.id);
         return toTreeViewGroup(collection, items);
       }),
     );
+  }
+
+  /** Fetch a single file's English content (loaded on demand by the editor). */
+  async getItemContent(itemId: string): Promise<string> {
+    const numericId = parseId(itemId);
+    if (numericId == null) {
+      throw new ServiceError("Invalid item id", "VALIDATION");
+    }
+    const item = await itemRepository.findById(numericId);
+    return assertFound(item, "Item not found").content ?? "";
   }
 
   async createCollection(name: string): Promise<TreeViewGroup> {
@@ -150,11 +161,12 @@ export class DocumentService {
         const parsedId = parseId(node.id);
 
         if (parsedId != null && existingIds.has(parsedId)) {
+          // Structure-only update — content is owned by saveDocumentContent and
+          // must not be clobbered here (the tree no longer carries content).
           await itemRepository.update(parsedId, {
             name: node.name,
             folderId,
             type: node.type,
-            content: node.type === "file" ? (node.content ?? null) : null,
           });
           seenIds.add(parsedId);
 

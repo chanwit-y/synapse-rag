@@ -2,8 +2,18 @@ import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
 import type { Collection, Item } from "@/server/db/repository";
 import { toIdString } from "../utils";
 
+/**
+ * Row shape needed to build the tree — note `content` is intentionally absent.
+ * Document text is fetched on demand when a file is opened, not shipped with
+ * the tree.
+ */
+type TreeItemRow = Pick<
+  Item,
+  "id" | "name" | "type" | "folderId" | "createdAt" | "updatedAt"
+>;
+
 export function buildItemTree(
-  items: Item[],
+  items: TreeItemRow[],
   collectionId: number,
   parentFolderId: number | null = null,
 ): TreeNode[] {
@@ -17,7 +27,6 @@ export function buildItemTree(
         collectionId: collectionIdStr,
         name: item.name,
         type: item.type,
-        content: item.content,
         createdAt: item.createdAt.getTime(),
         updatedAt: item.updatedAt.getTime(),
       };
@@ -32,7 +41,7 @@ export function buildItemTree(
 
 export function toTreeViewGroup(
   collection: Collection,
-  items: Item[],
+  items: TreeItemRow[],
 ): TreeViewGroup {
   return {
     id: toIdString(collection.id),

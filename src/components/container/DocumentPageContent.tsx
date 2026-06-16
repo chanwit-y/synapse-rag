@@ -1,9 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import dynamic from "next/dynamic";
 import { FileSidebar } from "@/components/common/FileTree";
 import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
-import { MarkdownEditor } from "@/components/common/MarkdownEditor";
+
+// The markdown editor pulls in @uiw/react-md-editor (+ remark/rehype/katex),
+// a large bundle only needed once a document is open. Load it lazily so it
+// stays out of the document route's initial JS.
+const MarkdownEditor = dynamic(
+  () => import("@/components/common/MarkdownEditor").then((m) => m.MarkdownEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
+        Loading editor…
+      </div>
+    ),
+  },
+);
 import { useLayoutStore } from "@/store/layout-store";
 import { Clock, FileText } from "lucide-react";
 import ApiLoadingBackdrop from "@/components/common/ApiLoadingBackdrop/ApiLoadingBackdrop";
@@ -14,6 +29,7 @@ import {
   deleteCollectionAction,
   deleteDocumentItemAction,
   ensureDocumentTranslationAction,
+  getDocumentItemContentAction,
   importAzureUserStoriesAction,
   listChatModelsAction,
   listCollectionsAction,
@@ -118,10 +134,33 @@ export default function DocumentPageContent({
     });
   }, [withLoading]);
 
-  const loadEditorContent = useCallback(
-    (file: TreeNode) =>
-      fileContents[file.id] ?? file.content ?? getDefaultContent(file.name),
-    [fileContents],
+  // Open a file: content is no longer shipped with the tree, so fetch it on
+  // demand (using any locally cached/unsaved buffer first).
+  const handleSelectFile = useCallback(
+    (file: TreeNode, path: string) => {
+      setSelectedFile(file);
+      setSelectedPath(path);
+      // A new file always opens in English; its Thai is loaded on demand.
+      setViewLang("en");
+      setThSeed("");
+
+      const cached = fileContents[file.id];
+      if (cached !== undefined) {
+        setEditorContent(cached);
+        return;
+      }
+
+      setEditorContent("");
+      void withLoading(async () => {
+        const result = await getDocumentItemContentAction(file.id);
+        const content = result.success
+          ? result.data.content || getDefaultContent(file.name)
+          : getDefaultContent(file.name);
+        setFileContents((prev) => ({ ...prev, [file.id]: content }));
+        setEditorContent(content);
+      });
+    },
+    [fileContents, withLoading],
   );
 
   const handleCreateCollection = useCallback(
@@ -418,14 +457,7 @@ export default function DocumentPageContent({
           onToggleCollapsed={() => setCollapsed((c) => !c)}
           width={width}
           onWidthChange={setWidth}
-          onSelectFile={(file, path) => {
-            setSelectedFile(file);
-            setSelectedPath(path);
-            setEditorContent(loadEditorContent(file));
-            // A new file always opens in English; its Thai is loaded on demand.
-            setViewLang("en");
-            setThSeed("");
-          }}
+          onSelectFile={handleSelectFile}
           onClearSelection={() => {
             setSelectedFile(null);
             setSelectedPath(null);

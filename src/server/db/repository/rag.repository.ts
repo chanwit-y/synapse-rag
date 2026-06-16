@@ -34,6 +34,17 @@ export class RagRepository {
     });
   }
 
+  /** All RAGs with their linked items in a single query (avoids N+1). */
+  findAllWithItems() {
+    return this.database.query.rags.findMany({
+      orderBy: asc(rags.name),
+      with: {
+        model: true,
+        items: { with: { item: true } },
+      },
+    });
+  }
+
   create(data: NewRag) {
     return this.database
       .insert(rags)

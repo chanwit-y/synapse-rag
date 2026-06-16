@@ -82,6 +82,16 @@ export async function deleteDocumentItemAction(
   }
 }
 
+export async function getDocumentItemContentAction(
+  itemId: string,
+): Promise<ActionResult<{ content: string }>> {
+  try {
+    return actionSuccess({ content: await documentService.getItemContent(itemId) });
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 export async function saveDocumentContentAction(params: {
   id: string | null;
   name: string;
