@@ -39,7 +39,7 @@ The app uses Bun's native `bun:sqlite` driver and loads the **`sqlite-vec`** ext
 - **Styling**: Tailwind CSS v4
 - **Package Manager**: Bun
 - **LLM**: LangChain, multi-provider — `@langchain/openai`, `@langchain/anthropic`, `@langchain/google-genai` (chat + embeddings)
-- **Notable UI deps**: `@uiw/react-md-editor` (markdown), `@tanstack/react-table` (DataTable), `lucide-react` (icons), `diff` (DiffViewer), `rehype-katex`/`remark-math` (math rendering)
+- **Notable UI deps**: `@uiw/react-md-editor` (markdown editor), `react-markdown`/`remark-gfm` (chat markdown), `@tanstack/react-table` (DataTable), `lucide-react` (icons), `diff` (DiffViewer), `rehype-katex`/`remark-math` (math rendering), `mermaid` (diagram rendering), `sigma`/`graphology` (Document graph view), `@dnd-kit` (drag-and-drop)
 
 ### Server layering (data flow)
 Request flow is strictly layered — **never skip a layer**:
@@ -63,6 +63,12 @@ Server Component / Client (server action call)
 
 **Vector search**: RAG chunk embeddings are stored as float32 BLOBs; similarity uses `vec_distance_l2()` (see `RagChunkRepository.findSimilarByRagIds`).
 
+**Multi-query retrieval** (`query-expansion.service.ts`): before searching, `QueryExpansionService.expandQuery()` asks an LLM (prefers OpenAI `gpt-4o-mini` via the active OpenAI chat key, else the caller's selected model) for alternative phrasings of the question, then the chat flow searches all phrasings and fuses results with Reciprocal Rank Fusion (RRF). Best-effort: any failure (missing key, provider error, 8s timeout, garbage output) degrades silently to searching the original query alone.
+
+**AI instruction templates** (`ai-instruction.service.ts` → `ai_instructions` table): reusable, named system-prompt templates with active/inactive status. Active templates populate the chat instruction picker; the selected template's `content` is resolved (`getContent`) and used as the chat system prompt. Managed under the `settings/ai-instruction` route.
+
+**Document graph view** (`container/document/DocumentGraphView.tsx`): a Sigma/graphology force-directed (ForceAtlas2) graph of the collection → folder → file hierarchy across all collections. Theme-aware; collection/folder nodes collapse/expand on click, file nodes open in the editor. Toggled from the file sidebar header (next to the add-collection button); the chosen mode is persisted in the Zustand layout store. Lazy-loaded with `next/dynamic` (`ssr: false`) since it renders to WebGL/canvas. **Gotcha:** never write a ref during render (React Compiler rule `react-hooks/refs`) — keep "latest prop" refs in sync via `useEffect`.
+
 ### Database schema
 Located in `src/server/db/schema/` (one file per table, re-exported from `index.ts`; relations in `relations.ts`, shared enums in `enums.ts`):
 
@@ -72,18 +78,21 @@ Located in `src/server/db/schema/` (one file per table, re-exported from `index.
 - `items` ↔ `rags` (many-to-many via `item_rags`)
 - `rags` → `rag_chunks` (embedded chunks for vector search via `sqlite-vec`)
 - `api_keys` → `models` → `rags` (dependency chain)
+- `ai_instructions` (standalone) — named system-prompt templates for the chat picker
 
 Migrations are generated into `src/server/db/migrations/`.
 
 ### Project structure
 ```
 src/
-├── app/                    # App Router routes (analytics, document, rag, settings/{ai-model,api-key}, users)
+├── app/                    # App Router routes (analytics, document, rag, settings/{ai-instruction,ai-model,api-key}, users)
 │                           #   pages are async Server Components; add loading.tsx for route-level skeletons
 ├── components/
 │   ├── common/             # Reusable UI primitives — each in its own folder with an index file
-│   │                       #   (Button, DataTable, Loader, Skeleton, MarkdownEditor, FileTree, Modal, ...)
-│   ├── container/          # Feature page content (home, rag, api-key, ai-model); each has its own types.ts
+│   │                       #   (Button, DataTable, MarkdownEditor, FileTree, Modal, ChatMarkdown, DiffViewer,
+│   │                       #    DatePicker, SelectField, Autocomplete, Drawer, Snackbar, Typography, ...)
+│   ├── container/          # Feature page content (home, document, rag, api-key, ai-model, ai-instruction); each has its own types.ts
+│   │                       #   document/ holds DocumentPageContent, AzureImportModal, DocumentGraphView (Sigma)
 │   ├── layout/             # App shell (AppBar, Sidebar, MobileSidebar, LayoutProvider, ThemeToggle, nav-items)
 │   ├── context/            # React context providers
 │   └── hook/               # Component-scoped hooks (barrel)
@@ -91,7 +100,7 @@ src/
 ├── server/
 │   ├── actions/            # Server Actions ("use server") — ActionResult<T> contract
 │   ├── api/                # API helpers
-│   ├── services/           # Business logic (+ mappers/ for row→view-model conversion)
+│   ├── services/           # Business logic (+ mappers/, llm/, azure/, query-expansion, ai-instruction)
 │   └── db/
 │       ├── schema/         # Drizzle table definitions
 │       ├── migrations/     # Generated SQL migrations
