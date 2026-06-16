@@ -177,7 +177,7 @@ export default function TreeNodeItem({
               ? "bg-accent/10 text-accent dark:bg-accent/20 dark:text-brand-100"
               : "hover:bg-surface-strong text-foreground"
         } ${isHighlighted ? "ring-2 ring-inset ring-accent/70" : ""} ${isDragging ? "opacity-40" : ""}`}
-        style={{ paddingLeft: `${indentLevel}px` }}
+        style={{ marginLeft: `${indentLevel}px` }}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         data-tree-interactive="true"
@@ -192,7 +192,7 @@ export default function TreeNodeItem({
             )}
           </span>
         )}
-        {!isFolder && !hasChildren && <span className="w-4 h-4" />}
+        {!(isFolder && hasChildren) && <span className="w-4 h-4" />}
         {isFolder ? (
           isExpanded ? (
             <FolderOpen className="w-4 h-4 text-brand-500 dark:text-brand-400 shrink-0" />
