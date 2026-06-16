@@ -19,8 +19,21 @@ const MarkdownEditor = dynamic(
     ),
   },
 );
+// The Sigma graph pulls in sigma + graphology (WebGL); keep it out of the
+// route's initial JS and off the server (no DOM/WebGL during SSR).
+const DocumentGraphView = dynamic(
+  () => import("@/components/container/document/DocumentGraphView"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
+        Loading graph…
+      </div>
+    ),
+  },
+);
 import { useLayoutStore } from "@/store/layout-store";
-import { ArrowLeft, ChevronRight, Clock, FileText } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock, FileText, Network } from "lucide-react";
 import ApiLoadingBackdrop from "@/components/common/ApiLoadingBackdrop/ApiLoadingBackdrop";
 import SelectField from "@/components/common/SelectField/SelectField";
 import { useApiLoading } from "@/hooks/useApiLoading";
@@ -111,6 +124,18 @@ export default function DocumentPageContent({
   const { showSnackbar } = useSnackbar();
 
   const theme = useLayoutStore((s) => s.theme);
+  const documentViewMode = useLayoutStore((s) => s.documentViewMode);
+  const setDocumentViewMode = useLayoutStore((s) => s.setDocumentViewMode);
+  const toggleDocumentViewMode = useLayoutStore((s) => s.toggleDocumentViewMode);
+  // The persisted view mode isn't known during SSR. Render the editor on the
+  // first client paint (matching the server) and only honor the persisted graph
+  // mode after mount — this both avoids a hydration mismatch and forces the
+  // re-render that reads the rehydrated store value.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const isGraphMode = mounted && documentViewMode === "graph";
   const prefersDark = useSyncExternalStore(
     subscribeToColorScheme,
     getPrefersDark,
@@ -208,6 +233,16 @@ export default function DocumentPageContent({
     setBackStack((stack) => stack.slice(0, -1));
     openItemById(prev.id, { push: false });
   }, [backStack, openItemById]);
+
+  // Clicking a file node in the graph opens it in the editor and flips the
+  // main pane back to editor mode. (Folder/collection nodes toggle in-graph.)
+  const handleOpenFromGraph = useCallback(
+    (fileId: string) => {
+      setDocumentViewMode("editor");
+      openItemById(fileId);
+    },
+    [openItemById, setDocumentViewMode],
+  );
 
   // Sidebar selection is a fresh navigation context, so it clears the trail.
   const handleSidebarSelect = useCallback(
@@ -548,7 +583,6 @@ export default function DocumentPageContent({
           onRenameCollection={handleRenameCollection}
           onRenamedSelection={handleRenamedSelection}
           onImportFromAzure={handleOpenAzureImport}
-          collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((c) => !c)}
           width={width}
           onWidthChange={setWidth}
@@ -566,10 +600,33 @@ export default function DocumentPageContent({
           revealTarget={reveal}
           title="Documents"
           className="h-full! shrink-0"
+          collapsed={collapsed}
+          headerAction={
+            <button
+              type="button"
+              onClick={toggleDocumentViewMode}
+              aria-label={isGraphMode ? "Show document editor" : "Show document graph"}
+              aria-pressed={isGraphMode}
+              title={isGraphMode ? "Document view" : "Graph view"}
+              className={`p-1.5 rounded-md transition-colors ${
+                isGraphMode
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-surface-strong hover:text-foreground"
+              }`}
+            >
+              {isGraphMode ? <FileText className="h-4 w-4" /> : <Network className="h-4 w-4" />}
+            </button>
+          }
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
-          {selectedFile && selectedPath ? (
+          {isGraphMode ? (
+            <DocumentGraphView
+              collections={collections}
+              theme={resolvedTheme}
+              onOpenFile={handleOpenFromGraph}
+            />
+          ) : selectedFile && selectedPath ? (
             <>
               <div className="shrink-0 border-b border-border px-6 py-4">
                 <div className="flex items-start justify-between gap-4">

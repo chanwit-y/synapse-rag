@@ -81,6 +81,12 @@ export interface FileSidebarProps {
   readOnlyTree?: boolean;
   title?: string;
   className?: string;
+  /**
+   * Optional control rendered in the header, just before the add-collection (+)
+   * button (e.g. a view-mode toggle). Hidden when the sidebar is collapsed, like
+   * the + button. Only the Document page supplies this; other usages are unaffected.
+   */
+  headerAction?: React.ReactNode;
 }
 
 export default function FileSidebar({
@@ -107,6 +113,7 @@ export default function FileSidebar({
   readOnlyTree,
   title = "Collection",
   className,
+  headerAction,
 }: FileSidebarProps) {
   const { showSnackbar } = useSnackbar();
 
@@ -770,14 +777,21 @@ export default function FileSidebar({
             </h2>
           </div>
 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className={`p-1.5 rounded-md transition-colors text-muted-foreground hover:bg-surface-strong hover:text-foreground ${
-              collapsed ? "sr-only" : ""
-            }`}
-          >
-            <PlusIcon className="w-4 h-4" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {headerAction ? (
+              <span className={collapsed ? "sr-only" : ""}>{headerAction}</span>
+            ) : null}
+            <button
+              onClick={() => setIsModalOpen(true)}
+              aria-label="Add collection"
+              title="Add collection"
+              className={`p-1.5 rounded-md transition-colors text-muted-foreground hover:bg-surface-strong hover:text-foreground ${
+                collapsed ? "sr-only" : ""
+              }`}
+            >
+              <PlusIcon className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Tree */}

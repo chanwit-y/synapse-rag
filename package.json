@@ -22,6 +22,8 @@
     "@uiw/react-md-editor": "^4.1.1",
     "diff": "^9.0.0",
     "drizzle-orm": "^0.45.2",
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1",
     "langchain": "^1.4.2",
     "lucide-react": "^1.11.0",
     "mermaid": "^11.15.0",
@@ -32,6 +34,7 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
+    "sigma": "^3.0.3",
     "sqlite-vec": "^0.1.9",
     "turndown": "^7.2.4",
     "zustand": "^5.0.0"
