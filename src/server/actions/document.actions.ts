@@ -131,6 +131,31 @@ export async function uploadDocumentImageAction(
   }
 }
 
+export async function uploadCanvasImageAction(
+  formData: FormData,
+): Promise<ActionResult<{ path: string }>> {
+  try {
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      return actionFailure(new Error("No image file provided"));
+    }
+    return actionSuccess(await documentService.uploadCanvasImage(file));
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function deleteCanvasImageAction(
+  path: string,
+): Promise<ActionResult<void>> {
+  try {
+    await documentService.deleteCanvasImage(path);
+    return actionSuccess(undefined);
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 export async function listDocumentHistoryAction(
   itemId: string,
   lang?: ContentLang,

@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { NodeResizer, type NodeProps } from "@xyflow/react";
 import { encode } from "blurhash";
 import { Blurhash } from "react-blurhash";
-import { ImageIcon, Upload, X, Maximize2 } from "lucide-react";
+import { ImageIcon, Loader2, Upload, X, Maximize2 } from "lucide-react";
+import { uploadCanvasImageAction } from "@/server/actions";
 import { useCanvasStore } from "../store/canvas-store";
 import SideHandles from "./SideHandles";
 import NodeRemoveButton from "./NodeRemoveButton";
@@ -37,45 +38,79 @@ async function encodeBlurHash(src: string): Promise<string | null> {
 
 export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeType>) {
   const notify = useCanvasStore((s) => s.notify);
+  const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const c = nodeColor(data.color);
   const [title, setTitle] = useState(data.title);
-  const [imageUrl, setImageUrl] = useState(data.imageUrl);
-  const [blurHash, setBlurHash] = useState(data.blurHash);
+  const [caption, setCaption] = useState(data.caption);
+  const imageUrl = data.imageUrl;
+  const blurHash = data.blurHash;
   const [imgLoaded, setImgLoaded] = useState(false);
   const [showFull, setShowFull] = useState(false);
   const [fullDims, setFullDims] = useState<{ w: number; h: number } | null>(null);
-  const [caption, setCaption] = useState(data.caption);
   const [dragOver, setDragOver] = useState(false);
+  // While an upload is in flight, show the picked file locally (an object URL)
+  // so the image appears instantly; we swap to the saved server path on success.
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const readImageFile = (file: File) => {
+  // The src actually rendered: the local preview while uploading, otherwise the
+  // saved server path. `displaySrc` is empty when the node has no image yet.
+  const displaySrc = preview ?? imageUrl;
+
+  const uploadImageFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       notify("That file isn't an image.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result);
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
+    setUploading(true);
+    setImgLoaded(true); // the local preview is ready immediately
+    // Encode the blur placeholder in parallel with the upload — it's persisted
+    // so future loads from the server show it before the image arrives.
+    const hashPromise = encodeBlurHash(objectUrl);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await uploadCanvasImageAction(formData);
+      if (!result.success) throw new Error(result.error);
+
+      const hash = await hashPromise;
+      // Swap to the server path; reset the loaded flag so the BlurHash shows
+      // while the (not-yet-cached) server image fetches.
       setImgLoaded(false);
-      setBlurHash(undefined);
-      setImageUrl(dataUrl);
-      // Encode the blur placeholder for next time the image (re)loads.
-      encodeBlurHash(dataUrl).then((h) => h && setBlurHash(h));
-    };
-    reader.readAsDataURL(file);
+      updateNodeData(id, {
+        imageUrl: result.data.path,
+        blurHash: hash ?? undefined,
+      });
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Upload failed — try again.");
+    } finally {
+      setUploading(false);
+      setPreview(null);
+      URL.revokeObjectURL(objectUrl);
+    }
   };
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) readImageFile(file);
+    if (file) void uploadImageFile(file);
     e.target.value = ""; // allow re-picking the same file
   };
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(false);
+    if (uploading) return;
     const file = e.dataTransfer.files?.[0];
-    if (file) readImageFile(file);
+    if (file) void uploadImageFile(file);
+  };
+
+  const removeImage = () => {
+    setImgLoaded(false);
+    updateNodeData(id, { imageUrl: "", blurHash: undefined });
   };
 
   return (
@@ -95,13 +130,14 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onBlur={() => title !== data.title && updateNodeData(id, { title })}
           className="nodrag min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none dark:text-slate-100"
         />
       </div>
 
       {/* Image section */}
       <div className="px-3 pt-3">
-        {imageUrl ? (
+        {displaySrc ? (
           <div className="group relative">
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
               {blurHash && !imgLoaded && (
@@ -117,37 +153,43 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
               )}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={imageUrl}
+                src={displaySrc}
                 alt={caption}
                 onLoad={() => setImgLoaded(true)}
                 className={`h-full w-full object-cover transition-opacity duration-500 ${
                   imgLoaded ? "opacity-100" : "opacity-0"
                 }`}
               />
+              {uploading && (
+                <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-slate-900/40 text-white backdrop-blur-[1px]">
+                  <Loader2 size={14} className="animate-spin" />
+                  <span className="text-[11px] font-medium">Uploading…</span>
+                </div>
+              )}
             </div>
-            <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-              <button
-                onClick={() => {
-                  setFullDims(null);
-                  setShowFull(true);
-                }}
-                className="nodrag flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/60 text-white transition-colors hover:bg-slate-900/80"
-                title="View full size"
-              >
-                <Maximize2 size={12} />
-              </button>
-              <button
-                onClick={() => {
-                  setImageUrl("");
-                  setBlurHash(undefined);
-                  setImgLoaded(false);
-                }}
-                className="nodrag flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/60 text-white transition-colors hover:bg-slate-900/80"
-                title="Remove image"
-              >
-                <X size={13} />
-              </button>
-            </div>
+            {!uploading && (
+              <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                {imageUrl && (
+                  <button
+                    onClick={() => {
+                      setFullDims(null);
+                      setShowFull(true);
+                    }}
+                    className="nodrag flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/60 text-white transition-colors hover:bg-slate-900/80"
+                    title="View full size"
+                  >
+                    <Maximize2 size={12} />
+                  </button>
+                )}
+                <button
+                  onClick={removeImage}
+                  className="nodrag flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/60 text-white transition-colors hover:bg-slate-900/80"
+                  title="Remove image"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div
@@ -184,6 +226,7 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
         <input
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
+          onBlur={() => caption !== data.caption && updateNodeData(id, { caption })}
           placeholder="Add a caption…"
           className="nodrag nowheel w-full bg-transparent text-[12.5px] leading-snug text-slate-500 placeholder:text-slate-400 focus:outline-none dark:text-slate-400 dark:placeholder:text-slate-500"
         />

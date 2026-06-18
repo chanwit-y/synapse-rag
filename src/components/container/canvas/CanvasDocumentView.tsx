@@ -1,11 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Edge } from "@xyflow/react";
 import { Maximize2, Minimize2, Save } from "lucide-react";
+import { deleteCanvasImageAction } from "@/server/actions";
 import CanvasWorkspace from "./CanvasWorkspace";
 import { useCanvasStore } from "./store/canvas-store";
 import type { AppNode } from "./types";
+
+/** Pull every `/canvas-images/...` path referenced in a serialized graph. Used
+ *  to garbage-collect images that a save removed from the canvas. */
+function canvasImagePaths(serialized: string): Set<string> {
+  const matches = serialized.match(/\/canvas-images\/[A-Za-z0-9._-]+/g);
+  return new Set(matches ?? []);
+}
 
 /** Safely parse the stored `{ nodes, edges }` JSON into a react-flow graph. */
 function parseGraph(content: string): { nodes: AppNode[]; edges: Edge[] } {
@@ -41,6 +49,9 @@ export default function CanvasDocumentView({
   onSave,
 }: CanvasDocumentViewProps) {
   const loadCanvas = useCanvasStore((s) => s.loadCanvas);
+  // The image paths present in the last persisted graph. Diffed on save so an
+  // image dropped from the canvas (and durably saved away) is unlinked on disk.
+  const savedImagePathsRef = useRef<Set<string>>(canvasImagePaths(content));
   const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   // While exiting, the overlay stays mounted (still fixed) so the shrink-out
@@ -75,6 +86,7 @@ export default function CanvasDocumentView({
   useEffect(() => {
     const { nodes, edges } = parseGraph(content);
     loadCanvas(nodes, edges);
+    savedImagePathsRef.current = canvasImagePaths(content);
   }, [content, loadCanvas]);
 
   const handleSave = useCallback(async () => {
@@ -82,7 +94,22 @@ export default function CanvasDocumentView({
     setIsSaving(true);
     try {
       const { nodes, edges } = useCanvasStore.getState();
-      await onSave(JSON.stringify({ nodes, edges }));
+      const serialized = JSON.stringify({ nodes, edges });
+      await onSave(serialized);
+
+      // After the graph is durably saved, unlink any canvas image that was in
+      // the previously-saved graph but is no longer referenced. Best-effort:
+      // a failed delete just leaves an orphan file, never blocks the save.
+      const nextPaths = canvasImagePaths(serialized);
+      const removed = [...savedImagePathsRef.current].filter(
+        (p) => !nextPaths.has(p),
+      );
+      savedImagePathsRef.current = nextPaths;
+      if (removed.length) {
+        void Promise.all(
+          removed.map((p) => deleteCanvasImageAction(p).catch(() => undefined)),
+        );
+      }
     } finally {
       setIsSaving(false);
     }

@@ -63,7 +63,8 @@ export type NodeColor =
 export type ImageNodeData = {
   title: string;
   caption: string;
-  /** Uploaded image as a data URL (or a remote URL for the seeded demo). */
+  /** Public path of the uploaded image (e.g. `/canvas-images/<uuid>.png`).
+   *  May also be a legacy data URL or a remote URL for older / seeded nodes. */
   imageUrl: string;
   /** BlurHash of the image, shown as a placeholder while the image loads.
    *  Encoded from the file on upload; precomputed for the seeded demo image. */

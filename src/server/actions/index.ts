@@ -52,6 +52,8 @@ export {
   createCanvasAction,
   saveDocumentContentAction,
   uploadDocumentImageAction,
+  uploadCanvasImageAction,
+  deleteCanvasImageAction,
   listDocumentHistoryAction,
   ensureDocumentTranslationAction,
   saveDocumentTranslationAction,

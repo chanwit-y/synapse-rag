@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
 import {
@@ -16,6 +16,13 @@ import { assertFound, parseId, ServiceError, toIdString } from "./utils";
 const UPLOAD_IMAGE_DIR = path.join(process.cwd(), "public", "document-images");
 const UPLOAD_IMAGE_URL_BASE = "/document-images";
 const MAX_UPLOAD_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/** Where canvas-node images are written, and the public URL they resolve to.
+ *  Unlike document images these use a unique filename per upload (not content
+ *  -addressed) so a canvas can safely delete its own image without affecting any
+ *  other reference. */
+const CANVAS_IMAGE_DIR = path.join(process.cwd(), "public", "canvas-images");
+const CANVAS_IMAGE_URL_BASE = "/canvas-images";
 
 const EXT_BY_IMAGE_TYPE: Record<string, string> = {
   "image/png": "png",
@@ -411,6 +418,55 @@ export class DocumentService {
     await writeFile(path.join(UPLOAD_IMAGE_DIR, fileName), bytes);
 
     return { path: `${UPLOAD_IMAGE_URL_BASE}/${fileName}` };
+  }
+
+  /**
+   * Persist a canvas-node image under `public/canvas-images/` with a unique
+   * filename and return its public URL (e.g. `/canvas-images/<uuid>.png`). A
+   * fresh name per upload keeps each canvas image independent, so removing one
+   * can never break another node that happens to share the same picture.
+   */
+  async uploadCanvasImage(file: File): Promise<{ path: string }> {
+    if (!file || file.size === 0) {
+      throw new ServiceError("No image file provided", "VALIDATION");
+    }
+    if (!file.type.startsWith("image/")) {
+      throw new ServiceError("Uploaded file is not an image", "VALIDATION");
+    }
+    if (file.size > MAX_UPLOAD_IMAGE_BYTES) {
+      throw new ServiceError("Image is larger than 10MB", "VALIDATION");
+    }
+
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const ext = EXT_BY_IMAGE_TYPE[file.type.toLowerCase()] ?? "png";
+    const fileName = `${randomUUID()}.${ext}`;
+
+    await mkdir(CANVAS_IMAGE_DIR, { recursive: true });
+    await writeFile(path.join(CANVAS_IMAGE_DIR, fileName), bytes);
+
+    return { path: `${CANVAS_IMAGE_URL_BASE}/${fileName}` };
+  }
+
+  /**
+   * Delete a previously-uploaded canvas image by its public path. Only paths
+   * under `/canvas-images/` are accepted (guards against traversal / deleting
+   * unrelated files); a missing file is treated as already-deleted.
+   */
+  async deleteCanvasImage(publicPath: string): Promise<void> {
+    const prefix = `${CANVAS_IMAGE_URL_BASE}/`;
+    if (!publicPath.startsWith(prefix)) {
+      throw new ServiceError("Not a canvas image path", "VALIDATION");
+    }
+    const fileName = path.basename(publicPath);
+    // basename strips any directory parts, so the join can't escape the dir.
+    if (!fileName || fileName === "." || fileName === "..") {
+      throw new ServiceError("Invalid canvas image path", "VALIDATION");
+    }
+    try {
+      await unlink(path.join(CANVAS_IMAGE_DIR, fileName));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
   }
 
   private async translate(source: string, modelId: string): Promise<string> {
