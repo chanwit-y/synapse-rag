@@ -49,6 +49,7 @@ export {
   syncCollectionDirectoriesAction,
   deleteDocumentItemAction,
   getDocumentItemContentAction,
+  createCanvasAction,
   saveDocumentContentAction,
   uploadDocumentImageAction,
   listDocumentHistoryAction,

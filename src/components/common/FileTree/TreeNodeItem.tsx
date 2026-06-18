@@ -9,6 +9,7 @@ import {
   Folder,
   FolderOpen,
   File,
+  Frame,
   Trash2,
 } from "lucide-react";
 import type { TreeNode } from "./types";
@@ -71,6 +72,7 @@ export default function TreeNodeItem({
   const hasChildren = node.children && node.children.length > 0;
   const isFolder = node.type === "folder";
   const isFile = node.type === "file";
+  const isCanvas = node.type === "canvas";
   const indentLevel = level > 0 ? level * 20 + 8 : 8;
   const isSelected = selectedNodePath === nodePath;
   const isHighlighted = !!highlightNodeId && highlightNodeId === node.id;
@@ -199,6 +201,8 @@ export default function TreeNodeItem({
           ) : (
             <Folder className="w-4 h-4 text-brand-500 dark:text-brand-400 shrink-0" />
           )
+        ) : isCanvas ? (
+          <Frame className="w-4 h-4 text-muted-foreground shrink-0" />
         ) : (
           <File className="w-4 h-4 text-muted-foreground shrink-0" />
         )}

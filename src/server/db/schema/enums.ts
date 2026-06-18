@@ -1,4 +1,4 @@
-export const itemTypeValues = ["file", "folder"] as const;
+export const itemTypeValues = ["file", "folder", "canvas"] as const;
 export type ItemType = (typeof itemTypeValues)[number];
 
 /** Languages a document's content / history snapshot can be in. */

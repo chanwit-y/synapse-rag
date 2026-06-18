@@ -93,6 +93,43 @@ export class DocumentService {
     return assertFound(item, "Item not found").content ?? "";
   }
 
+  /**
+   * Create an empty canvas document (`type: "canvas"`) under a collection,
+   * optionally inside a folder. Its `content` holds the serialized react-flow
+   * graph; a fresh canvas starts as an empty `{ nodes, edges }`.
+   */
+  async createCanvas(params: {
+    collectionId: string;
+    folderId: string | null;
+    name: string;
+  }): Promise<{ id: string }> {
+    const collectionId = parseId(params.collectionId);
+    if (collectionId == null) {
+      throw new ServiceError("Invalid collection id", "VALIDATION");
+    }
+
+    let folderId: number | null = null;
+    if (params.folderId != null) {
+      folderId = parseId(params.folderId);
+      if (folderId == null) {
+        throw new ServiceError("Invalid folder id", "VALIDATION");
+      }
+    }
+
+    const trimmed = params.name.trim() || "untitled.canvas";
+    const name = trimmed.includes(".") ? trimmed : `${trimmed}.canvas`;
+
+    const created = await itemRepository.create({
+      collectionId,
+      folderId,
+      type: "canvas",
+      name,
+      content: JSON.stringify({ nodes: [], edges: [] }),
+    });
+    const row = assertFound(created, "Failed to create canvas");
+    return { id: toIdString(row.id) };
+  }
+
   async createCollection(name: string): Promise<TreeViewGroup> {
     const trimmed = name.trim();
     if (!trimmed) {

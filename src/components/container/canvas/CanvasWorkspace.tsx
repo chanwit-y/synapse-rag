@@ -1,0 +1,241 @@
+"use client";
+
+import "@xyflow/react/dist/style.css";
+import "./styles.css";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  Background,
+  BackgroundVariant,
+  Controls,
+  MiniMap,
+  useReactFlow,
+  useNodesInitialized,
+  type Connection,
+  type Edge,
+  type NodeTypes,
+  type EdgeTypes,
+} from "@xyflow/react";
+
+import { CanvasProvider, useCanvas } from "./CanvasContext";
+import CanvasToasts from "./CanvasToasts";
+import Toolbar from "./Toolbar";
+import TextEditorNode from "./nodes/TextEditorNode";
+import ChatNode from "./nodes/ChatNode";
+import ImageNode from "./nodes/ImageNode";
+import VideoNode from "./nodes/VideoNode";
+import LinksNode from "./nodes/LinksNode";
+import DrawNode from "./nodes/DrawNode";
+import MapNode from "./nodes/MapNode";
+import ColorableEdge from "./edges/ColorableEdge";
+import type { AppNode, NodeColor, NodeKind } from "./types";
+import { NODE_COLORS } from "./nodes/nodeColors";
+import { useCanvasStore } from "./store/canvas-store";
+
+const edgeTypes: EdgeTypes = { colorable: ColorableEdge };
+
+const nodeTypes: NodeTypes = {
+  textEditor: TextEditorNode,
+  chat: ChatNode,
+  image: ImageNode,
+  video: VideoNode,
+  links: LinksNode,
+  draw: DrawNode,
+  map: MapNode,
+};
+
+function Flow() {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const { screenToFlowPosition, fitView } = useReactFlow();
+  const { setInteracting } = useCanvas();
+
+  // The store is the single source of truth for nodes/edges (controlled mode).
+  const nodes = useCanvasStore((s) => s.nodes);
+  const edges = useCanvasStore((s) => s.edges);
+  const onNodesChange = useCanvasStore((s) => s.onNodesChange);
+  const onEdgesChange = useCanvasStore((s) => s.onEdgesChange);
+  const onConnect = useCanvasStore((s) => s.onConnect);
+  const addNode = useCanvasStore((s) => s.addNode);
+
+  const [selectMode, setSelectMode] = useState(false);
+
+  // Custom nodes measure asynchronously; refit once they all have dimensions.
+  const initialized = useNodesInitialized();
+  const didFit = useRef(false);
+  useEffect(() => {
+    if (initialized && !didFit.current) {
+      didFit.current = true;
+      fitView({ padding: 0.25, duration: 300 });
+    }
+  }, [initialized, fitView]);
+
+  // Live feedback while dragging: forbid only self-links (multiple sources are
+  // allowed). The connection itself is committed by the store's onConnect.
+  const isValidConnection = useCallback(
+    (conn: Connection | Edge) => conn.source !== conn.target,
+    [],
+  );
+
+  // Toolbar add: project the viewport center, then let the store build + insert.
+  const handleAdd = useCallback(
+    (kind: NodeKind) => {
+      const bounds = wrapperRef.current?.getBoundingClientRect();
+      const center = bounds
+        ? screenToFlowPosition({
+            x: bounds.x + bounds.width / 2,
+            y: bounds.y + bounds.height / 2,
+          })
+        : { x: 200, y: 200 };
+      addNode(kind, center);
+    },
+    [screenToFlowPosition, addNode],
+  );
+
+  // Comma-joined ids of the selected nodes, read from the store as a primitive.
+  // This drives the highlight-edge "focus" effect; zustand's Object.is equality
+  // on the string means `displayEdges` only re-derives when the *selection*
+  // changes, not on every drag-tick position update.
+  const selectedIdsKey = useCanvasStore((s) =>
+    s.nodes
+      .filter((n) => n.selected)
+      .map((n) => n.id)
+      .join(","),
+  );
+
+  // Highlight edges (sourceHandle "highlight") animate + brighten only while one
+  // of their endpoints is selected; otherwise they sit dimmed and static. Other
+  // edges pass through untouched. Derived for display; base `edges` stays canonical.
+  const displayEdges = useMemo(() => {
+    const selectedIds = new Set(selectedIdsKey ? selectedIdsKey.split(",") : []);
+    return edges.map((e) => {
+      // Plain edges use the colorable edge type (per-edge color picker).
+      if (!e.sourceHandle?.startsWith("highlight")) return { ...e, type: "colorable" };
+      const active = selectedIds.has(e.source) || selectedIds.has(e.target);
+      return {
+        ...e,
+        animated: active,
+        // While active, raise the edge above the nodes so it visibly springs
+        // from the highlighted phrase (a selected node sits at z~1000, so clear
+        // it); at rest it tucks behind. Non-interactive (interactionWidth 0 +
+        // pointer-events none) so the raised edge never blocks clicks/selection
+        // on the node content beneath it.
+        zIndex: active ? 2000 : 0,
+        interactionWidth: 0,
+        style: active
+          ? { stroke: "#f59e0b", strokeWidth: 2.5, pointerEvents: "none" as const }
+          : {
+              stroke: "#fcd34d",
+              strokeWidth: 1.5,
+              strokeOpacity: 0.55,
+              pointerEvents: "none" as const,
+            },
+      };
+    });
+  }, [edges, selectedIdsKey]);
+
+  // Minimap dot tint: a node's picked accent color wins; un-accented (default)
+  // nodes fall back to a per-type color so the minimap still reads by type.
+  const minimapColor = useMemo(
+    () => (n: { type?: string; data?: { color?: NodeColor } }) => {
+      const color = n.data?.color;
+      if (color && color !== "default") return NODE_COLORS[color].dot;
+      if (n.type === "chat") return "#c4b5fd";
+      if (n.type === "image") return "#93c5fd";
+      if (n.type === "video") return "#fca5a5";
+      if (n.type === "links") return "#5eead4";
+      if (n.type === "draw") return "#f0abfc";
+      return "#fcd34d";
+    },
+    [],
+  );
+
+  // Flip the shared `interacting` flag around viewport moves (pan/zoom) and node
+  // drags so iframe nodes can guard their embeds for the duration of the gesture.
+  const startInteract = useCallback(() => setInteracting(true), [setInteracting]);
+  const endInteract = useCallback(() => setInteracting(false), [setInteracting]);
+
+  return (
+    <div ref={wrapperRef} className="relative h-full w-full">
+      <ReactFlow<AppNode>
+        nodes={nodes}
+        edges={displayEdges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        isValidConnection={isValidConnection}
+        onMoveStart={startInteract}
+        onMoveEnd={endInteract}
+        onNodeDragStart={startInteract}
+        onNodeDragStop={endInteract}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        deleteKeyCode={null}
+        fitView
+        fitViewOptions={{ padding: 0.2 }}
+        minZoom={0.3}
+        maxZoom={2}
+        proOptions={{ hideAttribution: true }}
+        selectionOnDrag={selectMode}
+        panOnDrag={selectMode ? [1, 2] : true}
+        className="bg-slate-50"
+      >
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={22}
+          size={1.6}
+          color="#cbd5e1"
+        />
+        <Controls
+          position="bottom-right"
+          showInteractive={false}
+          className="!rounded-xl !border !border-slate-200 !bg-white/90 !shadow-lg !backdrop-blur"
+        />
+        <MiniMap
+          position="bottom-right"
+          pannable
+          zoomable
+          nodeColor={minimapColor}
+          nodeStrokeWidth={3}
+          className="!bottom-0 !right-16 !rounded-xl !border !border-slate-200 !bg-white/80 !shadow-lg"
+        />
+      </ReactFlow>
+
+      <Toolbar
+        onAdd={handleAdd}
+        selectMode={selectMode}
+        onToggleSelect={() => setSelectMode((s) => !s)}
+      />
+    </div>
+  );
+}
+
+export interface CanvasWorkspaceProps {
+  /**
+   * Render filling its parent (the document main pane) instead of as a
+   * fullscreen overlay. The canvas is a document now, so this is the default
+   * usage.
+   */
+  embedded?: boolean;
+}
+
+export default function CanvasWorkspace({ embedded = false }: CanvasWorkspaceProps) {
+  return (
+    <div
+      className={
+        embedded
+          ? "relative h-full w-full bg-slate-50"
+          : "fixed inset-0 z-[100] bg-slate-50"
+      }
+      style={{ colorScheme: "light" }}
+    >
+      <ReactFlowProvider>
+        <CanvasProvider>
+          <Flow />
+          <CanvasToasts />
+        </CanvasProvider>
+      </ReactFlowProvider>
+    </div>
+  );
+}

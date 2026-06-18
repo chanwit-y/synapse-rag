@@ -32,12 +32,26 @@ const DocumentGraphView = dynamic(
     ),
   },
 );
+// The canvas pulls in @xyflow/react (a large bundle) and renders to the DOM
+// only, so keep it out of the route's initial JS and off the server.
+const CanvasDocumentView = dynamic(
+  () => import("@/components/container/canvas").then((m) => m.CanvasDocumentView),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
+        Loading canvas…
+      </div>
+    ),
+  },
+);
 import { useLayoutStore } from "@/store/layout-store";
 import { ArrowLeft, ChevronRight, Clock, FileText, Network } from "lucide-react";
 import ApiLoadingBackdrop from "@/components/common/ApiLoadingBackdrop/ApiLoadingBackdrop";
 import SelectField from "@/components/common/SelectField/SelectField";
 import { useApiLoading } from "@/hooks/useApiLoading";
 import {
+  createCanvasAction,
   createCollectionAction,
   deleteCollectionAction,
   deleteDocumentItemAction,
@@ -183,9 +197,11 @@ export default function DocumentPageContent({
       setEditorContent("");
       void withLoading(async () => {
         const result = await getDocumentItemContentAction(file.id);
+        // Canvas content is a JSON graph; never substitute the markdown default.
+        const fallback = file.type === "canvas" ? "" : getDefaultContent(file.name);
         const content = result.success
-          ? result.data.content || getDefaultContent(file.name)
-          : getDefaultContent(file.name);
+          ? result.data.content || fallback
+          : fallback;
         setFileContents((prev) => ({ ...prev, [file.id]: content }));
         setEditorContent(content);
       });
@@ -209,7 +225,7 @@ export default function DocumentPageContent({
     (id: string, options?: { push?: boolean }) => {
       for (const group of collections) {
         const found = findNodeById(group.directories, id);
-        if (found && found.node.type === "file") {
+        if (found && (found.node.type === "file" || found.node.type === "canvas")) {
           if ((options?.push ?? true) && selectedFile && selectedFile.id !== id) {
             setBackStack((stack) => [...stack, { id: selectedFile.id, name: selectedFile.name }]);
           }
@@ -530,6 +546,56 @@ export default function DocumentPageContent({
     [],
   );
 
+  // Create a persisted canvas document, refresh the tree, and open it in the
+  // main pane so the user can start editing immediately. We open from the
+  // freshly fetched tree (not openItemById, which closes over stale collections).
+  const handleCreateCanvas = useCallback(
+    async (params: {
+      collectionId: string;
+      folderId: string | null;
+      name: string;
+    }) =>
+      withLoading(async () => {
+        const created = unwrapAction(await createCanvasAction(params));
+        const listResult = await listCollectionsAction();
+        if (listResult.success) {
+          setCollections(listResult.data);
+          for (const group of listResult.data) {
+            const found = findNodeById(group.directories, created.id);
+            if (found) {
+              setBackStack([]);
+              handleSelectFile(found.node, found.path);
+              window.history.replaceState(null, "", `?item=${created.id}`);
+              break;
+            }
+          }
+        }
+        return created;
+      }),
+    [handleSelectFile, withLoading],
+  );
+
+  // Persist a canvas's serialized graph (reuses the document save path, which
+  // also snapshots history).
+  const handleSaveCanvas = useCallback(
+    async (content: string) => {
+      if (!selectedFile) return;
+      await withLoading(async () => {
+        unwrapAction(
+          await saveDocumentContentAction({
+            id: selectedFile.id,
+            name: selectedFile.name,
+            content,
+            collectionId: selectedFile.collectionId,
+          }),
+        );
+        setFileContents((prev) => ({ ...prev, [selectedFile.id]: content }));
+        showSnackbar({ variant: "success", message: "Canvas saved." });
+      });
+    },
+    [selectedFile, showSnackbar, withLoading],
+  );
+
   const handleImportUserStories = useCallback(
     async (project: string, workItemIds: number[]) => {
       if (!azureCollectionId) return;
@@ -583,6 +649,7 @@ export default function DocumentPageContent({
           onRenameCollection={handleRenameCollection}
           onRenamedSelection={handleRenamedSelection}
           onImportFromAzure={handleOpenAzureImport}
+          onCreateCanvas={handleCreateCanvas}
           onToggleCollapsed={() => setCollapsed((c) => !c)}
           width={width}
           onWidthChange={setWidth}
@@ -668,61 +735,78 @@ export default function DocumentPageContent({
                       </nav>
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {viewLang === "th" && chatModels.length > 1 ? (
-                      <SelectField
-                        size="small"
-                        aria-label="Translation model"
-                        placeholder="Model"
-                        options={chatModels.map((m) => ({ value: m.id, label: m.name }))}
-                        value={translationModelId}
-                        onChange={(v) => setTranslationModelId(v == null ? null : String(v))}
-                        className="w-44"
-                      />
-                    ) : null}
-                    <div
-                      className="inline-flex overflow-hidden rounded-md border border-border"
-                      role="group"
-                      aria-label="Document language"
-                    >
+                  {selectedFile.type !== "canvas" ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {viewLang === "th" && chatModels.length > 1 ? (
+                        <SelectField
+                          size="small"
+                          aria-label="Translation model"
+                          placeholder="Model"
+                          options={chatModels.map((m) => ({ value: m.id, label: m.name }))}
+                          value={translationModelId}
+                          onChange={(v) => setTranslationModelId(v == null ? null : String(v))}
+                          className="w-44"
+                        />
+                      ) : null}
+                      <div
+                        className="inline-flex overflow-hidden rounded-md border border-border"
+                        role="group"
+                        aria-label="Document language"
+                      >
+                        <button
+                          type="button"
+                          className={`px-3 py-1.5 text-xs transition-colors ${
+                            viewLang === "en"
+                              ? "bg-primary font-semibold text-primary-foreground shadow-sm"
+                              : "bg-surface font-medium text-muted-foreground hover:bg-surface/70 hover:text-foreground"
+                          }`}
+                          onClick={() => void handleToggleLang("en")}
+                          aria-pressed={viewLang === "en"}
+                        >
+                          EN
+                        </button>
+                        <button
+                          type="button"
+                          className={`border-l border-border px-3 py-1.5 text-xs transition-colors ${
+                            viewLang === "th"
+                              ? "bg-primary font-semibold text-primary-foreground shadow-sm"
+                              : "bg-surface font-medium text-muted-foreground hover:bg-surface/70 hover:text-foreground"
+                          }`}
+                          onClick={() => void handleToggleLang("th")}
+                          aria-pressed={viewLang === "th"}
+                          title="Translate to Thai with AI"
+                        >
+                          TH
+                        </button>
+                      </div>
                       <button
                         type="button"
-                        className={`px-3 py-1.5 text-xs transition-colors ${
-                          viewLang === "en"
-                            ? "bg-primary font-semibold text-primary-foreground shadow-sm"
-                            : "bg-surface font-medium text-muted-foreground hover:bg-surface/70 hover:text-foreground"
-                        }`}
-                        onClick={() => void handleToggleLang("en")}
-                        aria-pressed={viewLang === "en"}
+                        className="inline-flex items-center justify-center rounded-md border border-border bg-surface p-2 text-sm text-foreground hover:bg-surface/70"
+                        onClick={() => setHistoryOpen(true)}
+                        aria-label="Open history"
+                        title="History"
                       >
-                        EN
-                      </button>
-                      <button
-                        type="button"
-                        className={`border-l border-border px-3 py-1.5 text-xs transition-colors ${
-                          viewLang === "th"
-                            ? "bg-primary font-semibold text-primary-foreground shadow-sm"
-                            : "bg-surface font-medium text-muted-foreground hover:bg-surface/70 hover:text-foreground"
-                        }`}
-                        onClick={() => void handleToggleLang("th")}
-                        aria-pressed={viewLang === "th"}
-                        title="Translate to Thai with AI"
-                      >
-                        TH
+                        <Clock className="h-4 w-4" />
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center rounded-md border border-border bg-surface p-2 text-sm text-foreground hover:bg-surface/70"
-                      onClick={() => setHistoryOpen(true)}
-                      aria-label="Open history"
-                      title="History"
-                    >
-                      <Clock className="h-4 w-4" />
-                    </button>
-                  </div>
+                  ) : null}
                 </div>
               </div>
+              {selectedFile.type === "canvas" ? (
+                // Mount only once the saved graph is loaded so the store hydrates
+                // from real content (the view seeds the store on mount).
+                fileContents[selectedFile.id] !== undefined ? (
+                  <CanvasDocumentView
+                    key={selectedFile.id}
+                    content={fileContents[selectedFile.id]}
+                    onSave={handleSaveCanvas}
+                  />
+                ) : (
+                  <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
+                    Loading canvas…
+                  </div>
+                )
+              ) : (
               <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                 <MarkdownEditor
                   key={`${selectedFile.id}:${viewLang}`}
@@ -737,6 +821,7 @@ export default function DocumentPageContent({
                   onOpenItem={openItemById}
                 />
               </div>
+              )}
             </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">

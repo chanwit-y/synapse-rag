@@ -13,6 +13,11 @@ export const items = sqliteTable("items", {
   }),
   type: text("type", { enum: itemTypeValues }).notNull(),
   name: text("name").notNull(),
+  /**
+   * Document body. For `type: "file"` this is Markdown; for `type: "canvas"`
+   * it is a JSON string of the react-flow graph (`{ nodes, edges }`); NULL for
+   * folders.
+   */
   content: text("content"),
   /** Cached Thai translation of `content` (user-editable). */
   contentTh: text("content_th"),

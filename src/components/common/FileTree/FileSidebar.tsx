@@ -49,6 +49,15 @@ export interface FileSidebarProps {
   onDeleteCollection?: (collectionId: string) => Promise<void>;
   /** Called when the user clicks "Import from Azure DevOps" for a collection. */
   onImportFromAzure?: (collectionId: string, folderId: string | null) => void;
+  /**
+   * Create a new canvas document. Resolves to the created item's id so the
+   * caller can open it. `folderId` is the target folder (null = collection root).
+   */
+  onCreateCanvas?: (params: {
+    collectionId: string;
+    folderId: string | null;
+    name: string;
+  }) => Promise<{ id: string }>;
   /** Persist a renamed file/folder. Throws on failure (caller reverts). */
   onRenameItem?: (
     itemId: string,
@@ -97,6 +106,7 @@ export default function FileSidebar({
   onDeleteFile,
   onDeleteCollection,
   onImportFromAzure,
+  onCreateCanvas,
   onRenameItem,
   onRenameCollection,
   onRenamedSelection,
@@ -148,7 +158,7 @@ export default function FileSidebar({
 
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [itemName, setItemName] = useState("");
-  const [itemType, setItemType] = useState<"file" | "folder">("file");
+  const [itemType, setItemType] = useState<"file" | "folder" | "canvas">("file");
   const [isSavingItem, setIsSavingItem] = useState(false);
   const [selectedNodeForAdd, setSelectedNodeForAdd] = useState<{
     node: TreeNode | null;
@@ -281,7 +291,7 @@ export default function FileSidebar({
   );
 
   const handleNodeClick = (node: TreeNode, nodePath: string) => {
-    if (node.type === "file") {
+    if (node.type === "file" || node.type === "canvas") {
       onSelectFile?.(node, nodePath);
     }
   };
@@ -351,6 +361,21 @@ export default function FileSidebar({
     setIsAddItemModalOpen(true);
   };
 
+  const handleAddCanvas = (
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+    groupIndex: number,
+  ) => {
+    setSelectedNodeForAdd({
+      node: selectedNode,
+      path: selectedNodePath,
+      groupIndex,
+    });
+    setItemType("canvas");
+    setItemName("");
+    setIsAddItemModalOpen(true);
+  };
+
   // Resolve which folder an Azure import should land in, from the current tree
   // selection (mirrors handleAddItem): a selected folder is the target, a
   // selected file targets its parent folder, and a selection outside this
@@ -386,9 +411,53 @@ export default function FileSidebar({
     setSelectedNodeForAdd(null);
   };
 
+  // From the current tree selection, resolve which folder a new item should
+  // land in: a selected folder is the target; a selected file targets its
+  // parent folder; anything else falls back to the collection root (null).
+  const resolveTargetFolderId = (
+    group: TreeViewGroup,
+    selected: { node: TreeNode | null; path: string | null },
+  ): string | null => {
+    if (!selected.node || !selected.path) return null;
+    const segments = selected.path.split("/");
+    const node = findNodeByPath(group.directories, segments);
+    if (!node || node.id !== selected.node.id) return null;
+    if (node.type === "folder") return node.id;
+    if (segments.length > 1) {
+      const parent = findNodeByPath(group.directories, segments.slice(0, -1));
+      if (parent && parent.type === "folder") return parent.id;
+    }
+    return null;
+  };
+
   const handleAddItem = async () => {
     const name = itemName.trim();
     if (!name || isSavingItem || !selectedNodeForAdd) return;
+
+    // Canvas creation is persisted server-side (it owns its JSON content), so it
+    // bypasses the optimistic structure sync used by files/folders. The caller
+    // refreshes the tree and opens the new canvas.
+    if (itemType === "canvas") {
+      const group = collections[selectedNodeForAdd.groupIndex ?? 0];
+      if (!group || !onCreateCanvas) return;
+      const folderId = resolveTargetFolderId(group, selectedNodeForAdd);
+
+      setIsSavingItem(true);
+      try {
+        await onCreateCanvas({ collectionId: group.id, folderId, name });
+        handleCloseAddItemModal();
+        showSnackbar({ variant: "success", message: `Canvas "${name}" added.` });
+      } catch (err) {
+        console.error("Failed to create canvas:", err);
+        showSnackbar({
+          variant: "error",
+          message: "Failed to add canvas. Please try again.",
+        });
+      } finally {
+        setIsSavingItem(false);
+      }
+      return;
+    }
 
     const resolvedName =
       itemType === "file" && !name.includes(".") ? `${name}.md` : name;
@@ -518,7 +587,7 @@ export default function FileSidebar({
 
     setIsDeletingItem(true);
     try {
-      if (target.node.type === "file") {
+      if (target.node.type === "file" || target.node.type === "canvas") {
         await onDeleteFile?.(target.node.id);
       }
       await onUpdateDirectories?.(group.id, group.directories);
@@ -639,9 +708,12 @@ export default function FileSidebar({
     const trimmed = value.trim();
     if (!trimmed) return; // empty → treat as cancel
 
-    // Mirror the add flow: extensionless files get a `.md` suffix.
+    // Mirror the add flow: extensionless files get a `.md` suffix and canvases
+    // a `.canvas` suffix.
     const normalized =
-      node.type === "file" && !trimmed.includes(".") ? `${trimmed}.md` : trimmed;
+      !trimmed.includes(".") && (node.type === "file" || node.type === "canvas")
+        ? `${trimmed}.${node.type === "canvas" ? "canvas" : "md"}`
+        : trimmed;
 
     if (normalized === node.name) return; // unchanged → silent no-op
 
@@ -811,6 +883,7 @@ export default function FileSidebar({
                 onAddFolder={handleAddFolder}
                 onRequestDeleteNode={handleRequestDeleteNode}
                 onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
+                onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                 onRequestDeleteGroup={
                   onDeleteCollection ? handleRequestDeleteGroup : undefined
                 }
@@ -835,6 +908,7 @@ export default function FileSidebar({
                   onAddFolder={handleAddFolder}
                   onRequestDeleteNode={handleRequestDeleteNode}
                   onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
+                  onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                   onRequestDeleteGroup={
                     onDeleteCollection ? handleRequestDeleteGroup : undefined
                   }

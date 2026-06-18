@@ -2,7 +2,7 @@ export interface TreeNode {
   id: string;
   collectionId: string;
   name: string;
-  type: "folder" | "file";
+  type: "folder" | "file" | "canvas";
   icon?: string | null;
   extension?: string | null;
   content?: string | null;

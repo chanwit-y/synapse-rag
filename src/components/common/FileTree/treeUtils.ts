@@ -178,13 +178,15 @@ export function collectNodeAndDescendantIds(
  */
 export function dedupeName(
   name: string,
-  type: "folder" | "file",
+  type: TreeNode["type"],
   siblings: TreeNode[],
 ): string {
   const taken = new Set(siblings.map((s) => s.name));
   if (!taken.has(name)) return name;
 
-  const dot = type === "file" ? name.lastIndexOf(".") : -1;
+  // Files and canvases carry an extension to preserve; folders dedupe on the
+  // whole name.
+  const dot = type !== "folder" ? name.lastIndexOf(".") : -1;
   const base = dot > 0 ? name.slice(0, dot) : name;
   const ext = dot > 0 ? name.slice(dot) : "";
 
@@ -251,7 +253,7 @@ export function moveNodeInTree(
 export function getSiblingContainerList(
   directories: TreeNode[],
   pathSegments: string[],
-  selectedType: "folder" | "file" | null,
+  selectedType: TreeNode["type"] | null,
 ): TreeNode[] {
   if (pathSegments.length === 0 || selectedType == null) {
     return directories;

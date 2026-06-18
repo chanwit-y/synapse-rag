@@ -66,7 +66,7 @@ function flattenTree(collections: TreeViewGroup[]): {
       parent: parentKey,
       label: node.name,
       kind: node.type === "folder" ? "folder" : "file",
-      fileId: node.type === "file" ? node.id : null,
+      fileId: node.type !== "folder" ? node.id : null,
       collapsible: node.type === "folder" && children.length > 0,
     });
     for (const child of children) walk(child, key);

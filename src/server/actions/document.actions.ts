@@ -92,6 +92,18 @@ export async function getDocumentItemContentAction(
   }
 }
 
+export async function createCanvasAction(params: {
+  collectionId: string;
+  folderId: string | null;
+  name: string;
+}): Promise<ActionResult<{ id: string }>> {
+  try {
+    return actionSuccess(await documentService.createCanvas(params));
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 export async function saveDocumentContentAction(params: {
   id: string | null;
   name: string;

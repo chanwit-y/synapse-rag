@@ -27,7 +27,7 @@ export interface FileSidebarModalsProps {
 
   isAddItemModalOpen: boolean;
   onCloseAddItemModal: () => void;
-  itemType: "file" | "folder";
+  itemType: "file" | "folder" | "canvas";
   itemName: string;
   onChangeItemName: (value: string) => void;
   onSubmitItem: () => void;
@@ -80,6 +80,9 @@ export default function FileSidebarModals({
     selectedNodeForDelete?.node.type === "folder" &&
     (selectedNodeForDelete.node.children?.length ?? 0) > 0;
 
+  const itemTypeLabel =
+    itemType === "folder" ? "Folder" : itemType === "canvas" ? "Canvas" : "File";
+
   return (
     <>
       {/* Add Collection Modal */}
@@ -128,7 +131,7 @@ export default function FileSidebarModals({
         open={isAddItemModalOpen}
         onClose={onCloseAddItemModal}
         size="sm"
-        title={`Add ${itemType === "file" ? "File" : "Folder"}`}
+        title={`Add ${itemTypeLabel}`}
         footer={
           <div className="flex justify-end gap-2">
             <Button
@@ -153,7 +156,7 @@ export default function FileSidebarModals({
       >
         <div className="space-y-3">
           <TextField
-            label={`${itemType === "file" ? "File" : "Folder"} Name`}
+            label={`${itemTypeLabel} Name`}
             value={itemName}
             onChange={(e) => onChangeItemName(e.target.value)}
             onKeyDown={(e) => {
@@ -162,7 +165,9 @@ export default function FileSidebarModals({
             placeholder={
               itemType === "file"
                 ? "Enter file name (e.g., example.md)"
-                : "Enter folder name"
+                : itemType === "canvas"
+                  ? "Enter canvas name (e.g., roadmap.canvas)"
+                  : "Enter folder name"
             }
             fullWidth
             autoFocus

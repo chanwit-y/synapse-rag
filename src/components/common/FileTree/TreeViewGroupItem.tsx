@@ -8,6 +8,7 @@ import {
   CloudDownload,
   Folder,
   FileText,
+  Frame,
   Trash2,
 } from "lucide-react";
 import type { TreeNode, TreeViewGroup, FileType } from "./types";
@@ -42,6 +43,11 @@ export interface TreeViewGroupItemProps {
     collectionId: string,
     selectedNode: TreeNode | null,
     selectedNodePath: string | null,
+  ) => void;
+  onAddCanvas?: (
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+    groupIndex: number,
   ) => void;
   onRequestDeleteGroup?: (group: TreeViewGroup, groupIndex: number) => void;
   editingNodeId?: string | null;
@@ -81,6 +87,7 @@ export default function TreeViewGroupItem({
   onAddFolder,
   onRequestDeleteNode,
   onImportFromAzure,
+  onAddCanvas,
   onRequestDeleteGroup,
   editingNodeId,
   onStartRenameNode,
@@ -208,6 +215,19 @@ export default function TreeViewGroupItem({
               >
                 <FileText className="w-3.5 h-3.5 text-muted-foreground" />
               </button>
+              {onAddCanvas && (
+                <button
+                  type="button"
+                  className="p-1 hover:bg-surface rounded transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddCanvas(selectedNode, selectedNodePath, groupIndex);
+                  }}
+                  title="Add Canvas"
+                >
+                  <Frame className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              )}
             </div>
             <button
               type="button"
