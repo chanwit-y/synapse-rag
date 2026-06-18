@@ -38,6 +38,7 @@ async function encodeBlurHash(src: string): Promise<string | null> {
 export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeType>) {
   const notify = useCanvasStore((s) => s.notify);
   const c = nodeColor(data.color);
+  const [title, setTitle] = useState(data.title);
   const [imageUrl, setImageUrl] = useState(data.imageUrl);
   const [blurHash, setBlurHash] = useState(data.blurHash);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -90,8 +91,12 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
       <NodeColorButton id={id} color={data.color} />
 
       <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5 dark:border-slate-800`}>
-        <ImageIcon size={15} className="text-slate-500 dark:text-slate-400" />
-        <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{data.title}</span>
+        <ImageIcon size={15} className="shrink-0 text-slate-500 dark:text-slate-400" />
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="nodrag min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none dark:text-slate-100"
+        />
       </div>
 
       {/* Image section */}

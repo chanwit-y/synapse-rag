@@ -81,7 +81,7 @@ export default function CanvasDocumentView({
     <div
       className={
         isFullscreen
-          ? "fixed inset-0 z-50 flex min-h-0 flex-col bg-surface"
+          ? "fixed inset-0 z-50 flex min-h-0 origin-center flex-col bg-surface animate-[canvas-fullscreen-in_220ms_ease-out]"
           : "flex h-full min-h-0 flex-1 flex-col bg-surface"
       }
     >

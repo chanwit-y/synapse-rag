@@ -104,6 +104,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
   const updateNodeInternals = useUpdateNodeInternals();
 
   const c = nodeColor(data.color);
+  const [title, setTitle] = useState(data.title);
   const [messages, setMessages] = useState<ChatMessage[]>(data.messages);
   const [draft, setDraft] = useState("");
   const [typing, setTyping] = useState(!!data.pending);
@@ -391,8 +392,12 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
           <Bot size={16} />
         </span>
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{data.title}</span>
+        <div className="flex min-w-0 flex-col">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="nodrag min-w-0 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none dark:text-slate-100"
+          />
           <span className="text-[11px] text-emerald-500">● online</span>
         </div>
       </div>

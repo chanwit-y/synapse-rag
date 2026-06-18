@@ -120,6 +120,7 @@ export default function TextEditorNode({
   const bodyRef = useRef<HTMLDivElement>(null);
   // Bumped on resize so the highlight-rect layout effect re-measures (text reflows).
   const [resizeTick, setResizeTick] = useState(0);
+  const [title, setTitle] = useState(data.title);
   const c = nodeColor(data.color);
   const highlights = data.highlights ?? [];
   // Per-line rects for each saved highlight, keyed by its paired node id.
@@ -297,9 +298,13 @@ export default function TextEditorNode({
       <NodeColorButton id={id} color={data.color} />
 
       {/* Header / drag handle */}
-      <div className={`flex items-center justify-between rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5 dark:border-slate-800`}>
-        <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{data.title}</span>
-        <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400 transition-opacity group-hover:opacity-0 dark:text-slate-500">
+      <div className={`flex items-center justify-between gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5 dark:border-slate-800`}>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="nodrag min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none dark:text-slate-100"
+        />
+        <span className="shrink-0 text-[11px] font-medium uppercase tracking-wide text-slate-400 transition-opacity group-hover:opacity-0 dark:text-slate-500">
           Document
         </span>
       </div>
