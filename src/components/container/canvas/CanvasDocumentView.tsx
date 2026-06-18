@@ -43,19 +43,30 @@ export default function CanvasDocumentView({
   const loadCanvas = useCanvasStore((s) => s.loadCanvas);
   const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // While exiting, the overlay stays mounted (still fixed) so the shrink-out
+  // animation can play; `onAnimationEnd` then collapses it back to embedded.
+  const [isExiting, setIsExiting] = useState(false);
 
-  const toggleFullscreen = useCallback(() => setIsFullscreen((v) => !v), []);
+  const enterFullscreen = useCallback(() => {
+    setIsExiting(false);
+    setIsFullscreen(true);
+  }, []);
+  const exitFullscreen = useCallback(() => setIsExiting(true), []);
+  const toggleFullscreen = useCallback(() => {
+    if (isFullscreen && !isExiting) exitFullscreen();
+    else enterFullscreen();
+  }, [isFullscreen, isExiting, enterFullscreen, exitFullscreen]);
 
   // Esc exits the maximized (in-app) view, matching native fullscreen muscle
   // memory without taking over the whole OS screen.
   useEffect(() => {
-    if (!isFullscreen) return;
+    if (!isFullscreen || isExiting) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsFullscreen(false);
+      if (e.key === "Escape") exitFullscreen();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isFullscreen]);
+  }, [isFullscreen, isExiting, exitFullscreen]);
 
   // Hydrate the store with the saved graph. The parent keys this view by item id
   // and mounts it only once content is loaded, so `content` is stable for the
@@ -79,9 +90,19 @@ export default function CanvasDocumentView({
 
   return (
     <div
+      onAnimationEnd={() => {
+        if (isExiting) {
+          setIsFullscreen(false);
+          setIsExiting(false);
+        }
+      }}
       className={
         isFullscreen
-          ? "fixed inset-0 z-50 flex min-h-0 origin-center flex-col bg-surface animate-[canvas-fullscreen-in_220ms_ease-out]"
+          ? `fixed inset-0 z-50 flex min-h-0 origin-center flex-col bg-surface ${
+              isExiting
+                ? "animate-[canvas-fullscreen-out_200ms_ease-in]"
+                : "animate-[canvas-fullscreen-in_220ms_ease-out]"
+            }`
           : "flex h-full min-h-0 flex-1 flex-col bg-surface"
       }
     >

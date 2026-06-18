@@ -26,6 +26,18 @@
   }
 }
 
+/* Canvas minimize (exit full screen) shrink-out. */
+@keyframes canvas-fullscreen-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0.4;
+    transform: scale(0.96);
+  }
+}
+
 /* Keep the per-node controls (delete, color) visible while the node is
    selected (otherwise revealed only on hover via group-hover). */
 .react-flow__node.selected .node-delete-btn,
