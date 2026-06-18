@@ -1,4 +1,5 @@
 import type { Node } from "@xyflow/react";
+import type { JSONContent } from "@tiptap/core";
 
 /** A highlight inside a text-editor or chat node, paired 1:1 with the child node
  *  it spawned. Keyed by that child's id (`nodeId`) → anchors the source handle
@@ -10,21 +11,32 @@ export type Highlight = {
   /** The paired child node's id. */
   nodeId: string;
   /** For a chat-node highlight, the id of the message the offsets are within.
-   *  Absent for a text-editor highlight (offsets are into the single paragraph). */
+   *  Absent for a text-editor highlight. */
   messageId?: string;
-  start: number;
-  end: number;
+  /** Character offsets of the phrase. Used by chat nodes (offset-based) and, for
+   *  text-editor nodes, only to migrate the legacy `paragraph` into a
+   *  `spawnHighlight` mark — the mark is the source of truth afterwards. */
+  start?: number;
+  end?: number;
   phrase: string;
 };
 
 export type TextEditorNodeData = {
   title: string;
-  /** Plain paragraph content rendered into the contentEditable body. */
+  /** Rich-text content (ProseMirror JSON) — the source of truth for the Tiptap
+   *  body. Absent on legacy nodes: migrated from `paragraph` at editor init. */
+  doc?: JSONContent;
+  /** Legacy plain-text content. Kept only as a migration/seed input for `doc`;
+   *  no longer written once a node has been migrated. */
   paragraph: string;
-  /** Saved highlights — one per spawned child, each anchoring its own edge. */
+  /** Saved highlights — one per spawned child, each anchoring its own edge.
+   *  For a text-editor node this is the authority for which `spawnHighlight`
+   *  marks are "live" (drives the source handles + the focus-reveal state);
+   *  `start`/`end` are read only when migrating `paragraph` → `doc`. */
   highlights?: Highlight[];
-  /** Convenience seed: a phrase highlighted on first load. Migrated into
-   *  `highlights` on mount, paired to the child read off the seeded edge. */
+  /** Convenience seed: a phrase highlighted on first load. Migrated into a
+   *  `spawnHighlight` mark on mount, paired to the child read off the seeded
+   *  edge. */
   initialHighlight?: string;
   /** Accent color picked from the palette (tints header + border). */
   color?: NodeColor;

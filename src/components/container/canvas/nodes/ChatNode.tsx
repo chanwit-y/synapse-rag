@@ -230,7 +230,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       const bubble = h.messageId
         ? scroll.querySelector<HTMLElement>(`[data-mid="${h.messageId}"]`)
         : null;
-      if (!bubble) continue;
+      if (!bubble || h.start === undefined || h.end === undefined) continue;
       const range = rangeFromOffsets(bubble, h.start, h.end);
       if (!range) continue;
       cMap[h.nodeId] = contentRects(range);
@@ -260,7 +260,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
     let target: Rect | null = null;
     for (const childId of added) {
       const h = highlights.find((x) => x.nodeId === childId);
-      if (!h?.messageId) continue;
+      if (!h?.messageId || h.start === undefined || h.end === undefined) continue;
       const bubble = scroll.querySelector<HTMLElement>(`[data-mid="${h.messageId}"]`);
       if (!bubble) continue;
       const range = rangeFromOffsets(bubble, h.start, h.end);

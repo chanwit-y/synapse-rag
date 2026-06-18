@@ -32,10 +32,12 @@ export type SpawnFromTextArgs = {
   sourceHandle?: string;
   /** Handle id on the new child node the edge ends at (e.g. "t-top"). */
   targetHandle?: string;
-  /** When the edge springs from the highlighted phrase, the phrase's character
-   *  offsets in the source. The store saves a paired highlight on the source
-   *  node, keyed to the new child's id. `messageId` is set for a chat source. */
-  highlight?: { start: number; end: number; messageId?: string };
+  /** When the edge springs from the highlighted phrase, mark this a highlight
+   *  source: the store saves a paired highlight on the source node, keyed to the
+   *  new child's id. For a chat source, pass the phrase's character offsets
+   *  (`start`/`end`) and `messageId`. For a text-editor source the offsets are
+   *  omitted — the caller applies a `spawnHighlight` mark using the returned id. */
+  highlight?: { start?: number; end?: number; messageId?: string };
 };
 
 interface CanvasState {
@@ -55,7 +57,9 @@ interface CanvasState {
 
   // semantic actions
   addNode: (kind: NodeKind, center: { x: number; y: number }) => void;
-  spawn: (args: SpawnFromTextArgs) => void;
+  /** Spawn a linked node from selected text; returns the new child node's id so
+   *  a text-editor caller can key its `spawnHighlight` mark to it. */
+  spawn: (args: SpawnFromTextArgs) => string;
   /** Replace the whole graph (used when opening a persisted canvas file). */
   loadCanvas: (nodes: AppNode[], edges: Edge[]) => void;
   notify: (message: string, action?: ToastAction) => void;
@@ -252,9 +256,10 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
                       ...(n.data.highlights ?? []),
                       {
                         nodeId: newId,
-                        start: highlight!.start,
-                        end: highlight!.end,
                         phrase: trimmed,
+                        ...(highlight!.start !== undefined
+                          ? { start: highlight!.start, end: highlight!.end }
+                          : {}),
                         ...(highlight!.messageId ? { messageId: highlight!.messageId } : {}),
                       },
                     ],
@@ -281,6 +286,7 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
       ],
     }));
     get().notify(`➕ Created a ${kind === "chat" ? "chat" : "note"} from the selection`);
+    return newId;
   },
 
   // Swap the whole graph when a canvas file is opened. The id counter is bumped
