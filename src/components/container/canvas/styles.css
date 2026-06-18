@@ -30,3 +30,23 @@
 .react-flow__controls-button:hover {
   background: #f1f5f9;
 }
+
+/* Dark theme: recolor the react-flow chrome that the base stylesheet hardcodes. */
+[data-theme="dark"] .react-flow__controls-button {
+  color: #cbd5e1;
+}
+[data-theme="dark"] .react-flow__controls-button:hover {
+  background: #1e293b;
+}
+[data-theme="dark"] .react-flow__controls-button svg {
+  fill: currentColor;
+}
+[data-theme="dark"] .react-flow__minimap-mask {
+  fill: rgba(2, 6, 23, 0.6);
+}
+[data-theme="dark"] .react-flow__resize-control.line {
+  border-color: transparent;
+}
+[data-theme="dark"] .react-flow__attribution {
+  background: transparent;
+}

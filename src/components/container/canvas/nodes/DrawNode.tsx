@@ -146,18 +146,18 @@ export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeP
   const clear = () => setStrokes([]);
 
   return (
-    <div className={`group relative flex h-full w-full flex-col rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout]`}>
+    <div className={`group relative flex h-full w-full flex-col rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout] dark:bg-slate-900 dark:shadow-black/40`}>
       <NodeResizer isVisible={selected} minWidth={220} minHeight={200} color="#a78bfa" />
       <SideHandles />
       <NodeRemoveButton id={id} />
       <NodeColorButton id={id} color={data.color} />
 
-      <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5`}>
-        <Pencil size={15} className="shrink-0 text-slate-500" />
+      <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5 dark:border-slate-800`}>
+        <Pencil size={15} className="shrink-0 text-slate-500 dark:text-slate-400" />
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="nodrag min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none"
+          className="nodrag min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none dark:text-slate-100"
         />
       </div>
 
@@ -171,7 +171,7 @@ export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeP
           onPointerMove={onPointerMove}
           onPointerUp={endStroke}
           onPointerLeave={endStroke}
-          className={`nodrag nopan nowheel h-full w-full rounded-b-2xl bg-[radial-gradient(circle,#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] ${
+          className={`nodrag nopan nowheel h-full w-full rounded-b-2xl bg-[radial-gradient(circle,#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] dark:bg-[radial-gradient(circle,#334155_1px,transparent_1px)] ${
             tool === "eraser" ? "cursor-cell" : "cursor-crosshair"
           }`}
         >
@@ -199,7 +199,7 @@ export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeP
         </svg>
 
         {strokes.length === 0 && !draft && (
-          <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-slate-300">
+          <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-slate-300 dark:text-slate-600">
             Draw here
           </p>
         )}
@@ -212,7 +212,7 @@ export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeP
               transform: `translateX(-50%) scale(${toolbarScale})`,
               transformOrigin: "bottom center",
             }}
-            className="nodrag absolute bottom-2 left-1/2 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-lg"
+            className="nodrag absolute bottom-2 left-1/2 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800"
           >
             <div className="flex items-center gap-1">
               {INKS.map((ink) => (
@@ -225,15 +225,15 @@ export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeP
                   }}
                   className={`h-5 w-5 rounded-full ring-offset-1 transition-[box-shadow] ${
                     tool === "pen" && color === ink.color
-                      ? "ring-2 ring-slate-400"
-                      : "ring-1 ring-slate-200"
+                      ? "ring-2 ring-slate-400 dark:ring-slate-300"
+                      : "ring-1 ring-slate-200 dark:ring-slate-600"
                   }`}
                   style={{ backgroundColor: ink.color }}
                 />
               ))}
             </div>
 
-            <div className="h-5 w-px bg-slate-200" />
+            <div className="h-5 w-px bg-slate-200 dark:bg-slate-600" />
 
             <div className="flex items-center gap-1">
               {WIDTHS.map((w) => (
@@ -246,8 +246,8 @@ export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeP
                   }}
                   className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
                     tool === "pen" && width === w.width
-                      ? "bg-slate-800"
-                      : "hover:bg-slate-100"
+                      ? "bg-slate-800 dark:bg-slate-600"
+                      : "hover:bg-slate-100 dark:hover:bg-slate-700"
                   }`}
                 >
                   <span
@@ -262,13 +262,13 @@ export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeP
               ))}
             </div>
 
-            <div className="h-5 w-px bg-slate-200" />
+            <div className="h-5 w-px bg-slate-200 dark:bg-slate-600" />
 
             <button
               title="Eraser"
               onClick={() => setTool("eraser")}
               className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
-                tool === "eraser" ? "bg-slate-800 text-white" : "text-slate-500 hover:bg-slate-100"
+                tool === "eraser" ? "bg-slate-800 text-white dark:bg-slate-600" : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
               }`}
             >
               <Eraser size={14} />
@@ -276,14 +276,14 @@ export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeP
             <button
               title="Undo last stroke"
               onClick={undo}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
             >
               <Undo2 size={14} />
             </button>
             <button
               title="Clear all"
               onClick={clear}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-500"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:text-slate-400 dark:hover:bg-rose-500/15 dark:hover:text-rose-400"
             >
               <Trash2 size={14} />
             </button>

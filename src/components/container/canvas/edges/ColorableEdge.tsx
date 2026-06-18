@@ -101,7 +101,7 @@ export default function ColorableEdge({
           <button
             onClick={() => setOpen((o) => !o)}
             title="Edge color"
-            className={`flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200 transition-opacity hover:ring-slate-300 ${
+            className={`flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200 transition-opacity hover:ring-slate-300 dark:bg-slate-800 dark:ring-slate-600 dark:hover:ring-slate-500 ${
               show ? "opacity-100" : "opacity-0"
             }`}
           >
@@ -110,7 +110,7 @@ export default function ColorableEdge({
 
           {open && (
             <div
-              className="absolute left-1/2 top-7 z-20 grid -translate-x-1/2 gap-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-lg shadow-slate-900/15"
+              className="absolute left-1/2 top-7 z-20 grid -translate-x-1/2 gap-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-lg shadow-slate-900/15 dark:border-slate-700 dark:bg-slate-800"
               style={{ gridTemplateColumns: "repeat(4, 1.5rem)" }}
             >
               {NODE_COLOR_KEYS.map((key) => {
@@ -129,7 +129,7 @@ export default function ColorableEdge({
                       setOpen(false);
                     }}
                     className={`h-6 w-6 rounded-full ${c.swatch} transition-transform hover:scale-110 ${
-                      isActive ? `ring-2 ring-offset-1 ring-offset-white ${c.ring}` : ""
+                      isActive ? `ring-2 ring-offset-1 ring-offset-white dark:ring-offset-slate-800 ${c.ring}` : ""
                     }`}
                   />
                 );

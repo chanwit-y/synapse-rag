@@ -350,7 +350,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
 
   const popoverAnchor = live?.anchor ?? null;
   const popoverButton =
-    "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100";
+    "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700";
 
   // An overlay box (highlighter-pen look), positioned in scroll-content space.
   const overlayBox = (r: Rect, key: string) => (
@@ -371,7 +371,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
   return (
     <div
       ref={rootRef}
-      className={`group relative flex h-full w-full flex-col rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout]`}
+      className={`group relative flex h-full w-full flex-col rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout] dark:bg-slate-900 dark:shadow-black/40`}
     >
       <NodeResizer
         isVisible={selected}
@@ -387,12 +387,12 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
 
       {/* Header — incoming edges land on the shared `t-top` side handle (no
           separate handle here), so chat matches every other node type. */}
-      <div className={`relative flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-3`}>
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+      <div className={`relative flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-3 dark:border-slate-800`}>
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
           <Bot size={16} />
         </span>
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-slate-700">{data.title}</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{data.title}</span>
           <span className="text-[11px] text-emerald-500">● online</span>
         </div>
       </div>
@@ -414,7 +414,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
               className={`max-w-[80%] rounded-2xl px-3 py-2 text-[12.5px] leading-snug ${
                 m.role === "user"
                   ? "rounded-br-sm bg-violet-500 text-white"
-                  : "cursor-text select-text rounded-bl-sm bg-slate-100 text-slate-700"
+                  : "cursor-text select-text rounded-bl-sm bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
               }`}
             >
               {m.text}
@@ -423,7 +423,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
         ))}
         {typing && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-slate-100 px-3 py-2.5">
+            <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-slate-100 px-3 py-2.5 dark:bg-slate-800">
               <Sparkles size={12} className="text-violet-400" />
               <span className="flex gap-1">
                 <Dot delay="0ms" />
@@ -449,7 +449,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       </div>
 
       {/* Input */}
-      <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2.5">
+      <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2.5 dark:border-slate-800">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -457,7 +457,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
             if (e.key === "Enter") send();
           }}
           placeholder="Ask anything…"
-          className="nodrag min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-[12.5px] text-slate-700 outline-none transition-colors focus:border-violet-300 focus:bg-white"
+          className="nodrag min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-[12.5px] text-slate-700 outline-none transition-colors focus:border-violet-300 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:border-violet-500 dark:focus:bg-slate-800"
         />
         <button
           onClick={send}
@@ -480,7 +480,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
             position={Position.Top}
             isConnectable={false}
             style={{ left: a.x, top: a.y, transform: "translate(-50%, -50%)" }}
-            className="!h-3 !w-3 !border-2 !border-white !bg-amber-400 !shadow"
+            className="!h-3 !w-3 !border-2 !border-white !bg-amber-400 !shadow dark:!border-slate-900"
           />
         );
       })}
@@ -489,7 +489,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       {popoverAnchor && showPopover && (
         <div
           onMouseDown={(e) => e.preventDefault()}
-          className="nodrag absolute z-30 min-w-[230px] -translate-x-1/2 -translate-y-full rounded-xl border border-slate-200 bg-white p-1 shadow-lg shadow-slate-900/15"
+          className="nodrag absolute z-30 min-w-[230px] -translate-x-1/2 -translate-y-full rounded-xl border border-slate-200 bg-white p-1 shadow-lg shadow-slate-900/15 dark:border-slate-700 dark:bg-slate-800"
           style={{ left: popoverAnchor.x, top: popoverAnchor.y - 8 }}
         >
           {picker ? (
@@ -497,12 +497,12 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setPicker(null)}
-                  className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100"
+                  className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
                   title="Back"
                 >
                   <ArrowLeft size={14} />
                 </button>
-                <span className="text-xs font-semibold text-slate-700">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                   New {picker.title}
                 </span>
               </div>
@@ -535,7 +535,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
               >
                 <Sparkles size={13} className="text-amber-500" /> Ask AI
               </button>
-              <span className="h-4 w-px bg-slate-200" />
+              <span className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
               <button
                 className={popoverButton}
                 onClick={() =>

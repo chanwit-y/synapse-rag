@@ -82,7 +82,7 @@ export default function LinksNode({ id, data, selected }: NodeProps<LinksNodeTyp
     setLinks((ls) => ls.filter((l) => l.id !== linkId));
 
   return (
-    <div className={`group relative flex h-full w-full flex-col rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout]`}>
+    <div className={`group relative flex h-full w-full flex-col rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout] dark:bg-slate-900 dark:shadow-black/40`}>
       <NodeResizer
         isVisible={selected}
         minWidth={240}
@@ -93,19 +93,19 @@ export default function LinksNode({ id, data, selected }: NodeProps<LinksNodeTyp
       <NodeRemoveButton id={id} />
       <NodeColorButton id={id} color={data.color} />
 
-      <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5`}>
-        <Link2 size={15} className="shrink-0 text-slate-500" />
+      <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5 dark:border-slate-800`}>
+        <Link2 size={15} className="shrink-0 text-slate-500 dark:text-slate-400" />
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="nodrag min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none"
+          className="nodrag min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none dark:text-slate-100"
         />
       </div>
 
       {/* Link list */}
       <div className="nodrag nowheel min-h-0 flex-1 overflow-y-auto px-2 py-2">
         {links.length === 0 ? (
-          <p className="px-2 py-4 text-center text-[12px] text-slate-400">
+          <p className="px-2 py-4 text-center text-[12px] text-slate-400 dark:text-slate-500">
             No links yet — paste one below.
           </p>
         ) : (
@@ -113,16 +113,16 @@ export default function LinksNode({ id, data, selected }: NodeProps<LinksNodeTyp
             {links.map((l) => (
               <li
                 key={l.id}
-                className="group/row flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
+                className="group/row flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 <Favicon url={l.url} />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <input
                     value={l.label}
                     onChange={(e) => updateLabel(l.id, e.target.value)}
-                    className="nodrag min-w-0 bg-transparent text-[12.5px] font-medium text-slate-700 focus:outline-none"
+                    className="nodrag min-w-0 bg-transparent text-[12.5px] font-medium text-slate-700 focus:outline-none dark:text-slate-200"
                   />
-                  <span className="truncate text-[11px] text-slate-400" title={l.url}>
+                  <span className="truncate text-[11px] text-slate-400 dark:text-slate-500" title={l.url}>
                     {l.url}
                   </span>
                 </div>
@@ -131,14 +131,14 @@ export default function LinksNode({ id, data, selected }: NodeProps<LinksNodeTyp
                   target="_blank"
                   rel="noreferrer"
                   title="Open in a new tab"
-                  className="nodrag flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 opacity-0 transition-colors hover:bg-slate-100 hover:text-sky-600 group-hover/row:opacity-100"
+                  className="nodrag flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 opacity-0 transition-colors hover:bg-slate-100 hover:text-sky-600 group-hover/row:opacity-100 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-sky-400"
                 >
                   <ExternalLink size={13} />
                 </a>
                 <button
                   onClick={() => removeLink(l.id)}
                   title="Remove link"
-                  className="nodrag flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 opacity-0 transition-colors hover:bg-slate-100 hover:text-rose-500 group-hover/row:opacity-100"
+                  className="nodrag flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 opacity-0 transition-colors hover:bg-slate-100 hover:text-rose-500 group-hover/row:opacity-100 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-rose-400"
                 >
                   <X size={13} />
                 </button>
@@ -149,8 +149,8 @@ export default function LinksNode({ id, data, selected }: NodeProps<LinksNodeTyp
       </div>
 
       {/* Add-link input */}
-      <div className="flex items-center gap-1.5 border-t border-slate-100 px-2.5 py-2">
-        <Link2 size={15} className="ml-1 shrink-0 text-slate-400" />
+      <div className="flex items-center gap-1.5 border-t border-slate-100 px-2.5 py-2 dark:border-slate-800">
+        <Link2 size={15} className="ml-1 shrink-0 text-slate-400 dark:text-slate-500" />
         <input
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}
@@ -158,12 +158,12 @@ export default function LinksNode({ id, data, selected }: NodeProps<LinksNodeTyp
             if (e.key === "Enter") addLink();
           }}
           placeholder="Paste a link…"
-          className="nodrag nowheel min-w-0 flex-1 bg-transparent text-[12px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
+          className="nodrag nowheel min-w-0 flex-1 bg-transparent text-[12px] text-slate-700 placeholder:text-slate-400 focus:outline-none dark:text-slate-200 dark:placeholder:text-slate-500"
         />
         <button
           onClick={addLink}
           title="Add link"
-          className="nodrag flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-white transition-opacity hover:opacity-90"
+          className="nodrag flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-white transition-opacity hover:opacity-90 dark:bg-slate-600"
         >
           <Plus size={14} />
         </button>

@@ -50,7 +50,7 @@ export default function VideoNode({ id, data, selected }: NodeProps<VideoNodeTyp
   };
 
   return (
-    <div className={`group relative h-full w-full rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout]`}>
+    <div className={`group relative h-full w-full rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout] dark:bg-slate-900 dark:shadow-black/40`}>
       <NodeResizer
         isVisible={selected}
         minWidth={220}
@@ -61,9 +61,9 @@ export default function VideoNode({ id, data, selected }: NodeProps<VideoNodeTyp
       <NodeRemoveButton id={id} />
       <NodeColorButton id={id} color={data.color} />
 
-      <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5`}>
-        <Video size={15} className="text-slate-500" />
-        <span className="text-sm font-semibold text-slate-700">{data.title}</span>
+      <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5 dark:border-slate-800`}>
+        <Video size={15} className="text-slate-500 dark:text-slate-400" />
+        <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{data.title}</span>
       </div>
 
       {/* Video section */}
@@ -92,7 +92,7 @@ export default function VideoNode({ id, data, selected }: NodeProps<VideoNodeTyp
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/60 p-1.5">
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/60 p-1.5 dark:border-slate-700 dark:bg-slate-800/60">
             <Video size={16} className="ml-1 shrink-0 text-red-500" />
             <input
               value={urlInput}
@@ -101,11 +101,11 @@ export default function VideoNode({ id, data, selected }: NodeProps<VideoNodeTyp
                 if (e.key === "Enter") addVideo();
               }}
               placeholder="Paste a YouTube URL"
-              className="nodrag nowheel min-w-0 flex-1 bg-transparent text-[12px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
+              className="nodrag nowheel min-w-0 flex-1 bg-transparent text-[12px] text-slate-700 placeholder:text-slate-400 focus:outline-none dark:text-slate-200 dark:placeholder:text-slate-500"
             />
             <button
               onClick={addVideo}
-              className="nodrag shrink-0 rounded-lg bg-slate-800 px-2.5 py-1 text-[11.5px] font-medium text-white transition-opacity hover:opacity-90"
+              className="nodrag shrink-0 rounded-lg bg-slate-800 px-2.5 py-1 text-[11.5px] font-medium text-white transition-opacity hover:opacity-90 dark:bg-slate-600"
             >
               Add
             </button>
@@ -119,7 +119,7 @@ export default function VideoNode({ id, data, selected }: NodeProps<VideoNodeTyp
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
           placeholder="Add a caption…"
-          className="nodrag nowheel w-full bg-transparent text-[12.5px] leading-snug text-slate-500 placeholder:text-slate-400 focus:outline-none"
+          className="nodrag nowheel w-full bg-transparent text-[12.5px] leading-snug text-slate-500 placeholder:text-slate-400 focus:outline-none dark:text-slate-400 dark:placeholder:text-slate-500"
         />
       </div>
     </div>

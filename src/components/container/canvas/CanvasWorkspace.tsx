@@ -3,7 +3,14 @@
 import "@xyflow/react/dist/style.css";
 import "./styles.css";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -18,6 +25,7 @@ import {
   type NodeTypes,
   type EdgeTypes,
 } from "@xyflow/react";
+import { useLayoutStore } from "@/store/layout-store";
 
 import { CanvasProvider, useCanvas } from "./CanvasContext";
 import CanvasToasts from "./CanvasToasts";
@@ -36,6 +44,25 @@ import { useCanvasStore } from "./store/canvas-store";
 
 const edgeTypes: EdgeTypes = { colorable: ColorableEdge };
 
+function subscribePrefersDark(cb: () => void) {
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", cb);
+  return () => media.removeEventListener("change", cb);
+}
+
+/** Resolve the canvas dark state from the app theme (mirrors LayoutProvider) so
+ *  the react-flow chrome whose colors are *props* (dots, minimap) can follow the
+ *  light/dark toggle alongside the `dark:` utility classes. */
+function useIsDark() {
+  const theme = useLayoutStore((s) => s.theme);
+  const prefersDark = useSyncExternalStore(
+    subscribePrefersDark,
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+    () => false,
+  );
+  return theme === "system" ? prefersDark : theme === "dark";
+}
+
 const nodeTypes: NodeTypes = {
   textEditor: TextEditorNode,
   chat: ChatNode,
@@ -50,6 +77,7 @@ function Flow() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition, fitView } = useReactFlow();
   const { setInteracting } = useCanvas();
+  const isDark = useIsDark();
 
   // The store is the single source of truth for nodes/edges (controlled mode).
   const nodes = useCanvasStore((s) => s.nodes);
@@ -179,18 +207,18 @@ function Flow() {
         proOptions={{ hideAttribution: true }}
         selectionOnDrag={selectMode}
         panOnDrag={selectMode ? [1, 2] : true}
-        className="bg-slate-50"
+        className="bg-slate-50 dark:bg-slate-950"
       >
         <Background
           variant={BackgroundVariant.Dots}
           gap={22}
           size={1.6}
-          color="#cbd5e1"
+          color={isDark ? "#334155" : "#cbd5e1"}
         />
         <Controls
           position="bottom-right"
           showInteractive={false}
-          className="!rounded-xl !border !border-slate-200 !bg-white/90 !shadow-lg !backdrop-blur"
+          className="!rounded-xl !border !border-slate-200 !bg-white/90 !shadow-lg !backdrop-blur dark:!border-slate-700 dark:!bg-slate-900/90"
         />
         <MiniMap
           position="bottom-right"
@@ -198,7 +226,8 @@ function Flow() {
           zoomable
           nodeColor={minimapColor}
           nodeStrokeWidth={3}
-          className="!bottom-0 !right-16 !rounded-xl !border !border-slate-200 !bg-white/80 !shadow-lg"
+          maskColor={isDark ? "rgba(2, 6, 23, 0.6)" : "rgba(241, 245, 249, 0.6)"}
+          className="!bottom-0 !right-16 !rounded-xl !border !border-slate-200 !bg-white/80 !shadow-lg dark:!border-slate-700 dark:!bg-slate-900/80"
         />
       </ReactFlow>
 
@@ -225,10 +254,9 @@ export default function CanvasWorkspace({ embedded = false }: CanvasWorkspacePro
     <div
       className={
         embedded
-          ? "relative h-full w-full bg-slate-50"
-          : "fixed inset-0 z-[100] bg-slate-50"
+          ? "relative h-full w-full bg-slate-50 dark:bg-slate-950"
+          : "fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950"
       }
-      style={{ colorScheme: "light" }}
     >
       <ReactFlowProvider>
         <CanvasProvider>

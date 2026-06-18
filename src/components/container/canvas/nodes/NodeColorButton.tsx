@@ -41,7 +41,7 @@ export default function NodeColorButton({
       <button
         onClick={() => setOpen((o) => !o)}
         title="Node color"
-        className={`node-ctl flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-opacity hover:text-slate-600 ${
+        className={`node-ctl flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-opacity hover:text-slate-600 dark:bg-slate-800 dark:text-slate-500 dark:ring-slate-700 dark:hover:text-slate-200 ${
           open ? "opacity-100" : "opacity-0 group-hover:opacity-100"
         }`}
       >
@@ -50,7 +50,7 @@ export default function NodeColorButton({
 
       {open && (
         <div
-          className="absolute right-0 top-8 z-20 grid w-max gap-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-lg shadow-slate-900/15"
+          className="absolute right-0 top-8 z-20 grid w-max gap-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-lg shadow-slate-900/15 dark:border-slate-700 dark:bg-slate-800"
           style={{ gridTemplateColumns: "repeat(4, 1.5rem)" }}
         >
             {NODE_COLOR_KEYS.map((key) => {
@@ -66,7 +66,7 @@ export default function NodeColorButton({
                   }}
                   className={`h-6 w-6 rounded-full ${c.swatch} transition-transform hover:scale-110 ${
                     isActive
-                      ? `ring-2 ring-offset-1 ring-offset-white ${c.ring}`
+                      ? `ring-2 ring-offset-1 ring-offset-white dark:ring-offset-slate-800 ${c.ring}`
                       : ""
                   }`}
                 />

@@ -78,7 +78,7 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
   };
 
   return (
-    <div className={`group relative h-full w-full rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout]`}>
+    <div className={`group relative h-full w-full rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout] dark:bg-slate-900 dark:shadow-black/40`}>
       <NodeResizer
         isVisible={selected}
         minWidth={220}
@@ -89,16 +89,16 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
       <NodeRemoveButton id={id} />
       <NodeColorButton id={id} color={data.color} />
 
-      <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5`}>
-        <ImageIcon size={15} className="text-slate-500" />
-        <span className="text-sm font-semibold text-slate-700">{data.title}</span>
+      <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5 dark:border-slate-800`}>
+        <ImageIcon size={15} className="text-slate-500 dark:text-slate-400" />
+        <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{data.title}</span>
       </div>
 
       {/* Image section */}
       <div className="px-3 pt-3">
         {imageUrl ? (
           <div className="group relative">
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-100">
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
               {blurHash && !imgLoaded && (
                 <Blurhash
                   hash={blurHash}
@@ -155,12 +155,12 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
             onDrop={onDrop}
             className={`nodrag flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed py-6 text-center transition-colors ${
               dragOver
-                ? "border-sky-400 bg-sky-50"
-                : "border-slate-200 bg-slate-50/60 hover:border-slate-300 hover:bg-slate-100/60"
+                ? "border-sky-400 bg-sky-50 dark:border-sky-500 dark:bg-sky-500/10"
+                : "border-slate-200 bg-slate-50/60 hover:border-slate-300 hover:bg-slate-100/60 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-slate-600 dark:hover:bg-slate-800"
             }`}
           >
-            <Upload size={18} className="text-slate-400" />
-            <span className="text-[12px] font-medium text-slate-500">
+            <Upload size={18} className="text-slate-400 dark:text-slate-500" />
+            <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
               Upload or drop image
             </span>
             <input
@@ -180,7 +180,7 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
           placeholder="Add a caption…"
-          className="nodrag nowheel w-full bg-transparent text-[12.5px] leading-snug text-slate-500 placeholder:text-slate-400 focus:outline-none"
+          className="nodrag nowheel w-full bg-transparent text-[12.5px] leading-snug text-slate-500 placeholder:text-slate-400 focus:outline-none dark:text-slate-400 dark:placeholder:text-slate-500"
         />
       </div>
 
@@ -215,7 +215,7 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
               <button
                 onClick={() => setShowFull(false)}
                 title="Close"
-                className="absolute -right-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-600 shadow-lg ring-1 ring-slate-200 transition-colors hover:text-rose-500"
+                className="absolute -right-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-600 shadow-lg ring-1 ring-slate-200 transition-colors hover:text-rose-500 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:text-rose-400"
               >
                 <X size={16} />
               </button>

@@ -82,7 +82,7 @@ export default function NodeRemoveButton({ id }: { id: string }) {
     <button
       onClick={remove}
       title="Delete node"
-      className="nodrag node-delete-btn absolute right-1.5 top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 opacity-0 shadow-sm ring-1 ring-slate-200 transition-opacity hover:text-rose-500 group-hover:opacity-100"
+      className="nodrag node-delete-btn absolute right-1.5 top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 opacity-0 shadow-sm ring-1 ring-slate-200 transition-opacity hover:text-rose-500 group-hover:opacity-100 dark:bg-slate-800 dark:text-slate-500 dark:ring-slate-700 dark:hover:text-rose-400"
     >
       <X size={13} />
     </button>

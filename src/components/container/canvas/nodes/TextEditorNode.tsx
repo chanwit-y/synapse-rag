@@ -276,12 +276,12 @@ export default function TextEditorNode({
   const popoverAnchor = live ? anchorOf(live.rects) : null;
 
   const popoverButton =
-    "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100";
+    "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700";
 
   return (
     <div
-      className={`group relative h-full w-full rounded-2xl border bg-white shadow-xl shadow-slate-900/10 [contain:layout] ${
-        selected ? "border-amber-300 ring-2 ring-amber-200" : c.border
+      className={`group relative h-full w-full rounded-2xl border bg-white shadow-xl shadow-slate-900/10 [contain:layout] dark:bg-slate-900 dark:shadow-black/40 ${
+        selected ? "border-amber-300 ring-2 ring-amber-200 dark:border-amber-500/60 dark:ring-amber-500/30" : c.border
       }`}
     >
       <NodeResizer
@@ -297,20 +297,20 @@ export default function TextEditorNode({
       <NodeColorButton id={id} color={data.color} />
 
       {/* Header / drag handle */}
-      <div className={`flex items-center justify-between rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5`}>
-        <span className="text-sm font-semibold text-slate-700">{data.title}</span>
-        <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400 transition-opacity group-hover:opacity-0">
+      <div className={`flex items-center justify-between rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5 dark:border-slate-800`}>
+        <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{data.title}</span>
+        <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400 transition-opacity group-hover:opacity-0 dark:text-slate-500">
           Document
         </span>
       </div>
 
       {/* Formatting toolbar (visual only) */}
-      <div className="flex items-center gap-0.5 border-b border-slate-100 px-3 py-1.5">
+      <div className="flex items-center gap-0.5 border-b border-slate-100 px-3 py-1.5 dark:border-slate-800">
         {FORMAT_BUTTONS.map(({ icon: Icon, label }) => (
           <button
             key={label}
             title={label}
-            className="nodrag rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            className="nodrag rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
             onClick={() => notify(`${label} — formatting is visual-only in this demo`)}
           >
             <Icon size={15} strokeWidth={2} />
@@ -327,7 +327,7 @@ export default function TextEditorNode({
           onMouseUp={handleSelect}
           onKeyUp={handleSelect}
           onBlur={handleBlur}
-          className="nodrag nowheel relative z-10 whitespace-pre-wrap text-[13.5px] leading-relaxed text-slate-600 outline-none"
+          className="nodrag nowheel relative z-10 whitespace-pre-wrap text-[13.5px] leading-relaxed text-slate-600 outline-none dark:text-slate-300"
         >
           {data.paragraph}
         </div>
@@ -384,7 +384,7 @@ export default function TextEditorNode({
               position={Position.Top}
               isConnectable={false}
               style={{ left: a.x, top: a.y, transform: "translate(-50%, -50%)" }}
-              className="!h-3 !w-3 !border-2 !border-white !bg-amber-400 !shadow"
+              className="!h-3 !w-3 !border-2 !border-white !bg-amber-400 !shadow dark:!border-slate-900"
             />
           );
         })}
@@ -394,7 +394,7 @@ export default function TextEditorNode({
           <div
             // Keep the editor's selection when clicking inside (no blur).
             onMouseDown={(e) => e.preventDefault()}
-            className="nodrag absolute z-20 min-w-[230px] -translate-x-1/2 -translate-y-full rounded-xl border border-slate-200 bg-white p-1 shadow-lg shadow-slate-900/15"
+            className="nodrag absolute z-20 min-w-[230px] -translate-x-1/2 -translate-y-full rounded-xl border border-slate-200 bg-white p-1 shadow-lg shadow-slate-900/15 dark:border-slate-700 dark:bg-slate-800"
             style={{ left: popoverAnchor.x, top: popoverAnchor.y - 8 }}
           >
             {picker ? (
@@ -402,12 +402,12 @@ export default function TextEditorNode({
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setPicker(null)}
-                    className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100"
+                    className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
                     title="Back"
                   >
                     <ArrowLeft size={14} />
                   </button>
-                  <span className="text-xs font-semibold text-slate-700">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                     New {picker.title}
                   </span>
                 </div>
@@ -440,7 +440,7 @@ export default function TextEditorNode({
                 >
                   <Sparkles size={13} className="text-amber-500" /> Ask AI
                 </button>
-                <span className="h-4 w-px bg-slate-200" />
+                <span className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
                 <button
                   className={popoverButton}
                   onClick={() =>

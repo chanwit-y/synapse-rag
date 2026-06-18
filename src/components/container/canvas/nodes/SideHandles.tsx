@@ -27,13 +27,13 @@ export default function SideHandles() {
             id={`t-${side}`}
             type="target"
             position={pos}
-            className="!h-3 !w-3 !border-2 !border-white !bg-slate-300"
+            className="!h-3 !w-3 !border-2 !border-white !bg-slate-300 dark:!border-slate-900 dark:!bg-slate-600"
           />
           <Handle
             id={`s-${side}`}
             type="source"
             position={pos}
-            className="!h-3 !w-3 !border-2 !border-white !bg-slate-300"
+            className="!h-3 !w-3 !border-2 !border-white !bg-slate-300 dark:!border-slate-900 dark:!bg-slate-600"
           />
         </Fragment>
       ))}

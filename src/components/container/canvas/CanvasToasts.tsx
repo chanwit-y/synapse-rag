@@ -16,7 +16,7 @@ export default function CanvasToasts() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className="pointer-events-auto flex items-center gap-3 animate-[toast-in_180ms_ease-out] rounded-full border border-slate-200/80 bg-white/90 px-4 py-2 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 backdrop-blur"
+          className="pointer-events-auto flex items-center gap-3 animate-[toast-in_180ms_ease-out] rounded-full border border-slate-200/80 bg-white/90 px-4 py-2 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 backdrop-blur dark:border-slate-700/80 dark:bg-slate-800/90 dark:text-slate-200 dark:shadow-black/40"
         >
           <span>{toast.message}</span>
           {toast.action && (
@@ -25,7 +25,7 @@ export default function CanvasToasts() {
                 toast.action?.onClick();
                 dismiss(toast.id);
               }}
-              className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+              className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90 dark:bg-slate-600"
             >
               {toast.action.label}
             </button>

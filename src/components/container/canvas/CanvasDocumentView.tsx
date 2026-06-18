@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Edge } from "@xyflow/react";
-import { Save } from "lucide-react";
+import { Maximize2, Minimize2, Save } from "lucide-react";
 import CanvasWorkspace from "./CanvasWorkspace";
 import { useCanvasStore } from "./store/canvas-store";
 import type { AppNode } from "./types";
@@ -42,6 +42,20 @@ export default function CanvasDocumentView({
 }: CanvasDocumentViewProps) {
   const loadCanvas = useCanvasStore((s) => s.loadCanvas);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => setIsFullscreen((v) => !v), []);
+
+  // Esc exits the maximized (in-app) view, matching native fullscreen muscle
+  // memory without taking over the whole OS screen.
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsFullscreen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isFullscreen]);
 
   // Hydrate the store with the saved graph. The parent keys this view by item id
   // and mounts it only once content is loaded, so `content` is stable for the
@@ -64,16 +78,36 @@ export default function CanvasDocumentView({
   }, [isSaving, onSave]);
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center justify-end border-b border-border bg-surface/50 px-4 py-2">
+    <div
+      className={
+        isFullscreen
+          ? "fixed inset-0 z-50 flex min-h-0 flex-col bg-surface"
+          : "flex h-full min-h-0 flex-1 flex-col bg-surface"
+      }
+    >
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-surface/50 px-4 py-2">
         <button
           type="button"
           onClick={handleSave}
           disabled={isSaving}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
+          title={isSaving ? "Saving…" : "Save"}
+          aria-label={isSaving ? "Saving…" : "Save"}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
         >
           <Save className="h-3.5 w-3.5" />
-          {isSaving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "Exit full screen" : "Full screen"}
+          aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface text-muted-foreground shadow-sm transition-colors hover:bg-surface-strong hover:text-foreground"
+        >
+          {isFullscreen ? (
+            <Minimize2 className="h-3.5 w-3.5" />
+          ) : (
+            <Maximize2 className="h-3.5 w-3.5" />
+          )}
         </button>
       </div>
       <div className="relative min-h-0 flex-1">

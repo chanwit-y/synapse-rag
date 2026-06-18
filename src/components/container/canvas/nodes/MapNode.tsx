@@ -107,7 +107,7 @@ export default function MapNode({ id, data, selected }: NodeProps<MapNodeType>) 
   };
 
   return (
-    <div className={`group relative flex h-full w-full flex-col rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout]`}>
+    <div className={`group relative flex h-full w-full flex-col rounded-2xl border ${c.border} bg-white shadow-xl shadow-slate-900/10 [contain:layout] dark:bg-slate-900 dark:shadow-black/40`}>
       <NodeResizer
         isVisible={selected}
         minWidth={220}
@@ -118,12 +118,12 @@ export default function MapNode({ id, data, selected }: NodeProps<MapNodeType>) 
       <NodeRemoveButton id={id} />
       <NodeColorButton id={id} color={data.color} />
 
-      <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5`}>
+      <div className={`flex items-center gap-2 rounded-t-2xl border-b border-slate-100 ${c.header} px-4 py-2.5 dark:border-slate-800`}>
         <MapPin size={15} className="shrink-0 text-rose-500" />
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="nodrag min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none"
+          className="nodrag min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none dark:text-slate-100"
         />
       </div>
 
@@ -131,7 +131,7 @@ export default function MapNode({ id, data, selected }: NodeProps<MapNodeType>) 
       <div className={`px-3 pt-3 ${parsed ? "flex min-h-0 flex-1 flex-col" : ""}`}>
         {parsed ? (
           <div className="group relative min-h-0 flex-1">
-            <div className="h-full min-h-[140px] w-full overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-100">
+            <div className="h-full min-h-[140px] w-full overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-800">
               <iframe
                 src={embedSrc(parsed)}
                 title={title}
@@ -152,7 +152,7 @@ export default function MapNode({ id, data, selected }: NodeProps<MapNodeType>) 
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/60 p-1.5">
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/60 p-1.5 dark:border-slate-700 dark:bg-slate-800/60">
             <MapPin size={16} className="ml-1 shrink-0 text-rose-500" />
             <input
               value={urlInput}
@@ -161,11 +161,11 @@ export default function MapNode({ id, data, selected }: NodeProps<MapNodeType>) 
                 if (e.key === "Enter") addMap();
               }}
               placeholder="Paste a Google Maps URL"
-              className="nodrag nowheel min-w-0 flex-1 bg-transparent text-[12px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
+              className="nodrag nowheel min-w-0 flex-1 bg-transparent text-[12px] text-slate-700 placeholder:text-slate-400 focus:outline-none dark:text-slate-200 dark:placeholder:text-slate-500"
             />
             <button
               onClick={addMap}
-              className="nodrag shrink-0 rounded-lg bg-slate-800 px-2.5 py-1 text-[11.5px] font-medium text-white transition-opacity hover:opacity-90"
+              className="nodrag shrink-0 rounded-lg bg-slate-800 px-2.5 py-1 text-[11.5px] font-medium text-white transition-opacity hover:opacity-90 dark:bg-slate-600"
             >
               Add
             </button>
@@ -179,7 +179,7 @@ export default function MapNode({ id, data, selected }: NodeProps<MapNodeType>) 
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
           placeholder="Add a caption…"
-          className="nodrag nowheel min-w-0 flex-1 bg-transparent text-[12.5px] leading-snug text-slate-500 placeholder:text-slate-400 focus:outline-none"
+          className="nodrag nowheel min-w-0 flex-1 bg-transparent text-[12.5px] leading-snug text-slate-500 placeholder:text-slate-400 focus:outline-none dark:text-slate-400 dark:placeholder:text-slate-500"
         />
         {parsed && (
           <button
@@ -203,28 +203,28 @@ export default function MapNode({ id, data, selected }: NodeProps<MapNodeType>) 
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-900/20"
+              className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-900/20 dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="mb-3 flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-500 dark:bg-rose-500/15 dark:text-rose-400">
                   <MapPin size={16} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-semibold text-slate-800">
+                  <h2 className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
                     {title || "Map link"}
                   </h2>
-                  <p className="text-[11px] text-slate-400">Map preview</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Map preview</p>
                 </div>
                 <button
                   onClick={() => setShowLink(false)}
                   title="Close"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                 >
                   <X size={16} />
                 </button>
               </div>
 
-              <div className="overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-100">
+              <div className="overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-800">
                 <iframe
                   src={embedSrc(parsed)}
                   title={title || "Map"}
@@ -236,7 +236,7 @@ export default function MapNode({ id, data, selected }: NodeProps<MapNodeType>) 
               <div className="mt-4 flex items-center justify-end gap-2">
                 <button
                   onClick={copyLink}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   <Copy size={13} /> Copy link
                 </button>

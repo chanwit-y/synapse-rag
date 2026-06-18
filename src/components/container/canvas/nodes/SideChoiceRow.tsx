@@ -24,7 +24,7 @@ export default function SideChoiceRow({
 }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="w-8 shrink-0 text-[11px] font-medium text-slate-500">
+      <span className="w-8 shrink-0 text-[11px] font-medium text-slate-500 dark:text-slate-400">
         {label}
       </span>
       <div className="flex flex-wrap gap-0.5">
@@ -35,7 +35,7 @@ export default function SideChoiceRow({
             className={`rounded-md px-1.5 py-1 text-[11px] font-medium transition-colors ${
               value === o
                 ? "bg-violet-500 text-white"
-                : "text-slate-600 hover:bg-slate-100"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}
           >
             {SIDE_LABEL[o] ?? o}
