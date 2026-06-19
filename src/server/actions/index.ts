@@ -79,6 +79,7 @@ export {
   chatWithRagFromDbAction,
   embedTextsFromDbAction,
   summarizeContextAction,
+  summarizeChatNodeAction,
   type LangChainChatTestInput,
   type LangChainChatTestOutput,
   type LangChainChatTurn,
@@ -88,4 +89,5 @@ export {
   type LangChainEmbeddingsInput,
   type LangChainEmbeddingsOutput,
   type SummarizeContextInput,
+  type SummarizeChatNodeInput,
 } from "./langchain.actions";

@@ -16,13 +16,24 @@ import {
   useUpdateNodeInternals,
   type NodeProps,
 } from "@xyflow/react";
-import { Bot, Send, Sparkles, ArrowLeft, StickyNote, ChevronDown } from "lucide-react";
+import {
+  Bot,
+  Send,
+  Sparkles,
+  ArrowLeft,
+  StickyNote,
+  ChevronDown,
+  FileText,
+  Loader2,
+} from "lucide-react";
 import {
   appendCanvasChatMessageAction,
   chatTurnsWithModelFromDbAction,
   summarizeContextAction,
+  summarizeChatNodeAction,
 } from "@/server/actions";
 import { useCanvasStore } from "../store/canvas-store";
+import { markdownToProseMirrorDoc } from "./markdownToDoc";
 import SideHandles, { SIDES } from "./SideHandles";
 import NodeRemoveButton from "./NodeRemoveButton";
 import NodeColorButton from "./NodeColorButton";
@@ -99,6 +110,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
   const spawn = useCanvasStore((s) => s.spawn);
   const notify = useCanvasStore((s) => s.notify);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
+  const spawnSummaryNote = useCanvasStore((s) => s.spawnSummaryNote);
   const { getZoom } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
@@ -112,6 +124,8 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
   const [picker, setPicker] = useState<Picker | null>(null);
   // While true, "Create" is awaiting the context summary before spawning.
   const [summarizing, setSummarizing] = useState(false);
+  // While true, the chat is being summarized into a note (header button spinner).
+  const [busySummarize, setBusySummarize] = useState(false);
   // Collapse the carried-over context note (label stays so it can be reopened).
   // Hidden by default — the context grounds the model regardless of visibility.
   const [contextCollapsed, setContextCollapsed] = useState(true);
@@ -126,6 +140,40 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
   const prevSelectedRef = useRef<string[]>([]);
 
   const highlights = data.highlights ?? [];
+
+  // The chat can be summarized only once there's a real exchange to summarize —
+  // at least one user message AND one AI reply (a lone seed greeting or an
+  // unanswered question isn't worth summarizing).
+  const canSummarize =
+    messages.some((m) => m.role === "user") && messages.some((m) => m.role === "ai");
+
+  // Summarize this chat into a note: spawn a linked text-editor node below this
+  // chat holding the summary. Uses the toolbar's model + instruction. On any
+  // failure nothing is spawned and a toast is shown.
+  const handleSummarize = useCallback(async () => {
+    const { chatModelId, instructionId } = useCanvasStore.getState();
+    if (!chatModelId) {
+      notify("Select an AI model first");
+      return;
+    }
+    const transcript = messages
+      .map((m) => `${m.role === "ai" ? "AI" : "User"}: ${m.text}`)
+      .join("\n");
+
+    setBusySummarize(true);
+    const result = await summarizeChatNodeAction({
+      modelId: chatModelId,
+      instructionId,
+      transcript,
+    });
+    setBusySummarize(false);
+
+    if (!result.success || !result.data.summary.trim()) {
+      notify("⚠️ Couldn’t summarize this chat");
+      return;
+    }
+    spawnSummaryNote(id, markdownToProseMirrorDoc(result.data.summary));
+  }, [messages, id, notify, spawnSummaryNote]);
 
   // Selected highlight-children → per-pair focus reveal (joined-string primitive).
   const selectedChildIds = useStore(
@@ -478,6 +526,33 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       <SideHandles />
       <NodeRemoveButton id={id} />
       <NodeColorButton id={id} color={data.color} />
+      {/* Summarize → replace this chat with a note. Lives in the node-control
+          cluster, just left of the color picker. Reveals on hover/selection like
+          the other controls; disabled until there's a real exchange. */}
+      <button
+        type="button"
+        onClick={handleSummarize}
+        disabled={busySummarize || !canSummarize}
+        title={
+          canSummarize
+            ? "Summarize this chat into a note"
+            : "Have a conversation first"
+        }
+        aria-label="Summarize chat into a note"
+        className={`node-ctl nodrag absolute right-[4.625rem] top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-opacity hover:text-violet-600 disabled:cursor-not-allowed dark:bg-slate-800 dark:text-slate-500 dark:ring-slate-700 dark:hover:text-violet-300 ${
+          busySummarize
+            ? "opacity-100"
+            : canSummarize
+              ? "opacity-0 group-hover:opacity-100"
+              : "opacity-0 group-hover:opacity-40"
+        }`}
+      >
+        {busySummarize ? (
+          <Loader2 size={13} className="animate-spin" />
+        ) : (
+          <FileText size={13} />
+        )}
+      </button>
 
       {/* Header — incoming edges land on the shared `t-top` side handle (no
           separate handle here), so chat matches every other node type. */}

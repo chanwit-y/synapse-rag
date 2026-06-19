@@ -219,6 +219,60 @@ export async function summarizeContextAction(
   }
 }
 
+export type SummarizeChatNodeInput = {
+  /** Chat model to summarize with — the one picked in the canvas toolbar. */
+  modelId: string;
+  /** Optional AI instruction template id (toolbar pick) — its content becomes
+   *  the system prompt; when absent a default summarize system prompt is used. */
+  instructionId?: string | null;
+  /** The chat transcript to summarize (joined "User:/AI:" lines). */
+  transcript: string;
+};
+
+/** Default system prompt when the toolbar has no AI instruction selected. */
+const SUMMARIZE_CHAT_SYSTEM_PROMPT = `You are a helpful assistant that summarizes a conversation into clear, well-structured notes. Capture the key points, decisions, and any facts worth keeping. Use Markdown (short headings, bold, and bullet lists where it helps). Do not add a preamble — output only the summary.`;
+
+/** Always-on language guard. Sent as its own system turn AFTER any selected
+ *  instruction so the summary stays in the conversation's language even when the
+ *  picked instruction is written in (or asks for) another language. */
+const SUMMARIZE_LANGUAGE_DIRECTIVE = `Write the entire summary in the same language as the conversation being summarized. Detect the conversation's dominant language and respond only in that language — never translate it to another language.`;
+
+/**
+ * Summarize an "Ask AI" (chat) node's transcript into a Markdown note, using the
+ * model and instruction selected in the canvas toolbar. The selected instruction
+ * (if any) drives the system prompt; otherwise a default summarize prompt is used.
+ * Unlike {@link summarizeContextAction}, this honors the user's model/instruction
+ * choice and surfaces failures (the caller keeps the chat node intact on error).
+ */
+export async function summarizeChatNodeAction(
+  input: SummarizeChatNodeInput,
+): Promise<ActionResult<{ summary: string }>> {
+  try {
+    const transcript = input.transcript.trim();
+    if (!transcript) {
+      return actionSuccess({ summary: "" });
+    }
+
+    const instruction = input.instructionId
+      ? (await aiInstructionService.getContent(input.instructionId)).trim()
+      : "";
+    const system = instruction || SUMMARIZE_CHAT_SYSTEM_PROMPT;
+
+    const llm = await getChatModelFromDb(input.modelId);
+    const result = await llm.invoke([
+      new SystemMessage(system),
+      new SystemMessage(SUMMARIZE_LANGUAGE_DIRECTIVE),
+      new HumanMessage(
+        `Summarize this conversation, writing the summary in the same language as the conversation:\n\n${transcript}`,
+      ),
+    ]);
+
+    return actionSuccess({ summary: normalizeMessageContent(result.content).trim() });
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 async function resolveActiveEmbeddingModel(): Promise<{ id: number; modelId: string }> {
   const active = await modelRepository.findActive();
   const embedding = active.find((m) => m.type === "embedding");

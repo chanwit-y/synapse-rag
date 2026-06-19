@@ -8,6 +8,7 @@ import {
   type EdgeChange,
   type NodeChange,
 } from "@xyflow/react";
+import type { JSONContent } from "@tiptap/core";
 import type { AppNode, NodeKind } from "../types";
 
 /** Action rendered inside a toast (e.g. an Undo button). */
@@ -77,6 +78,10 @@ interface CanvasState {
   /** Spawn a linked node from selected text; returns the new child node's id so
    *  a text-editor caller can key its `spawnHighlight` mark to it. */
   spawn: (args: SpawnFromTextArgs) => string;
+  /** Spawn a text-editor note holding `doc` (a summary of a chat's transcript)
+   *  below the chat node, linked back to it with an amber edge. The chat node
+   *  stays; repeated calls add more notes. No-op if the id isn't a chat node. */
+  spawnSummaryNote: (chatNodeId: string, doc: JSONContent) => void;
   /** Remove a single edge by id, offering an Undo toast. Only plain (colorable)
    *  edges reach this — highlight edges are non-interactive and owned by the
    *  node-delete flow — so no node/highlight cleanup is needed here. */
@@ -331,6 +336,51 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
     }));
     get().notify(`➕ Created a ${kind === "chat" ? "chat" : "note"} from the selection`);
     return newId;
+  },
+
+  // Spawn a summary note below a chat node and link it back with an amber edge.
+  // The chat node is untouched (it stays on the canvas); the note is a plain
+  // text-editor node carrying the summary doc — no highlight is saved on the
+  // chat, so the edge is an ordinary connection and deletes cleanly.
+  spawnSummaryNote: (chatNodeId, doc) => {
+    const source = get().nodes.find((n) => n.id === chatNodeId);
+    if (!source || source.type !== "chat") return;
+    const srcX = source.position.x;
+    const srcY = source.position.y;
+    const srcH = source.measured?.height ?? 380;
+    // Drop the note below the chat; cascade so repeated summaries don't stack.
+    const offset = (idCounter % 4) * 36;
+    const position = { x: srcX + offset, y: srcY + srcH + 70 + offset };
+    const newId = nextId("textEditor");
+    const note: AppNode = {
+      id: newId,
+      type: "textEditor",
+      position,
+      style: { width: 340 },
+      data: {
+        title: `Summary of ${source.data.title}`,
+        doc,
+        // `doc` is the source of truth; paragraph is only a legacy migration input.
+        paragraph: "",
+      },
+    };
+    set((s) => ({ nodes: [...s.nodes, note] }));
+    set((s) => ({
+      edges: [
+        ...s.edges,
+        {
+          id: `e-summary-${newId}`,
+          source: chatNodeId,
+          sourceHandle: "s-bottom",
+          target: newId,
+          targetHandle: "t-top",
+          type: "default",
+          animated: true,
+          style: { stroke: "#f59e0b", strokeWidth: 2.5 },
+        },
+      ],
+    }));
+    get().notify("➕ Created a summary note from the chat");
   },
 
   // Drop a single plain edge. Snapshots it first so the Undo toast can re-append
