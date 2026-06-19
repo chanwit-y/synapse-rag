@@ -47,6 +47,10 @@ interface CanvasState {
   /** Canvas-level selected chat model id (ephemeral; not serialized). Read by
    *  chat nodes when they call the LLM; set from the canvas header picker. */
   chatModelId: string | null;
+  /** Canvas-level selected AI instruction template id (ephemeral; not
+   *  serialized). Read by chat nodes and injected as the system prompt; set from
+   *  the canvas header picker. Null means no instruction. */
+  instructionId: string | null;
   /** Id of the canvas `item` this board belongs to (ephemeral; not serialized).
    *  Set on open; chat nodes read it to persist messages live to the DB. Null
    *  for a board that isn't backed by a saved canvas document. */
@@ -75,6 +79,8 @@ interface CanvasState {
   loadCanvas: (nodes: AppNode[], edges: Edge[]) => void;
   /** Set the canvas-level chat model used by chat nodes. */
   setChatModelId: (id: string | null) => void;
+  /** Set the canvas-level AI instruction used by chat nodes. */
+  setInstructionId: (id: string | null) => void;
   /** Set the canvas item id chat nodes use to persist messages to the DB. */
   setCanvasItemId: (id: string | null) => void;
   notify: (message: string, action?: ToastAction) => void;
@@ -177,6 +183,7 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   edges: initialEdges,
   toasts: [],
   chatModelId: null,
+  instructionId: null,
   canvasItemId: null,
 
   onNodesChange: (changes) =>
@@ -348,6 +355,8 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   },
 
   setChatModelId: (id) => set({ chatModelId: id }),
+
+  setInstructionId: (id) => set({ instructionId: id }),
 
   setCanvasItemId: (id) => set({ canvasItemId: id }),
 

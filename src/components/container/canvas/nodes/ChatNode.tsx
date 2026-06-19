@@ -196,6 +196,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       }
       const result = await chatTurnsWithModelFromDbAction({
         modelId,
+        instructionId: useCanvasStore.getState().instructionId,
         messages: history.map((m) => ({ role: m.role, text: m.text })),
       });
       setTyping(false);

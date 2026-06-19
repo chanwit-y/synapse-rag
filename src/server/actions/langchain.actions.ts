@@ -32,6 +32,9 @@ export type LangChainChatTurn = {
 export type LangChainChatTurnsInput = {
   modelId: string;
   messages: LangChainChatTurn[];
+  /** Optional AI instruction template id — its content is injected as a system
+   *  prompt ahead of the transcript. */
+  instructionId?: string | null;
 };
 
 export type LangChainRagChatInput = {
@@ -154,12 +157,19 @@ export async function chatTurnsWithModelFromDbAction(
       return actionSuccess({ content: "" });
     }
 
+    // Resolve the selected instruction template (if any) into a leading system
+    // prompt. Best-effort: a missing/empty template just omits the system turn.
+    const instruction = input.instructionId
+      ? (await aiInstructionService.getContent(input.instructionId)).trim()
+      : "";
+
     const llm = await getChatModelFromDb(input.modelId);
-    const result = await llm.invoke(
-      turns.map((m) =>
+    const result = await llm.invoke([
+      ...(instruction ? [new SystemMessage(instruction)] : []),
+      ...turns.map((m) =>
         m.role === "ai" ? new AIMessage(m.text) : new HumanMessage(m.text),
       ),
-    );
+    ]);
 
     return actionSuccess({ content: normalizeMessageContent(result.content) });
   } catch (error) {

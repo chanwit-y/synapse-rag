@@ -5,6 +5,7 @@ import type { Edge } from "@xyflow/react";
 import { Maximize2, Minimize2, Save } from "lucide-react";
 import {
   deleteCanvasImageAction,
+  listActiveAiInstructionsAction,
   listCanvasChatMessagesAction,
   listChatModelsAction,
   pruneCanvasChatMessagesAction,
@@ -15,6 +16,7 @@ import { useCanvasStore } from "./store/canvas-store";
 import type { AppNode, ChatMessage } from "./types";
 
 type ChatModelOption = { id: string; name: string; isDefault: boolean };
+type InstructionOption = { id: string; name: string };
 
 /** Pull every `/canvas-images/...` path referenced in a serialized graph. Used
  *  to garbage-collect images that a save removed from the canvas. */
@@ -64,7 +66,10 @@ export default function CanvasDocumentView({
   const setCanvasItemId = useCanvasStore((s) => s.setCanvasItemId);
   const chatModelId = useCanvasStore((s) => s.chatModelId);
   const setChatModelId = useCanvasStore((s) => s.setChatModelId);
+  const instructionId = useCanvasStore((s) => s.instructionId);
+  const setInstructionId = useCanvasStore((s) => s.setInstructionId);
   const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
+  const [instructions, setInstructions] = useState<InstructionOption[]>([]);
   // The image paths present in the last persisted graph. Diffed on save so an
   // image dropped from the canvas (and durably saved away) is unlinked on disk.
   const savedImagePathsRef = useRef<Set<string>>(canvasImagePaths(content));
@@ -117,6 +122,29 @@ export default function CanvasDocumentView({
       cancelled = true;
     };
   }, [setChatModelId]);
+
+  // Load active AI instruction templates for the canvas picker. No default
+  // selection (no instruction is a valid choice); a stale selection that's no
+  // longer active is cleared so chat nodes don't reference a missing template.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const result = await listActiveAiInstructionsAction();
+      if (cancelled || !result.success) return;
+      const options: InstructionOption[] = result.data.map((i) => ({
+        id: i.id,
+        name: i.name,
+      }));
+      setInstructions(options);
+      const current = useCanvasStore.getState().instructionId;
+      if (current && !options.some((o) => o.id === current)) {
+        setInstructionId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setInstructionId]);
 
   // Hydrate the store with the saved graph. The parent keys this view by item id
   // and mounts it only once content is loaded, so `content` is stable for the
@@ -242,6 +270,21 @@ export default function CanvasDocumentView({
             options={chatModels.map((m) => ({ value: m.id, label: m.name }))}
             value={chatModelId}
             onChange={(v) => setChatModelId(v == null ? null : String(v))}
+            className="w-44"
+          />
+          <SelectField
+            size="small"
+            aria-label="AI instruction"
+            placeholder={instructions.length ? "Instruction" : "No instructions"}
+            disabled={instructions.length === 0}
+            options={[
+              { value: "", label: "No instruction" },
+              ...instructions.map((i) => ({ value: i.id, label: i.name })),
+            ]}
+            value={instructionId ?? ""}
+            onChange={(v) =>
+              setInstructionId(v == null || v === "" ? null : String(v))
+            }
             className="w-44"
           />
           <button
