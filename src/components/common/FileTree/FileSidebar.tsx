@@ -16,6 +16,7 @@ import { PanelLeftClose, PanelLeftOpen, PlusIcon } from "lucide-react";
 import TreeView from "./TreeView";
 import type { FileType, TreeNode, TreeViewGroup } from "./types";
 import FileSidebarModals from "./FileSidebarModals";
+import MoveItemModal from "./MoveItemModal";
 import { useSnackbar } from "@/components/common/Snackbar/Snackbar";
 import {
   countFiles,
@@ -51,6 +52,17 @@ export interface FileSidebarProps {
    * item's tree node so the sidebar can place it next to the original.
    */
   onDuplicateFile?: (fileId: string) => Promise<TreeNode>;
+  /**
+   * Move a file/canvas/folder into another collection (and optionally a folder
+   * within it). `destFolderId` null = the destination collection's root. The
+   * caller refetches the tree and re-syncs the open editor. When omitted, the
+   * Move action is hidden.
+   */
+  onMoveItem?: (
+    itemId: string,
+    destCollectionId: string,
+    destFolderId: string | null,
+  ) => Promise<void>;
   /** Called to delete an entire collection from the backend. */
   onDeleteCollection?: (collectionId: string) => Promise<void>;
   /** Called when the user clicks "Import from Azure DevOps" for a collection. */
@@ -111,6 +123,7 @@ export default function FileSidebar({
   onUpdateDirectories,
   onDeleteFile,
   onDuplicateFile,
+  onMoveItem,
   onDeleteCollection,
   onImportFromAzure,
   onCreateCanvas,
@@ -187,6 +200,13 @@ export default function FileSidebar({
   const [selectedGroupForDelete, setSelectedGroupForDelete] = useState<{
     group: TreeViewGroup;
     groupIndex: number;
+  } | null>(null);
+
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [isMovingItem, setIsMovingItem] = useState(false);
+  const [selectedNodeForMove, setSelectedNodeForMove] = useState<{
+    node: TreeNode;
+    parentFolderId: string | null;
   } | null>(null);
 
   const [activeDrag, setActiveDrag] = useState<{
@@ -662,6 +682,51 @@ export default function FileSidebar({
     }
   };
 
+  const handleRequestMoveNode = (
+    node: TreeNode,
+    parentFolderId: string | null,
+  ) => {
+    setSelectedNodeForMove({ node, parentFolderId });
+    setIsMoveModalOpen(true);
+  };
+
+  const handleCloseMoveModal = () => {
+    if (isMovingItem) return;
+    setIsMoveModalOpen(false);
+    setSelectedNodeForMove(null);
+  };
+
+  // Move a node to another collection/folder. The backend reassigns the item
+  // (and, for a folder, its whole subtree) preserving ids; the caller then
+  // refetches the tree and re-syncs the open editor. A backdrop (parent's
+  // withLoading) covers the call, so no optimistic tree edit is needed here.
+  const handleConfirmMove = async (
+    destCollectionId: string,
+    destFolderId: string | null,
+  ) => {
+    if (!selectedNodeForMove || !onMoveItem || isMovingItem) return;
+
+    const { node } = selectedNodeForMove;
+    setIsMovingItem(true);
+    try {
+      await onMoveItem(node.id, destCollectionId, destFolderId);
+      setIsMoveModalOpen(false);
+      setSelectedNodeForMove(null);
+      showSnackbar({
+        variant: "success",
+        message: `${node.type === "folder" ? "Folder" : node.type === "canvas" ? "Canvas" : "File"} "${node.name}" moved.`,
+      });
+    } catch (err) {
+      console.error("Failed to move item:", err);
+      showSnackbar({
+        variant: "error",
+        message: `Failed to move ${node.type}. Please try again.`,
+      });
+    } finally {
+      setIsMovingItem(false);
+    }
+  };
+
   const handleRequestDeleteGroup = (
     group: TreeViewGroup,
     groupIndex: number,
@@ -928,6 +993,7 @@ export default function FileSidebar({
                 onAddFolder={handleAddFolder}
                 onRequestDeleteNode={handleRequestDeleteNode}
                 onDuplicateNode={onDuplicateFile ? handleDuplicateNode : undefined}
+                onMoveNode={onMoveItem ? handleRequestMoveNode : undefined}
                 onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
                 onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                 onRequestDeleteGroup={
@@ -954,6 +1020,7 @@ export default function FileSidebar({
                   onAddFolder={handleAddFolder}
                   onRequestDeleteNode={handleRequestDeleteNode}
                   onDuplicateNode={onDuplicateFile ? handleDuplicateNode : undefined}
+                  onMoveNode={onMoveItem ? handleRequestMoveNode : undefined}
                   onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
                   onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                   onRequestDeleteGroup={
@@ -1041,6 +1108,16 @@ export default function FileSidebar({
               }
             : null
         }
+      />
+
+      <MoveItemModal
+        open={isMoveModalOpen}
+        onClose={handleCloseMoveModal}
+        node={selectedNodeForMove?.node ?? null}
+        currentFolderId={selectedNodeForMove?.parentFolderId ?? null}
+        collections={collections}
+        onConfirm={handleConfirmMove}
+        isMoving={isMovingItem}
       />
     </>
   );

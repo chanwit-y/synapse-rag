@@ -92,6 +92,25 @@ export async function duplicateDocumentItemAction(
   }
 }
 
+/**
+ * Move a file, canvas, or folder into another collection (and optionally a
+ * folder within it). The item id is preserved, so histories, RAG links, canvas
+ * chats, and `?item=` deep-links all survive. `destFolderId` null = the
+ * destination collection's root. A folder moves recursively.
+ */
+export async function moveDocumentItemAction(
+  itemId: string,
+  destCollectionId: string,
+  destFolderId: string | null,
+): Promise<ActionResult<void>> {
+  try {
+    await documentService.moveItem(itemId, destCollectionId, destFolderId);
+    return actionSuccess(undefined);
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 export async function getDocumentItemContentAction(
   itemId: string,
 ): Promise<ActionResult<{ content: string }>> {

@@ -139,6 +139,37 @@ export function flattenFileNodes(
   return out;
 }
 
+/** A flat view of one folder node: its id, name, and indented label path. */
+export interface FlatFolderNode {
+  id: string;
+  name: string;
+  /** Folder names from the root joined by " / " (e.g. "Azure / Backend"). */
+  path: string;
+}
+
+/**
+ * Collect every folder under `nodes`, each with its " / "-joined label path —
+ * the candidate destinations for the Move picker. `exclude` ids (and, since we
+ * never recurse into them, their descendants) are skipped so a folder can't be
+ * offered itself or its own subtree as a destination.
+ */
+export function flattenFolderNodes(
+  nodes: TreeNode[],
+  exclude: Set<string> = new Set(),
+  prefix: string[] = [],
+  out: FlatFolderNode[] = [],
+): FlatFolderNode[] {
+  for (const node of nodes) {
+    if (node.type !== "folder" || exclude.has(node.id)) continue;
+    const currentPath = [...prefix, node.name];
+    out.push({ id: node.id, name: node.name, path: currentPath.join(" / ") });
+    if (node.children?.length) {
+      flattenFolderNodes(node.children, exclude, currentPath, out);
+    }
+  }
+  return out;
+}
+
 export function removeNodeByIdInPlace(
   nodes: TreeNode[],
   nodeId: string,

@@ -62,6 +62,7 @@ import {
   listChatModelsAction,
   listCollectionsAction,
   listDocumentHistoryAction,
+  moveDocumentItemAction,
   renameCollectionAction,
   renameDocumentItemAction,
   saveDocumentContentAction,
@@ -344,6 +345,47 @@ export default function DocumentPageContent({
         unwrapAction(await duplicateDocumentItemAction(fileId)),
       ),
     [withLoading],
+  );
+
+  // Move an item to another collection/folder. The id is preserved, so after
+  // refetching we re-resolve the open file by id across the new tree and update
+  // its selection (new collection + breadcrumb path); if it's gone, clear it.
+  const handleMoveItem = useCallback(
+    async (
+      itemId: string,
+      destCollectionId: string,
+      destFolderId: string | null,
+    ) => {
+      await withLoading(async () => {
+        unwrapAction(
+          await moveDocumentItemAction(itemId, destCollectionId, destFolderId),
+        );
+        const listResult = await listCollectionsAction();
+        if (!listResult.success) return;
+        setCollections(listResult.data);
+
+        // Keep the open editor in sync if it (or one of its moved ancestors)
+        // was relocated — re-resolve it by id in the rebuilt tree.
+        const openId = selectedFile?.id;
+        if (!openId) return;
+        for (const group of listResult.data) {
+          const found = findNodeById(group.directories, openId);
+          if (found) {
+            setSelectedFile(found.node);
+            setSelectedPath(found.path);
+            return;
+          }
+        }
+        // Open file no longer exists (defensive — a move shouldn't delete it).
+        setSelectedFile(null);
+        setSelectedPath(null);
+        setEditorContent("");
+        setViewLang("en");
+        setThSeed("");
+        setBackStack([]);
+      });
+    },
+    [selectedFile, withLoading],
   );
 
   const handleUploadImage = useCallback(async (file: File): Promise<string> => {
@@ -654,6 +696,7 @@ export default function DocumentPageContent({
           onUpdateDirectories={handleUpdateDirectories}
           onDeleteFile={handleDeleteFile}
           onDuplicateFile={handleDuplicateFile}
+          onMoveItem={handleMoveItem}
           onDeleteCollection={handleDeleteCollection}
           onRenameItem={handleRenameItem}
           onRenameCollection={handleRenameCollection}

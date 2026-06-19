@@ -44,6 +44,7 @@ export interface TreeViewGroupItemProps {
     nodePath: string,
     groupIndex: number,
   ) => void;
+  onMoveNode?: (node: TreeNode, parentFolderId: string | null) => void;
   onImportFromAzure?: (
     collectionId: string,
     selectedNode: TreeNode | null,
@@ -92,6 +93,7 @@ export default function TreeViewGroupItem({
   onAddFolder,
   onRequestDeleteNode,
   onDuplicateNode,
+  onMoveNode,
   onImportFromAzure,
   onAddCanvas,
   onRequestDeleteGroup,
@@ -294,6 +296,7 @@ export default function TreeViewGroupItem({
               groupIndex={groupIndex}
               onRequestDeleteNode={onRequestDeleteNode}
               onDuplicateNode={onDuplicateNode}
+              onMoveNode={onMoveNode}
               editingNodeId={editingNodeId}
               onStartRenameNode={onStartRenameNode}
               onSubmitRenameNode={onSubmitRenameNode}

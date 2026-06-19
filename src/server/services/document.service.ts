@@ -102,6 +102,31 @@ function nextCopyName(
   return candidate;
 }
 
+/**
+ * A name that doesn't clash with any in `taken`, appending ` (2)`, ` (3)`, …
+ * before the extension. Mirrors the client-side `dedupeName` so a cross-
+ * collection move resolves clashes the same way an in-collection drag does.
+ */
+function dedupeName(
+  name: string,
+  type: "file" | "folder" | "canvas",
+  taken: Set<string>,
+): string {
+  if (!taken.has(name)) return name;
+
+  const dot = type !== "folder" ? name.lastIndexOf(".") : -1;
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+
+  let n = 2;
+  let candidate = `${base} (${n})${ext}`;
+  while (taken.has(candidate)) {
+    n += 1;
+    candidate = `${base} (${n})${ext}`;
+  }
+  return candidate;
+}
+
 export class DocumentService {
   async listCollections(): Promise<TreeViewGroup[]> {
     const collections = await collectionRepository.findAll();
@@ -362,6 +387,118 @@ export class DocumentService {
       createdAt: created.createdAt.getTime(),
       updatedAt: created.updatedAt.getTime(),
     };
+  }
+
+  /**
+   * Move a file, canvas, or folder into another collection (and optionally a
+   * folder within it). The item id is preserved, so its histories, RAG links,
+   * canvas chat messages, and `?item=` deep-links all survive. A folder moves
+   * recursively: every descendant's `collectionId` is reassigned to the
+   * destination while the internal `folderId` structure is left intact. The
+   * moved top-level node is renamed (` (2)`) if its name clashes at the
+   * destination; descendants keep their names. `destFolderId` null = the
+   * destination collection's root.
+   *
+   * Updates run sequentially (no surrounding transaction, matching the rest of
+   * this service); a mid-move failure could leave a partially-reassigned
+   * subtree, an accepted trade-off on local SQLite.
+   */
+  async moveItem(
+    itemId: string,
+    destCollectionId: string,
+    destFolderId: string | null,
+  ): Promise<void> {
+    const numericId = parseId(itemId);
+    if (numericId == null) {
+      throw new ServiceError("Invalid item id", "VALIDATION");
+    }
+    const destCollection = parseId(destCollectionId);
+    if (destCollection == null) {
+      throw new ServiceError("Invalid collection id", "VALIDATION");
+    }
+    let destFolder: number | null = null;
+    if (destFolderId != null) {
+      destFolder = parseId(destFolderId);
+      if (destFolder == null) {
+        throw new ServiceError("Invalid folder id", "VALIDATION");
+      }
+    }
+
+    const source = assertFound(
+      await itemRepository.findById(numericId),
+      "Item not found",
+    );
+
+    // The moved subtree: the node itself plus, for a folder, all descendants.
+    const subtreeIds = await this.collectSubtreeIds(numericId, source.type);
+
+    // A folder can't move into itself or one of its own descendants.
+    if (destFolder != null && subtreeIds.has(destFolder)) {
+      throw new ServiceError(
+        "Cannot move a folder into itself",
+        "VALIDATION",
+      );
+    }
+
+    // The destination folder, when given, must be a folder in the dest collection.
+    if (destFolder != null) {
+      const folder = assertFound(
+        await itemRepository.findById(destFolder),
+        "Destination folder not found",
+      );
+      if (folder.type !== "folder" || folder.collectionId !== destCollection) {
+        throw new ServiceError("Invalid destination folder", "VALIDATION");
+      }
+    }
+
+    // Resolve a non-clashing name among destination siblings (excluding self).
+    const siblings =
+      destFolder == null
+        ? (await itemRepository.findByCollectionId(destCollection)).filter(
+            (item) => item.folderId == null,
+          )
+        : await itemRepository.findByFolderId(destFolder);
+    const taken = new Set(
+      siblings.filter((s) => s.id !== numericId).map((s) => s.name),
+    );
+    const name = dedupeName(source.name, source.type, taken);
+
+    // Move the node itself (collection + parent folder + resolved name).
+    await itemRepository.update(numericId, {
+      collectionId: destCollection,
+      folderId: destFolder,
+      name,
+    });
+
+    // For a folder, reassign every descendant to the destination collection.
+    // Their `folderId` links stay valid since the subtree moves together.
+    if (source.type === "folder") {
+      for (const id of subtreeIds) {
+        if (id === numericId) continue;
+        await itemRepository.update(id, { collectionId: destCollection });
+      }
+    }
+  }
+
+  /** The id of `rootId` plus every descendant (folders recurse; leaves don't). */
+  private async collectSubtreeIds(
+    rootId: number,
+    type: "file" | "folder" | "canvas",
+  ): Promise<Set<number>> {
+    const ids = new Set<number>([rootId]);
+    if (type !== "folder") return ids;
+
+    const queue: number[] = [rootId];
+    while (queue.length) {
+      const current = queue.shift()!;
+      const children = await itemRepository.findByFolderId(current);
+      for (const child of children) {
+        if (ids.has(child.id)) continue;
+        ids.add(child.id);
+        if (child.type === "folder") queue.push(child.id);
+      }
+    }
+    return ids;
   }
 
   async deleteCollection(collectionId: string): Promise<void> {
