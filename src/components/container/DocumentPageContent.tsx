@@ -184,6 +184,12 @@ export default function DocumentPageContent({
   // demand (using any locally cached/unsaved buffer first).
   const handleSelectFile = useCallback(
     (file: TreeNode, path: string) => {
+      // Opening a document always shows the document: flip back from the graph.
+      // Read via getState so this guard doesn't recreate the callback on toggle,
+      // and skip the (persisted) write when we're already in editor mode.
+      if (useLayoutStore.getState().documentViewMode === "graph") {
+        setDocumentViewMode("editor");
+      }
       setSelectedFile(file);
       setSelectedPath(path);
       // A new file always opens in English; its Thai is loaded on demand.
@@ -208,7 +214,7 @@ export default function DocumentPageContent({
         setEditorContent(content);
       });
     },
-    [fileContents, withLoading],
+    [fileContents, withLoading, setDocumentViewMode],
   );
 
   // Flat list of every file across all collections — the candidate set for
@@ -252,14 +258,14 @@ export default function DocumentPageContent({
     openItemById(prev.id, { push: false });
   }, [backStack, openItemById]);
 
-  // Clicking a file node in the graph opens it in the editor and flips the
-  // main pane back to editor mode. (Folder/collection nodes toggle in-graph.)
+  // Clicking a file node in the graph opens it; handleSelectFile (reached via
+  // openItemById) flips the main pane back to editor mode. (Folder/collection
+  // nodes toggle in-graph and never reach here.)
   const handleOpenFromGraph = useCallback(
     (fileId: string) => {
-      setDocumentViewMode("editor");
       openItemById(fileId);
     },
-    [openItemById, setDocumentViewMode],
+    [openItemById],
   );
 
   // Sidebar selection is a fresh navigation context, so it clears the trail.
