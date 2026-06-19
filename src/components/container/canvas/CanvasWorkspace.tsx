@@ -5,6 +5,7 @@ import "./styles.css";
 
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -29,6 +30,7 @@ import { useLayoutStore } from "@/store/layout-store";
 
 import { CanvasProvider, useCanvas } from "./CanvasContext";
 import CanvasToasts from "./CanvasToasts";
+import CanvasSearch from "./CanvasSearch";
 import Toolbar from "./Toolbar";
 import TextEditorNode from "./nodes/TextEditorNode";
 import ChatNode from "./nodes/ChatNode";
@@ -41,6 +43,7 @@ import TextNode from "./nodes/TextNode";
 import ColorableEdge from "./edges/ColorableEdge";
 import type { AppNode, NodeColor, NodeKind } from "./types";
 import { NODE_COLORS } from "./nodes/nodeColors";
+import { nodeMatches } from "./search";
 import { useCanvasStore } from "./store/canvas-store";
 
 const edgeTypes: EdgeTypes = { colorable: ColorableEdge };
@@ -77,7 +80,7 @@ const nodeTypes: NodeTypes = {
 
 function Flow() {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition, fitView } = useReactFlow();
+  const { screenToFlowPosition, fitView, setCenter, getZoom } = useReactFlow();
   const { setInteracting } = useCanvas();
   const isDark = useIsDark();
 
@@ -90,6 +93,63 @@ function Flow() {
   const addNode = useCanvasStore((s) => s.addNode);
 
   const [selectMode, setSelectMode] = useState(false);
+
+  // --- Node search ---------------------------------------------------------
+  // `searchOpen` toggles the find box; `query` is the live input. Matching runs
+  // off a deferred copy so fast typing never blocks node rendering. `activeMatch`
+  // is the index (into the ordered match list) the viewport last centered on.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeMatch, setActiveMatch] = useState(0);
+  const deferredQuery = useDeferredValue(query);
+
+  // Ids of nodes matching the query, in node order. Empty when the query is
+  // blank — the common idle case returns instantly without scanning content.
+  const matchIds = useMemo(() => {
+    const q = deferredQuery.trim().toLowerCase();
+    if (!q) return [] as string[];
+    return nodes.filter((n) => nodeMatches(n, q)).map((n) => n.id);
+  }, [nodes, deferredQuery]);
+  const matchSet = useMemo(() => new Set(matchIds), [matchIds]);
+
+  // Reset to the first hit whenever the query changes, then keep the active
+  // index in range as matches come and go (e.g. a node edited mid-search).
+  useEffect(() => {
+    setActiveMatch(0);
+  }, [deferredQuery]);
+  useEffect(() => {
+    if (matchIds.length === 0) return;
+    setActiveMatch((i) => (i >= matchIds.length ? matchIds.length - 1 : i));
+  }, [matchIds.length]);
+
+  // Pan/zoom the viewport so the match at `index` sits centered (keeping the
+  // current zoom). Off-screen matches become visible; on-screen ones recenter.
+  const focusMatch = useCallback(
+    (index: number) => {
+      const id = matchIds[index];
+      const node = nodes.find((n) => n.id === id);
+      if (!node) return;
+      const w = node.measured?.width ?? (node.width as number | undefined) ?? 320;
+      const h = node.measured?.height ?? (node.height as number | undefined) ?? 200;
+      setCenter(node.position.x + w / 2, node.position.y + h / 2, {
+        zoom: getZoom(),
+        duration: 400,
+      });
+    },
+    [matchIds, nodes, setCenter, getZoom],
+  );
+
+  const goToMatch = useCallback(
+    (dir: 1 | -1) => {
+      if (matchIds.length === 0) return;
+      setActiveMatch((i) => {
+        const next = (i + dir + matchIds.length) % matchIds.length;
+        focusMatch(next);
+        return next;
+      });
+    },
+    [matchIds.length, focusMatch],
+  );
 
   // Custom nodes measure asynchronously; refit once they all have dimensions.
   const initialized = useNodesInitialized();
@@ -165,6 +225,23 @@ function Flow() {
     });
   }, [edges, selectedIdsKey]);
 
+  // Tag nodes with search classes: the active match gets the strong ring, other
+  // hits a softer ring, and everything else dims back. When no search is active
+  // the original array is returned untouched (no className churn / no re-render).
+  const searchActive = matchSet.size > 0;
+  const activeMatchId = matchIds[activeMatch];
+  const displayNodes = useMemo(() => {
+    if (!searchActive) return nodes;
+    return nodes.map((n) => {
+      const cls = !matchSet.has(n.id)
+        ? "canvas-search-dim"
+        : n.id === activeMatchId
+          ? "canvas-search-active"
+          : "canvas-search-hit";
+      return { ...n, className: `${n.className ?? ""} ${cls}`.trim() };
+    });
+  }, [nodes, searchActive, matchSet, activeMatchId]);
+
   // Minimap dot tint: a node's picked accent color wins; un-accented (default)
   // nodes fall back to a per-type color so the minimap still reads by type.
   const minimapColor = useMemo(
@@ -190,7 +267,7 @@ function Flow() {
   return (
     <div ref={wrapperRef} className="relative h-full w-full">
       <ReactFlow<AppNode>
-        nodes={nodes}
+        nodes={displayNodes}
         edges={displayEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -238,6 +315,17 @@ function Flow() {
         onAdd={handleAdd}
         selectMode={selectMode}
         onToggleSelect={() => setSelectMode((s) => !s)}
+      />
+
+      <CanvasSearch
+        open={searchOpen}
+        onToggle={setSearchOpen}
+        query={query}
+        onQueryChange={setQuery}
+        matchCount={matchIds.length}
+        activeIndex={matchIds.length ? activeMatch : -1}
+        onNext={() => goToMatch(1)}
+        onPrev={() => goToMatch(-1)}
       />
     </div>
   );
