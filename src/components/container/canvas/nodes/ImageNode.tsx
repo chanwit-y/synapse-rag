@@ -176,14 +176,17 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
               )}
             </div>
             {!uploading && (
-              <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="absolute right-2 top-2 z-20 flex flex-col gap-1.5">
+                {/* Preview button stays visible so the full-size affordance is
+                    discoverable without hovering; the destructive remove button
+                    fades in on hover to avoid an always-present delete target. */}
                 {imageUrl && (
                   <button
                     onClick={() => {
                       setFullDims(null);
                       setShowFull(true);
                     }}
-                    className="nodrag flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/60 text-white transition-colors hover:bg-slate-900/80"
+                    className="nodrag flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/60 text-white shadow-sm transition-colors hover:bg-slate-900/80"
                     title="View full size"
                   >
                     <Maximize2 size={12} />
@@ -191,7 +194,7 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
                 )}
                 <button
                   onClick={removeImage}
-                  className="nodrag flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/60 text-white transition-colors hover:bg-slate-900/80"
+                  className="nodrag flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/60 text-white opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-slate-900/80"
                   title="Remove image"
                 >
                   <X size={13} />
@@ -247,10 +250,13 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
         imageUrl &&
         createPortal(
           <div
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/70 p-6 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] flex animate-[image-preview-backdrop-in_180ms_ease-out] items-center justify-center bg-slate-900/70 p-6 backdrop-blur-sm"
             onClick={() => setShowFull(false)}
           >
-            <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="relative animate-[image-preview-in_220ms_cubic-bezier(0.16,1,0.3,1)]"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imageUrl}
