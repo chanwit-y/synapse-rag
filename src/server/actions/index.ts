@@ -48,6 +48,7 @@ export {
   renameDocumentItemAction,
   syncCollectionDirectoriesAction,
   deleteDocumentItemAction,
+  duplicateDocumentItemAction,
   getDocumentItemContentAction,
   createCanvasAction,
   saveDocumentContentAction,

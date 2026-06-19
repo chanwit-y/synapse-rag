@@ -82,6 +82,16 @@ export async function deleteDocumentItemAction(
   }
 }
 
+export async function duplicateDocumentItemAction(
+  itemId: string,
+): Promise<ActionResult<TreeNode>> {
+  try {
+    return actionSuccess(await documentService.duplicateItem(itemId));
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 export async function getDocumentItemContentAction(
   itemId: string,
 ): Promise<ActionResult<{ content: string }>> {

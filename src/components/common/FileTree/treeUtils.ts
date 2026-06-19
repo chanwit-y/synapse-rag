@@ -159,6 +159,30 @@ export function removeNodeByIdInPlace(
   return false;
 }
 
+/**
+ * Insert `newNode` directly after the node with id `afterId`, searching nested
+ * folders. Mutates `nodes` in place and returns true when the anchor was found.
+ */
+export function insertNodeAfterId(
+  nodes: TreeNode[],
+  afterId: string,
+  newNode: TreeNode,
+): boolean {
+  const index = nodes.findIndex((item) => item.id === afterId);
+  if (index !== -1) {
+    nodes.splice(index + 1, 0, newNode);
+    return true;
+  }
+
+  for (const node of nodes) {
+    if (node.type === "folder" && node.children?.length) {
+      if (insertNodeAfterId(node.children, afterId, newNode)) return true;
+    }
+  }
+
+  return false;
+}
+
 /** Collect the id of a node and all of its descendants. */
 export function collectNodeAndDescendantIds(
   node: TreeNode,

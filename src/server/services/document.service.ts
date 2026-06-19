@@ -3,6 +3,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
 import {
+  canvasChatMessageRepository,
   collectionRepository,
   historyRepository,
   itemRepository,
@@ -75,6 +76,30 @@ function translationPrompt(source: string): string {
     "Document:",
     source,
   ].join("\n");
+}
+
+/**
+ * A non-clashing name for a duplicated item: `"<base> (copy)<ext>"`, falling
+ * back to `"(copy 2)"`, `"(copy 3)"`, … against the sibling names already
+ * `taken`. Files/canvases keep their extension; folders dedupe on the whole
+ * name (folders aren't currently duplicated, but the helper stays general).
+ */
+function nextCopyName(
+  name: string,
+  type: "file" | "folder" | "canvas",
+  taken: Set<string>,
+): string {
+  const dot = type !== "folder" ? name.lastIndexOf(".") : -1;
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+
+  let candidate = `${base} (copy)${ext}`;
+  let n = 2;
+  while (taken.has(candidate)) {
+    candidate = `${base} (copy ${n})${ext}`;
+    n += 1;
+  }
+  return candidate;
 }
 
 export class DocumentService {
@@ -250,6 +275,93 @@ export class DocumentService {
 
     const row = await itemRepository.delete(numericId);
     assertFound(row, "Item not found");
+  }
+
+  /**
+   * Duplicate a file or canvas within its own folder. The copy carries over the
+   * English content, the cached Thai translation (+ its staleness hash) and the
+   * full version history (snapshots are re-pointed verbatim, preserving their
+   * timestamps and language). For a canvas it also copies the per-node chat
+   * transcripts — the graph JSON is cloned unchanged, so node ids still match.
+   * RAG links are intentionally NOT copied (the duplicate is unindexed). Returns
+   * the new file's lightweight tree node so the sidebar can place it.
+   */
+  async duplicateItem(itemId: string): Promise<TreeNode> {
+    const numericId = parseId(itemId);
+    if (numericId == null) {
+      throw new ServiceError("Invalid item id", "VALIDATION");
+    }
+
+    const source = assertFound(
+      await itemRepository.findById(numericId),
+      "Item not found",
+    );
+    if (source.type === "folder") {
+      throw new ServiceError("Folders cannot be duplicated", "VALIDATION");
+    }
+
+    // Resolve a `(copy)` name that doesn't clash with siblings in the same
+    // folder (root level when folderId is null).
+    const siblings =
+      source.folderId == null
+        ? (await itemRepository.findByCollectionId(source.collectionId)).filter(
+            (item) => item.folderId == null,
+          )
+        : await itemRepository.findByFolderId(source.folderId);
+    const name = nextCopyName(
+      source.name,
+      source.type,
+      new Set(siblings.map((item) => item.name)),
+    );
+
+    const created = assertFound(
+      await itemRepository.create({
+        collectionId: source.collectionId,
+        folderId: source.folderId,
+        type: source.type,
+        name,
+        content: source.content,
+        contentTh: source.contentTh,
+        contentThHash: source.contentThHash,
+      }),
+      "Failed to duplicate item",
+    );
+
+    // Copy the version history verbatim (timestamps + language preserved).
+    const history = await historyRepository.findByItemId(numericId);
+    for (const snapshot of history) {
+      await historyRepository.create({
+        itemId: created.id,
+        content: snapshot.content,
+        lang: snapshot.lang,
+        createdAt: snapshot.createdAt,
+      });
+    }
+
+    // Canvas chat transcripts are keyed by (itemId, nodeId); the clone keeps the
+    // same node ids, so re-point each message to the new item.
+    if (source.type === "canvas") {
+      const messages = await canvasChatMessageRepository.findByItemId(numericId);
+      for (const message of messages) {
+        await canvasChatMessageRepository.upsert({
+          itemId: created.id,
+          nodeId: message.nodeId,
+          messageId: message.messageId,
+          role: message.role,
+          content: message.content,
+          createdAt: message.createdAt,
+        });
+      }
+    }
+
+    return {
+      id: toIdString(created.id),
+      collectionId: toIdString(created.collectionId),
+      name: created.name,
+      type: created.type,
+      createdAt: created.createdAt.getTime(),
+      updatedAt: created.updatedAt.getTime(),
+    };
   }
 
   async deleteCollection(collectionId: string): Promise<void> {

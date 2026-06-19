@@ -21,6 +21,7 @@ import {
   countFiles,
   findNodeById,
   findNodeByPath,
+  insertNodeAfterId,
   moveNodeInTree,
   removeNodeByIdInPlace,
 } from "./treeUtils";
@@ -45,6 +46,11 @@ export interface FileSidebarProps {
   onUpdateDirectories?: (groupId: string, directories: TreeNode[]) => Promise<void>;
   /** Called to delete a file node from the backend. */
   onDeleteFile?: (fileId: string) => Promise<void>;
+  /**
+   * Duplicate a file/canvas node on the backend, resolving to the created
+   * item's tree node so the sidebar can place it next to the original.
+   */
+  onDuplicateFile?: (fileId: string) => Promise<TreeNode>;
   /** Called to delete an entire collection from the backend. */
   onDeleteCollection?: (collectionId: string) => Promise<void>;
   /** Called when the user clicks "Import from Azure DevOps" for a collection. */
@@ -104,6 +110,7 @@ export default function FileSidebar({
   onCreateCollection,
   onUpdateDirectories,
   onDeleteFile,
+  onDuplicateFile,
   onDeleteCollection,
   onImportFromAzure,
   onCreateCanvas,
@@ -617,6 +624,44 @@ export default function FileSidebar({
     }
   };
 
+  // Duplicate a file/canvas: the backend clones it (content, translation,
+  // history, and — for canvases — chat transcripts) and returns the new node,
+  // which we drop into the tree right after the original. A backdrop covers the
+  // in-flight call (parent's withLoading), so this needs no optimistic state.
+  const handleDuplicateNode = async (
+    node: TreeNode,
+    _nodePath: string,
+    groupIndex: number,
+  ) => {
+    if (!onDuplicateFile) return;
+
+    try {
+      const created = await onDuplicateFile(node.id);
+
+      const updatedCollections: TreeViewGroup[] = JSON.parse(
+        JSON.stringify(collections),
+      );
+      const group = updatedCollections[groupIndex];
+      if (group) {
+        if (!insertNodeAfterId(group.directories, node.id, created)) {
+          group.directories.push(created);
+        }
+        onCollectionsChange(updatedCollections);
+      }
+
+      showSnackbar({
+        variant: "success",
+        message: `${node.type === "canvas" ? "Canvas" : "File"} "${created.name}" created.`,
+      });
+    } catch (err) {
+      console.error("Failed to duplicate item:", err);
+      showSnackbar({
+        variant: "error",
+        message: `Failed to duplicate ${node.type}. Please try again.`,
+      });
+    }
+  };
+
   const handleRequestDeleteGroup = (
     group: TreeViewGroup,
     groupIndex: number,
@@ -882,6 +927,7 @@ export default function FileSidebar({
                 onAddFile={handleAddFile}
                 onAddFolder={handleAddFolder}
                 onRequestDeleteNode={handleRequestDeleteNode}
+                onDuplicateNode={onDuplicateFile ? handleDuplicateNode : undefined}
                 onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
                 onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                 onRequestDeleteGroup={
@@ -907,6 +953,7 @@ export default function FileSidebar({
                   onAddFile={handleAddFile}
                   onAddFolder={handleAddFolder}
                   onRequestDeleteNode={handleRequestDeleteNode}
+                  onDuplicateNode={onDuplicateFile ? handleDuplicateNode : undefined}
                   onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
                   onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                   onRequestDeleteGroup={

@@ -6,6 +6,7 @@ import InlineEditInput from "./InlineEditInput";
 import {
   ChevronRight,
   ChevronDown,
+  Copy,
   Folder,
   FolderOpen,
   File,
@@ -27,6 +28,12 @@ export interface TreeNodeItemProps {
   setSelectedNode: (node: TreeNode | null) => void;
   groupIndex: number;
   onRequestDeleteNode?: (
+    node: TreeNode,
+    nodePath: string,
+    groupIndex: number,
+  ) => void;
+  /** Duplicate a file/canvas node (folders are not duplicable). */
+  onDuplicateNode?: (
     node: TreeNode,
     nodePath: string,
     groupIndex: number,
@@ -59,6 +66,7 @@ export default function TreeNodeItem({
   setSelectedNode,
   groupIndex,
   onRequestDeleteNode,
+  onDuplicateNode,
   editingNodeId,
   onStartRenameNode,
   onSubmitRenameNode,
@@ -227,12 +235,28 @@ export default function TreeNodeItem({
             {node.name}
           </span>
         )}
-        {!readOnlyTree && !isEditing && (
+        {!readOnlyTree && !isEditing && onDuplicateNode && (isFile || isCanvas) && (
           <button
             type="button"
             className="ml-2 p-1 rounded transition-colors opacity-0 group-hover:opacity-100
+              text-muted-foreground hover:text-accent hover:bg-accent/10
+              dark:hover:bg-accent/20"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDuplicateNode(node, nodePath, groupIndex);
+            }}
+            aria-label={`Duplicate ${node.type}`}
+            title={`Duplicate ${node.type}`}
+          >
+            <Copy className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {!readOnlyTree && !isEditing && (
+          <button
+            type="button"
+            className={`${onDuplicateNode && (isFile || isCanvas) ? "ml-0.5" : "ml-2"} p-1 rounded transition-colors opacity-0 group-hover:opacity-100
               text-muted-foreground hover:text-red-600 hover:bg-red-50
-              dark:hover:text-red-400 dark:hover:bg-red-900/20"
+              dark:hover:text-red-400 dark:hover:bg-red-900/20`}
             onClick={(event) => {
               event.stopPropagation();
               onRequestDeleteNode?.(node, nodePath, groupIndex);
@@ -275,6 +299,7 @@ export default function TreeNodeItem({
                 setSelectedNode={setSelectedNode}
                 groupIndex={groupIndex}
                 onRequestDeleteNode={onRequestDeleteNode}
+                onDuplicateNode={onDuplicateNode}
                 editingNodeId={editingNodeId}
                 onStartRenameNode={onStartRenameNode}
                 onSubmitRenameNode={onSubmitRenameNode}

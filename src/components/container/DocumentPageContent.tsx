@@ -55,6 +55,7 @@ import {
   createCollectionAction,
   deleteCollectionAction,
   deleteDocumentItemAction,
+  duplicateDocumentItemAction,
   ensureDocumentTranslationAction,
   getDocumentItemContentAction,
   importAzureUserStoriesAction,
@@ -334,6 +335,14 @@ export default function DocumentPageContent({
         unwrapAction(await deleteDocumentItemAction(fileId));
       });
     },
+    [withLoading],
+  );
+
+  const handleDuplicateFile = useCallback(
+    async (fileId: string): Promise<TreeNode> =>
+      withLoading(async () =>
+        unwrapAction(await duplicateDocumentItemAction(fileId)),
+      ),
     [withLoading],
   );
 
@@ -644,6 +653,7 @@ export default function DocumentPageContent({
           onCreateCollection={handleCreateCollection}
           onUpdateDirectories={handleUpdateDirectories}
           onDeleteFile={handleDeleteFile}
+          onDuplicateFile={handleDuplicateFile}
           onDeleteCollection={handleDeleteCollection}
           onRenameItem={handleRenameItem}
           onRenameCollection={handleRenameCollection}

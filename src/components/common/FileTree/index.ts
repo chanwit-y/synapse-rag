@@ -19,6 +19,7 @@ export {
   findNodeByPath,
   findNodeById,
   flattenFileNodes,
+  insertNodeAfterId,
   removeNodeByIdInPlace,
   getSiblingContainerList,
 } from "./treeUtils";
