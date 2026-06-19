@@ -37,6 +37,7 @@ import VideoNode from "./nodes/VideoNode";
 import LinksNode from "./nodes/LinksNode";
 import DrawNode from "./nodes/DrawNode";
 import MapNode from "./nodes/MapNode";
+import TextNode from "./nodes/TextNode";
 import ColorableEdge from "./edges/ColorableEdge";
 import type { AppNode, NodeColor, NodeKind } from "./types";
 import { NODE_COLORS } from "./nodes/nodeColors";
@@ -71,6 +72,7 @@ const nodeTypes: NodeTypes = {
   links: LinksNode,
   draw: DrawNode,
   map: MapNode,
+  text: TextNode,
 };
 
 function Flow() {
@@ -174,6 +176,7 @@ function Flow() {
       if (n.type === "video") return "#fca5a5";
       if (n.type === "links") return "#5eead4";
       if (n.type === "draw") return "#f0abfc";
+      if (n.type === "text") return "#94a3b8";
       return "#fcd34d";
     },
     [],

@@ -1,6 +1,6 @@
 "use server";
 
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {
   aiInstructionService,
   getChatModelFromDb,
@@ -21,6 +21,17 @@ export type LangChainChatTestInput = {
 
 export type LangChainChatTestOutput = {
   content: string;
+};
+
+/** One turn of a multi-turn conversation sent to the model. */
+export type LangChainChatTurn = {
+  role: "user" | "ai";
+  text: string;
+};
+
+export type LangChainChatTurnsInput = {
+  modelId: string;
+  messages: LangChainChatTurn[];
 };
 
 export type LangChainRagChatInput = {
@@ -119,6 +130,36 @@ export async function chatWithModelFromDbAction(
 
     const llm = await getChatModelFromDb(input.modelId);
     const result = await llm.invoke(prompt);
+
+    return actionSuccess({ content: normalizeMessageContent(result.content) });
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+/**
+ * Multi-turn chat: maps a conversation transcript to LangChain Human/AI messages
+ * (preserving roles) and invokes the selected model. Used by the canvas chat
+ * node so a chat keeps its prior context across turns.
+ */
+export async function chatTurnsWithModelFromDbAction(
+  input: LangChainChatTurnsInput,
+): Promise<ActionResult<LangChainChatTestOutput>> {
+  try {
+    const turns = input.messages
+      .map((m) => ({ role: m.role, text: m.text.trim() }))
+      .filter((m) => m.text.length > 0);
+
+    if (turns.length === 0) {
+      return actionSuccess({ content: "" });
+    }
+
+    const llm = await getChatModelFromDb(input.modelId);
+    const result = await llm.invoke(
+      turns.map((m) =>
+        m.role === "ai" ? new AIMessage(m.text) : new HumanMessage(m.text),
+      ),
+    );
 
     return actionSuccess({ content: normalizeMessageContent(result.content) });
   } catch (error) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -9,6 +10,7 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import { NODE_COLORS, NODE_COLOR_KEYS } from "../nodes/nodeColors";
+import { useCanvasStore } from "../store/canvas-store";
 import type { NodeColor } from "../types";
 
 /**
@@ -36,6 +38,7 @@ export default function ColorableEdge({
   style,
 }: EdgeProps) {
   const { setEdges } = useReactFlow();
+  const removeEdge = useCanvasStore((s) => s.removeEdge);
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -98,15 +101,26 @@ export default function ColorableEdge({
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
         >
-          <button
-            onClick={() => setOpen((o) => !o)}
-            title="Edge color"
-            className={`flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200 transition-opacity hover:ring-slate-300 dark:bg-slate-800 dark:ring-slate-600 dark:hover:ring-slate-500 ${
-              show ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stroke }} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setOpen((o) => !o)}
+              title="Edge color"
+              className={`flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200 transition-opacity hover:ring-slate-300 dark:bg-slate-800 dark:ring-slate-600 dark:hover:ring-slate-500 ${
+                show ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stroke }} />
+            </button>
+            <button
+              onClick={() => removeEdge(id)}
+              title="Delete edge"
+              className={`flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-opacity hover:text-rose-500 hover:ring-slate-300 dark:bg-slate-800 dark:text-slate-500 dark:ring-slate-600 dark:hover:text-rose-400 dark:hover:ring-slate-500 ${
+                show ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <X size={13} />
+            </button>
+          </div>
 
           {open && (
             <div

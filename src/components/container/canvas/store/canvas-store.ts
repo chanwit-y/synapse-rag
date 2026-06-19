@@ -44,6 +44,9 @@ interface CanvasState {
   nodes: AppNode[];
   edges: Edge[];
   toasts: Toast[];
+  /** Canvas-level selected chat model id (ephemeral; not serialized). Read by
+   *  chat nodes when they call the LLM; set from the canvas header picker. */
+  chatModelId: string | null;
 
   // react-flow controlled handlers (store is the single source of truth)
   onNodesChange: (changes: NodeChange<AppNode>[]) => void;
@@ -60,8 +63,14 @@ interface CanvasState {
   /** Spawn a linked node from selected text; returns the new child node's id so
    *  a text-editor caller can key its `spawnHighlight` mark to it. */
   spawn: (args: SpawnFromTextArgs) => string;
+  /** Remove a single edge by id, offering an Undo toast. Only plain (colorable)
+   *  edges reach this — highlight edges are non-interactive and owned by the
+   *  node-delete flow — so no node/highlight cleanup is needed here. */
+  removeEdge: (id: string) => void;
   /** Replace the whole graph (used when opening a persisted canvas file). */
   loadCanvas: (nodes: AppNode[], edges: Edge[]) => void;
+  /** Set the canvas-level chat model used by chat nodes. */
+  setChatModelId: (id: string | null) => void;
   notify: (message: string, action?: ToastAction) => void;
   dismissToast: (id: number) => void;
 }
@@ -134,6 +143,15 @@ function buildNode(kind: NodeKind, position: { x: number; y: number }): AppNode 
       data: { title: "Map", caption: "Add a caption for this place.", mapUrl: "" },
     };
   }
+  if (kind === "text") {
+    // Auto-sizing label — no fixed width/height; it hugs its content.
+    return {
+      id: nextId(kind),
+      type: "text",
+      position,
+      data: { text: "", fontSize: 24, align: "left", autoEdit: true },
+    };
+  }
   return {
     id: nextId(kind),
     type: "textEditor",
@@ -152,6 +170,7 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   nodes: initialNodes,
   edges: initialEdges,
   toasts: [],
+  chatModelId: null,
 
   onNodesChange: (changes) =>
     set((s) => ({ nodes: applyNodeChanges(changes, s.nodes) })),
@@ -289,6 +308,23 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
     return newId;
   },
 
+  // Drop a single plain edge. Snapshots it first so the Undo toast can re-append
+  // it (guarded against a double-add if the same id reappeared meanwhile).
+  removeEdge: (id) => {
+    const edge = get().edges.find((e) => e.id === id);
+    if (!edge) return;
+    set((s) => ({ edges: s.edges.filter((e) => e.id !== id) }));
+    get().notify("Edge deleted", {
+      label: "Undo",
+      onClick: () =>
+        set((s) =>
+          s.edges.some((e) => e.id === id)
+            ? s
+            : { edges: [...s.edges, edge] },
+        ),
+    });
+  },
+
   // Swap the whole graph when a canvas file is opened. The id counter is bumped
   // past any numeric suffix already present so freshly-added nodes never collide
   // with ids restored from the saved graph.
@@ -299,8 +335,12 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
       if (Number.isFinite(tail)) maxSuffix = Math.max(maxSuffix, tail);
     }
     idCounter = maxSuffix + 1;
+    // Keep the selected chat model across document switches; only the graph and
+    // transient toasts are replaced when a canvas file is opened.
     set({ nodes, edges, toasts: [] });
   },
+
+  setChatModelId: (id) => set({ chatModelId: id }),
 
   notify: (message, action) => {
     const id = Date.now() + Math.random();

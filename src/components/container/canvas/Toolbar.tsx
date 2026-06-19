@@ -4,6 +4,7 @@ import {
   MousePointer2,
   MessageSquarePlus,
   FileText,
+  Type,
   Image as ImageIcon,
   Video,
   Link2,
@@ -37,6 +38,11 @@ export default function Toolbar({ onAdd, selectMode, onToggleSelect }: ToolbarPr
         label="Add text editor"
         onClick={() => onAdd("textEditor")}
         icon={<FileText size={18} />}
+      />
+      <ToolButton
+        label="Add text"
+        onClick={() => onAdd("text")}
+        icon={<Type size={18} />}
       />
       <ToolButton
         label="Add image"

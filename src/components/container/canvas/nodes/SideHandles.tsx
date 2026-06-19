@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment } from "react";
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Position, useNodeId, useStore } from "@xyflow/react";
 
 /** Cardinal sides exposed as connectable handles on every node. */
 export const SIDES = [
@@ -17,10 +17,22 @@ export type Side = (typeof SIDES)[number]["side"];
  * Renders a source + target handle on each of the four sides (overlapping, so
  * each side shows as a single dot). Handle ids are `s-<side>` / `t-<side>` so
  * the position picker can attach an edge to a chosen side of any node.
+ *
+ * The dots are revealed only while the node is hovered (`group-hover`, every
+ * node root carries `group`) or selected — keeping nodes clean at rest. Opacity
+ * doesn't disable the handles, so they stay connectable the moment they appear.
  */
 export default function SideHandles() {
+  const nodeId = useNodeId();
+  const selected = useStore((s) =>
+    nodeId ? s.nodeLookup.get(nodeId)?.selected ?? false : false,
+  );
   return (
-    <>
+    <div
+      className={`transition-opacity ${
+        selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+      }`}
+    >
       {SIDES.map(({ side, pos }) => (
         <Fragment key={side}>
           <Handle
@@ -37,6 +49,6 @@ export default function SideHandles() {
           />
         </Fragment>
       ))}
-    </>
+    </div>
   );
 }

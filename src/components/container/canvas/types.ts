@@ -141,6 +141,31 @@ export type MapNodeData = {
   color?: NodeColor;
 };
 
+/** Text alignment for a plain Text node. */
+export type TextAlign = "left" | "center" | "right";
+
+/** A chrome-less floating text label. Formatting is uniform across the whole
+ *  node (one size/style/color), edited inline (double-click). Auto-sizes to its
+ *  content. Distinct from the rich `textEditor` "document" node. */
+export type TextNodeData = {
+  /** The label's plain text (may contain newlines). */
+  text: string;
+  /** Font size in px (picked from the preset dropdown). */
+  fontSize: number;
+  /** Whole-node style toggles. */
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  /** Horizontal alignment of the text. */
+  align?: TextAlign;
+  /** Text color picked from the palette (theme-adaptive `default` + accent
+   *  hues). Drives the actual font color, not a header/border accent. */
+  color?: NodeColor;
+  /** When true, the node enters edit mode on first mount (set for a freshly
+   *  added node so the user can type immediately); cleared after the first edit. */
+  autoEdit?: boolean;
+};
+
 export type TextEditorNode = Node<TextEditorNodeData, "textEditor">;
 export type ChatNode = Node<ChatNodeData, "chat">;
 export type ImageNode = Node<ImageNodeData, "image">;
@@ -148,6 +173,7 @@ export type VideoNode = Node<VideoNodeData, "video">;
 export type LinksNode = Node<LinksNodeData, "links">;
 export type DrawNode = Node<DrawNodeData, "draw">;
 export type MapNode = Node<MapNodeData, "map">;
+export type TextNode = Node<TextNodeData, "text">;
 
 export type AppNode =
   | TextEditorNode
@@ -156,6 +182,7 @@ export type AppNode =
   | VideoNode
   | LinksNode
   | DrawNode
-  | MapNode;
+  | MapNode
+  | TextNode;
 
 export type NodeKind = AppNode["type"];

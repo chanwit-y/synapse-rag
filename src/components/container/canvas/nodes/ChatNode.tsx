@@ -17,6 +17,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import { Bot, Send, Sparkles, ArrowLeft, StickyNote } from "lucide-react";
+import { chatTurnsWithModelFromDbAction } from "@/server/actions";
 import { useCanvasStore } from "../store/canvas-store";
 import SideHandles, { SIDES } from "./SideHandles";
 import NodeRemoveButton from "./NodeRemoveButton";
@@ -42,14 +43,6 @@ type Live = {
 
 /** Active state of the "choose source/target side" step in the popover. */
 type Picker = { kind: "chat" | "textEditor"; title: string; src: string; tgt: string };
-
-const CANNED_REPLIES = [
-  "Good question — based on the linked document, the key trade-off is latency vs. cost.",
-  "Here's a thought: try grouping those ideas before drilling into specifics.",
-  "I'd summarize the connected note as three points. Want me to expand any of them?",
-];
-
-let replyIndex = 0;
 
 /** Character offsets of a DOM selection within `root`'s text content. */
 function selectionOffsets(root: HTMLElement, range: Range) {
@@ -100,6 +93,7 @@ function rangeFromOffsets(root: HTMLElement, start: number, end: number): Range 
 
 export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>) {
   const spawn = useCanvasStore((s) => s.spawn);
+  const notify = useCanvasStore((s) => s.notify);
   const { getZoom } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
@@ -152,34 +146,63 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
     });
   };
 
-  // "Ask AI" spawns this node with a seeded question + `pending`; answer it on
-  // mount with the typing indicator → canned reply (the AI seam).
-  useEffect(() => {
-    if (!data.pending) return;
-    const t = window.setTimeout(() => {
-      const reply = CANNED_REPLIES[replyIndex % CANNED_REPLIES.length];
-      replyIndex += 1;
+  // Send the conversation so far to the canvas-selected chat model and append
+  // the reply. With no model selected we abort + toast (no canned fallback); a
+  // request failure toasts and drops an inline error bubble so it's visible.
+  const requestReply = useCallback(
+    async (history: ChatMessage[]) => {
+      const modelId = useCanvasStore.getState().chatModelId;
+      if (!modelId) {
+        setTyping(false);
+        notify("Select an AI model first");
+        return;
+      }
+      const result = await chatTurnsWithModelFromDbAction({
+        modelId,
+        messages: history.map((m) => ({ role: m.role, text: m.text })),
+      });
       setTyping(false);
-      setMessages((m) => [...m, { id: `a-${Date.now()}`, role: "ai", text: reply }]);
+      if (result.success) {
+        const text = result.data.content.trim() || "(No response.)";
+        setMessages((m) => [...m, { id: `a-${Date.now()}`, role: "ai", text }]);
+      } else {
+        notify(`⚠️ ${result.error}`);
+        setMessages((m) => [
+          ...m,
+          {
+            id: `a-${Date.now()}`,
+            role: "ai",
+            text: "⚠️ Couldn't reach the model. Try again.",
+          },
+        ]);
+      }
       scrollToBottom();
-    }, 1100);
-    return () => window.clearTimeout(t);
+    },
+    [notify],
+  );
+
+  // "Ask AI" spawns this node with a seeded question + `pending`; answer it on
+  // mount by running the seeded transcript through the selected model.
+  const askedRef = useRef(false);
+  useEffect(() => {
+    if (!data.pending || askedRef.current) return;
+    askedRef.current = true;
+    void requestReply(data.messages);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.pending]);
 
   const send = () => {
     const text = draft.trim();
     if (!text) return;
-    setMessages((m) => [...m, { id: `u-${Date.now()}`, role: "user", text }]);
+    const next: ChatMessage[] = [
+      ...messages,
+      { id: `u-${Date.now()}`, role: "user", text },
+    ];
+    setMessages(next);
     setDraft("");
     scrollToBottom();
     setTyping(true);
-    window.setTimeout(() => {
-      const reply = CANNED_REPLIES[replyIndex % CANNED_REPLIES.length];
-      replyIndex += 1;
-      setTyping(false);
-      setMessages((m) => [...m, { id: `a-${Date.now()}`, role: "ai", text: reply }]);
-      scrollToBottom();
-    }, 1100);
+    void requestReply(next);
   };
 
   // Selection rects in the scroll content's coordinate space (so the overlay

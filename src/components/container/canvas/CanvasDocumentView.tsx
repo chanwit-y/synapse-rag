@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Edge } from "@xyflow/react";
 import { Maximize2, Minimize2, Save } from "lucide-react";
-import { deleteCanvasImageAction } from "@/server/actions";
+import { deleteCanvasImageAction, listChatModelsAction } from "@/server/actions";
+import SelectField from "@/components/common/SelectField/SelectField";
 import CanvasWorkspace from "./CanvasWorkspace";
 import { useCanvasStore } from "./store/canvas-store";
 import type { AppNode } from "./types";
+
+type ChatModelOption = { id: string; name: string; isDefault: boolean };
 
 /** Pull every `/canvas-images/...` path referenced in a serialized graph. Used
  *  to garbage-collect images that a save removed from the canvas. */
@@ -49,6 +52,9 @@ export default function CanvasDocumentView({
   onSave,
 }: CanvasDocumentViewProps) {
   const loadCanvas = useCanvasStore((s) => s.loadCanvas);
+  const chatModelId = useCanvasStore((s) => s.chatModelId);
+  const setChatModelId = useCanvasStore((s) => s.setChatModelId);
+  const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
   // The image paths present in the last persisted graph. Diffed on save so an
   // image dropped from the canvas (and durably saved away) is unlinked on disk.
   const savedImagePathsRef = useRef<Set<string>>(canvasImagePaths(content));
@@ -78,6 +84,29 @@ export default function CanvasDocumentView({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isFullscreen, isExiting, exitFullscreen]);
+
+  // Load the active chat models for the canvas picker; preselect the default one
+  // (then the first) when nothing is chosen yet. The selection is ephemeral and
+  // lives in the canvas store so chat nodes can read it.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const result = await listChatModelsAction();
+      if (cancelled || !result.success) return;
+      const options: ChatModelOption[] = result.data
+        .filter((m) => m.status === "active")
+        .map((m) => ({ id: m.id, name: m.name, isDefault: m.isDefault }));
+      setChatModels(options);
+      const current = useCanvasStore.getState().chatModelId;
+      const stillValid = current && options.some((o) => o.id === current);
+      if (!stillValid) {
+        setChatModelId(options.find((o) => o.isDefault)?.id ?? options[0]?.id ?? null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setChatModelId]);
 
   // Hydrate the store with the saved graph. The parent keys this view by item id
   // and mounts it only once content is loaded, so `content` is stable for the
@@ -144,19 +173,31 @@ export default function CanvasDocumentView({
         >
           <Save className="h-3.5 w-3.5" />
         </button>
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          title={isFullscreen ? "Exit full screen" : "Full screen"}
-          aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface text-muted-foreground shadow-sm transition-colors hover:bg-surface-strong hover:text-foreground"
-        >
-          {isFullscreen ? (
-            <Minimize2 className="h-3.5 w-3.5" />
-          ) : (
-            <Maximize2 className="h-3.5 w-3.5" />
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <SelectField
+            size="small"
+            aria-label="AI model"
+            placeholder={chatModels.length ? "Model" : "No models"}
+            disabled={chatModels.length === 0}
+            options={chatModels.map((m) => ({ value: m.id, label: m.name }))}
+            value={chatModelId}
+            onChange={(v) => setChatModelId(v == null ? null : String(v))}
+            className="w-44"
+          />
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "Exit full screen" : "Full screen"}
+            aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface text-muted-foreground shadow-sm transition-colors hover:bg-surface-strong hover:text-foreground"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-3.5 w-3.5" />
+            ) : (
+              <Maximize2 className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
       </div>
       <div className="relative min-h-0 flex-1">
         <CanvasWorkspace embedded />

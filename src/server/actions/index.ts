@@ -69,10 +69,13 @@ export {
 
 export {
   chatWithModelFromDbAction,
+  chatTurnsWithModelFromDbAction,
   chatWithRagFromDbAction,
   embedTextsFromDbAction,
   type LangChainChatTestInput,
   type LangChainChatTestOutput,
+  type LangChainChatTurn,
+  type LangChainChatTurnsInput,
   type LangChainRagChatInput,
   type LangChainRagChatOutput,
   type LangChainEmbeddingsInput,
