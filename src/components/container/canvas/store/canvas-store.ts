@@ -38,6 +38,12 @@ export type SpawnFromTextArgs = {
    *  (`start`/`end`) and `messageId`. For a text-editor source the offsets are
    *  omitted — the caller applies a `spawnHighlight` mark using the returned id. */
   highlight?: { start?: number; end?: number; messageId?: string };
+  /** For an "Ask AI" (chat) spawn: a pre-computed brief of the source chat/note,
+   *  stored on the new chat node so it shows a context note and grounds every
+   *  turn. Empty/omitted spawns a context-less chat (the prior behavior). */
+  contextSummary?: string;
+  /** Where {@link contextSummary} came from — drives the context note's label. */
+  contextKind?: "chat" | "note";
 };
 
 interface CanvasState {
@@ -229,6 +235,8 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
     sourceHandle: pickedSource,
     targetHandle: pickedTarget,
     highlight,
+    contextSummary,
+    contextKind,
   }) => {
     const source = get().nodes.find((n) => n.id === sourceNodeId);
     const srcX = source?.position.x ?? 0;
@@ -252,6 +260,9 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
               // Seed the question; the node answers it live on mount.
               messages: [{ id: `q-${newId}`, role: "user", text: trimmed }],
               pending: true,
+              ...(contextSummary?.trim()
+                ? { contextSummary: contextSummary.trim(), contextKind }
+                : {}),
             },
           }
         : {

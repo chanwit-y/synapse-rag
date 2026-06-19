@@ -23,6 +23,7 @@ import {
 import { useEditor, useEditorState, EditorContent } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import { summarizeContextAction } from "@/server/actions";
 import { useCanvasStore } from "../store/canvas-store";
 import SideHandles, { SIDES } from "./SideHandles";
 import NodeRemoveButton from "./NodeRemoveButton";
@@ -135,6 +136,8 @@ export default function TextEditorNode({
   const [live, setLive] = useState<Live | null>(null);
   const [showPopover, setShowPopover] = useState(false);
   const [picker, setPicker] = useState<Picker | null>(null);
+  // While true, "Create" is awaiting the context summary before spawning.
+  const [summarizing, setSummarizing] = useState(false);
 
   // Comma-joined ids of this node's selected highlight-children (primitive, to
   // limit re-renders) — drives per-pair focus reveal.
@@ -335,11 +338,33 @@ export default function TextEditorNode({
 
   // Spawn the paired node, then (for a highlight source) apply the mark to the
   // remembered range keyed to the new child id and collapse the selection.
-  const createFromPicker = useCallback(() => {
-    if (!picker || !live || !editor) return;
+  //
+  // For an "Ask AI" (chat) spawn we first summarize this note's text with a
+  // small model so the new chat is seeded with the context its phrase came from.
+  // Best-effort + blocking: "Create" shows "Summarizing…" until it resolves, and
+  // a failure just spawns a context-less chat.
+  const createFromPicker = useCallback(async () => {
+    if (!picker || !live || !editor || summarizing) return;
     const phrase = live.phrase.trim();
     if (!phrase) return;
     const isHighlight = picker.src === "highlight";
+
+    let contextSummary = "";
+    if (picker.kind === "chat") {
+      const noteText = editor.getText().trim();
+      const modelId = useCanvasStore.getState().chatModelId;
+      if (modelId) {
+        setSummarizing(true);
+        const result = await summarizeContextAction({
+          kind: "note",
+          content: noteText,
+          fallbackModelId: modelId,
+        });
+        setSummarizing(false);
+        if (result.success) contextSummary = result.data.summary;
+      }
+    }
+
     const newId = spawn({
       text: phrase,
       sourceNodeId: id,
@@ -348,6 +373,7 @@ export default function TextEditorNode({
       sourceHandle: isHighlight ? "highlight" : `s-${picker.src}`,
       targetHandle: `t-${picker.tgt}`,
       highlight: isHighlight ? {} : undefined,
+      ...(contextSummary ? { contextSummary, contextKind: "note" as const } : {}),
     });
     if (isHighlight) {
       editor
@@ -360,7 +386,7 @@ export default function TextEditorNode({
     setPicker(null);
     setShowPopover(false);
     setLive(null);
-  }, [picker, live, editor, id, spawn]);
+  }, [picker, live, editor, id, spawn, summarizing]);
 
   const anchorOf = (rects: Rect[]) =>
     rects[0] ? { x: rects[0].left + rects[0].width / 2, y: rects[0].top } : null;
@@ -478,9 +504,10 @@ export default function TextEditorNode({
                 />
                 <button
                   onClick={createFromPicker}
-                  className="mt-0.5 rounded-lg bg-violet-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-violet-600"
+                  disabled={summarizing}
+                  className="mt-0.5 rounded-lg bg-violet-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-violet-600 disabled:opacity-60"
                 >
-                  Create
+                  {summarizing ? "Summarizing…" : "Create"}
                 </button>
               </div>
             ) : (

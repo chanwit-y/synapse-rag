@@ -16,10 +16,11 @@ import {
   useUpdateNodeInternals,
   type NodeProps,
 } from "@xyflow/react";
-import { Bot, Send, Sparkles, ArrowLeft, StickyNote } from "lucide-react";
+import { Bot, Send, Sparkles, ArrowLeft, StickyNote, ChevronDown } from "lucide-react";
 import {
   appendCanvasChatMessageAction,
   chatTurnsWithModelFromDbAction,
+  summarizeContextAction,
 } from "@/server/actions";
 import { useCanvasStore } from "../store/canvas-store";
 import SideHandles, { SIDES } from "./SideHandles";
@@ -109,6 +110,11 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
   const [live, setLive] = useState<Live | null>(null);
   const [showPopover, setShowPopover] = useState(false);
   const [picker, setPicker] = useState<Picker | null>(null);
+  // While true, "Create" is awaiting the context summary before spawning.
+  const [summarizing, setSummarizing] = useState(false);
+  // Collapse the carried-over context note (label stays so it can be reopened).
+  // Hidden by default — the context grounds the model regardless of visibility.
+  const [contextCollapsed, setContextCollapsed] = useState(true);
   // Saved-highlight geometry, keyed by paired child id.
   const [contentRectsMap, setContentRectsMap] = useState<Record<string, Rect[]>>({});
   const [anchorMap, setAnchorMap] = useState<Record<string, { x: number; y: number }>>({});
@@ -197,6 +203,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       const result = await chatTurnsWithModelFromDbAction({
         modelId,
         instructionId: useCanvasStore.getState().instructionId,
+        contextSummary: data.contextSummary,
         messages: history.map((m) => ({ role: m.role, text: m.text })),
       });
       setTyping(false);
@@ -217,7 +224,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       }
       scrollToBottom();
     },
-    [notify, persist],
+    [notify, persist, data.contextSummary],
   );
 
   // "Ask AI" spawns this node with a seeded question + `pending`; answer it on
@@ -388,11 +395,35 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
 
   // Spawn the paired node. "From: Highlight" persists a highlight keyed to the
   // new child (anchored to this message); a side source is a plain edge.
-  const createFromPicker = useCallback(() => {
-    if (!picker || !live) return;
+  //
+  // For an "Ask AI" (chat) spawn we first summarize this chat's transcript with
+  // a small model so the new chat is seeded with the context its phrase came
+  // from. Best-effort + blocking: the "Create" button shows "Summarizing…" until
+  // it resolves, and a failure just spawns a context-less chat.
+  const createFromPicker = useCallback(async () => {
+    if (!picker || !live || summarizing) return;
     const phrase = live.phrase.trim();
     if (!phrase) return;
     const isHighlight = picker.src === "highlight";
+
+    let contextSummary = "";
+    if (picker.kind === "chat") {
+      const transcript = messages
+        .map((m) => `${m.role === "ai" ? "AI" : "User"}: ${m.text}`)
+        .join("\n");
+      const modelId = useCanvasStore.getState().chatModelId;
+      if (modelId) {
+        setSummarizing(true);
+        const result = await summarizeContextAction({
+          kind: "chat",
+          content: transcript,
+          fallbackModelId: modelId,
+        });
+        setSummarizing(false);
+        if (result.success) contextSummary = result.data.summary;
+      }
+    }
+
     spawn({
       text: phrase,
       sourceNodeId: id,
@@ -403,12 +434,13 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       highlight: isHighlight
         ? { start: live.start, end: live.end, messageId: live.messageId }
         : undefined,
+      ...(contextSummary ? { contextSummary, contextKind: "chat" as const } : {}),
     });
     setPicker(null);
     setShowPopover(false);
     setLive(null);
     window.getSelection()?.removeAllRanges();
-  }, [picker, live, id, spawn]);
+  }, [picker, live, id, spawn, summarizing, messages]);
 
   const popoverAnchor = live?.anchor ?? null;
   const popoverButton =
@@ -467,6 +499,32 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
           <span className="text-[11px] text-emerald-500">● online</span>
         </div>
       </div>
+
+      {/* Carried-over context — a brief of the chat/note this node was spawned
+          from, also injected as a system prompt on every turn. Collapsible: the
+          label row stays so a hidden summary can be reopened. */}
+      {data.contextSummary && (
+        <div className="nowheel shrink-0 overflow-y-auto border-b border-amber-100 bg-amber-50/70 px-3 py-2 dark:border-amber-500/20 dark:bg-amber-500/10">
+          <button
+            type="button"
+            onClick={() => setContextCollapsed((v) => !v)}
+            title={contextCollapsed ? "Show context" : "Hide context"}
+            className="nodrag flex w-full items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400"
+          >
+            <Sparkles size={11} />
+            Context from {data.contextKind === "note" ? "note" : "previous chat"}
+            <ChevronDown
+              size={12}
+              className={`ml-auto transition-transform ${contextCollapsed ? "-rotate-90" : ""}`}
+            />
+          </button>
+          {!contextCollapsed && (
+            <p className="mt-0.5 text-[11.5px] leading-snug text-amber-900/80 dark:text-amber-200/80">
+              {data.contextSummary}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Messages */}
       <div
@@ -591,9 +649,10 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
               />
               <button
                 onClick={createFromPicker}
-                className="mt-0.5 rounded-lg bg-violet-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-violet-600"
+                disabled={summarizing}
+                className="mt-0.5 rounded-lg bg-violet-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-violet-600 disabled:opacity-60"
               >
-                Create
+                {summarizing ? "Summarizing…" : "Create"}
               </button>
             </div>
           ) : (

@@ -56,6 +56,13 @@ export type ChatNodeData = {
   pending?: boolean;
   /** Saved highlights — one per spawned child, anchored within an AI message. */
   highlights?: Highlight[];
+  /** A brief of the chat/note this node was spawned from (via "Ask AI" on a
+   *  highlight). Shown as a pinned context note and injected as a system prompt
+   *  on every turn, so the chat stays grounded in where its question came from.
+   *  Persisted in the graph JSON like the title. */
+  contextSummary?: string;
+  /** Where {@link contextSummary} came from — drives the context note's label. */
+  contextKind?: "chat" | "note";
   /** Accent color picked from the palette (tints header + border). */
   color?: NodeColor;
 };

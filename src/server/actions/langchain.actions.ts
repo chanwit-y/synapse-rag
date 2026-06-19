@@ -3,9 +3,11 @@
 import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {
   aiInstructionService,
+  contextSummaryService,
   getChatModelFromDb,
   getEmbeddingsFromDb,
   queryExpansionService,
+  type ContextSummaryKind,
 } from "@/server/services";
 import {
   itemRepository,
@@ -35,6 +37,10 @@ export type LangChainChatTurnsInput = {
   /** Optional AI instruction template id — its content is injected as a system
    *  prompt ahead of the transcript. */
   instructionId?: string | null;
+  /** Optional pre-computed context brief (e.g. a summary of the conversation an
+   *  "Ask AI" node was spawned from) — injected as a system prompt so the chat
+   *  stays grounded in where its question came from. */
+  contextSummary?: string | null;
 };
 
 export type LangChainRagChatInput = {
@@ -163,15 +169,51 @@ export async function chatTurnsWithModelFromDbAction(
       ? (await aiInstructionService.getContent(input.instructionId)).trim()
       : "";
 
+    // A spawned "Ask AI" node carries a brief of the chat/note it came from;
+    // inject it as its own system turn so the model has that background.
+    const context = input.contextSummary?.trim()
+      ? `Context the user's question was carried over from:\n${input.contextSummary.trim()}`
+      : "";
+
     const llm = await getChatModelFromDb(input.modelId);
     const result = await llm.invoke([
       ...(instruction ? [new SystemMessage(instruction)] : []),
+      ...(context ? [new SystemMessage(context)] : []),
       ...turns.map((m) =>
         m.role === "ai" ? new AIMessage(m.text) : new HumanMessage(m.text),
       ),
     ]);
 
     return actionSuccess({ content: normalizeMessageContent(result.content) });
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export type SummarizeContextInput = {
+  /** What the content is, so the summary prompt can be tailored. */
+  kind: ContextSummaryKind;
+  /** The source content (a joined chat transcript or a note's text). */
+  content: string;
+  /** Model used only if no active OpenAI chat key exists for gpt-4o-mini. */
+  fallbackModelId: string;
+};
+
+/**
+ * Summarize a chat transcript or note into a short context brief for a spawned
+ * "Ask AI" node. Always succeeds with a string — best-effort summarization
+ * degrades to `""` (no context), so a failure never blocks the spawn.
+ */
+export async function summarizeContextAction(
+  input: SummarizeContextInput,
+): Promise<ActionResult<{ summary: string }>> {
+  try {
+    const summary = await contextSummaryService.summarize(
+      input.kind,
+      input.content,
+      input.fallbackModelId,
+    );
+    return actionSuccess({ summary });
   } catch (error) {
     return actionFailure(error);
   }
