@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import { apiKeys } from "./api-keys";
+import { canvasChatMessages } from "./canvas-chat-messages";
 import { collections } from "./collections";
 import { histories } from "./histories";
 import { itemRags } from "./item-rags";
@@ -25,6 +26,7 @@ export const itemsRelations = relations(items, ({ one, many }) => ({
   children: many(items, { relationName: "folderHierarchy" }),
   histories: many(histories),
   rags: many(itemRags),
+  canvasChatMessages: many(canvasChatMessages),
 }));
 
 export const historiesRelations = relations(histories, ({ one }) => ({
@@ -33,6 +35,16 @@ export const historiesRelations = relations(histories, ({ one }) => ({
     references: [items.id],
   }),
 }));
+
+export const canvasChatMessagesRelations = relations(
+  canvasChatMessages,
+  ({ one }) => ({
+    item: one(items, {
+      fields: [canvasChatMessages.itemId],
+      references: [items.id],
+    }),
+  }),
+);
 
 export const apiKeysRelations = relations(apiKeys, ({ many }) => ({
   models: many(models),

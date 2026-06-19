@@ -3,11 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Edge } from "@xyflow/react";
 import { Maximize2, Minimize2, Save } from "lucide-react";
-import { deleteCanvasImageAction, listChatModelsAction } from "@/server/actions";
+import {
+  deleteCanvasImageAction,
+  listCanvasChatMessagesAction,
+  listChatModelsAction,
+  pruneCanvasChatMessagesAction,
+} from "@/server/actions";
 import SelectField from "@/components/common/SelectField/SelectField";
 import CanvasWorkspace from "./CanvasWorkspace";
 import { useCanvasStore } from "./store/canvas-store";
-import type { AppNode } from "./types";
+import type { AppNode, ChatMessage } from "./types";
 
 type ChatModelOption = { id: string; name: string; isDefault: boolean };
 
@@ -35,6 +40,9 @@ function parseGraph(content: string): { nodes: AppNode[]; edges: Edge[] } {
 }
 
 export interface CanvasDocumentViewProps {
+  /** The canvas item's id. Chat nodes use it to persist messages to the DB,
+   *  and it scopes the transcript hydrate / GC. */
+  itemId: string;
   /** Serialized `{ nodes, edges }` JSON for this canvas. */
   content: string;
   /** Persist the serialized graph. Resolves once saved. */
@@ -48,10 +56,12 @@ export interface CanvasDocumentViewProps {
  * only loaded once a canvas is actually opened.
  */
 export default function CanvasDocumentView({
+  itemId,
   content,
   onSave,
 }: CanvasDocumentViewProps) {
   const loadCanvas = useCanvasStore((s) => s.loadCanvas);
+  const setCanvasItemId = useCanvasStore((s) => s.setCanvasItemId);
   const chatModelId = useCanvasStore((s) => s.chatModelId);
   const setChatModelId = useCanvasStore((s) => s.setChatModelId);
   const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
@@ -112,19 +122,69 @@ export default function CanvasDocumentView({
   // and mounts it only once content is loaded, so `content` is stable for the
   // component's life (it changes only on save, where re-hydrating is a no-op) —
   // in-canvas edits never trigger a reload.
+  //
+  // Chat messages are NOT in the graph JSON (stripped on save); they're the
+  // canvas_chat_messages table's authority. Fetch them and merge onto each chat
+  // node's `messages` before loading, so a chat opens with its real transcript.
+  // A fetch failure degrades to the (empty) seed — the rows stay safe in the DB.
   useEffect(() => {
-    const { nodes, edges } = parseGraph(content);
-    loadCanvas(nodes, edges);
-    savedImagePathsRef.current = canvasImagePaths(content);
-  }, [content, loadCanvas]);
+    let cancelled = false;
+    setCanvasItemId(itemId);
+    void (async () => {
+      const { nodes, edges } = parseGraph(content);
+      const result = await listCanvasChatMessagesAction(itemId);
+      if (cancelled) return;
+
+      let hydrated = nodes;
+      if (result.success) {
+        const byNode = new Map<string, ChatMessage[]>();
+        for (const m of result.data) {
+          const list = byNode.get(m.nodeId) ?? [];
+          list.push({ id: m.id, role: m.role, text: m.text });
+          byNode.set(m.nodeId, list);
+        }
+        hydrated = nodes.map((n) =>
+          n.type === "chat"
+            ? ({
+                ...n,
+                data: { ...n.data, messages: byNode.get(n.id) ?? n.data.messages },
+              } as AppNode)
+            : n,
+        );
+      }
+
+      loadCanvas(hydrated, edges);
+      savedImagePathsRef.current = canvasImagePaths(content);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [content, itemId, loadCanvas, setCanvasItemId]);
 
   const handleSave = useCallback(async () => {
     if (isSaving) return;
     setIsSaving(true);
     try {
       const { nodes, edges } = useCanvasStore.getState();
-      const serialized = JSON.stringify({ nodes, edges });
+      // Chat transcripts live in the DB, not the graph JSON. Strip each chat
+      // node's `messages` (and the transient `pending` flag, so a reopened node
+      // never re-asks) before serializing — structure only goes in the JSON.
+      const strippedNodes = nodes.map((n) =>
+        n.type === "chat"
+          ? ({ ...n, data: { ...n.data, messages: [], pending: false } } as AppNode)
+          : n,
+      );
+      const serialized = JSON.stringify({ nodes: strippedNodes, edges });
       await onSave(serialized);
+
+      // GC transcripts of chat nodes deleted since the last save (best-effort).
+      const chatNodeIds = nodes
+        .filter((n) => n.type === "chat")
+        .map((n) => n.id);
+      void pruneCanvasChatMessagesAction({
+        itemId,
+        keepNodeIds: chatNodeIds,
+      }).catch(() => undefined);
 
       // After the graph is durably saved, unlink any canvas image that was in
       // the previously-saved graph but is no longer referenced. Best-effort:
@@ -142,7 +202,7 @@ export default function CanvasDocumentView({
     } finally {
       setIsSaving(false);
     }
-  }, [isSaving, onSave]);
+  }, [isSaving, onSave, itemId]);
 
   return (
     <div

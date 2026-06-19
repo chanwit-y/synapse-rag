@@ -5,6 +5,10 @@ export type ItemType = (typeof itemTypeValues)[number];
 export const contentLangValues = ["en", "th"] as const;
 export type ContentLang = (typeof contentLangValues)[number];
 
+/** Author of a canvas chat message (mirrors the client `ChatMessage.role`). */
+export const chatRoleValues = ["user", "ai"] as const;
+export type ChatRole = (typeof chatRoleValues)[number];
+
 export const apiKeyProviderValues = [
   "openai",
   "anthropic",

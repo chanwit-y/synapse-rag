@@ -17,7 +17,10 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import { Bot, Send, Sparkles, ArrowLeft, StickyNote } from "lucide-react";
-import { chatTurnsWithModelFromDbAction } from "@/server/actions";
+import {
+  appendCanvasChatMessageAction,
+  chatTurnsWithModelFromDbAction,
+} from "@/server/actions";
 import { useCanvasStore } from "../store/canvas-store";
 import SideHandles, { SIDES } from "./SideHandles";
 import NodeRemoveButton from "./NodeRemoveButton";
@@ -94,6 +97,7 @@ function rangeFromOffsets(root: HTMLElement, start: number, end: number): Range 
 export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>) {
   const spawn = useCanvasStore((s) => s.spawn);
   const notify = useCanvasStore((s) => s.notify);
+  const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const { getZoom } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
@@ -146,6 +150,39 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
     });
   };
 
+  // Persist one message to the DB (canvas_chat_messages) keyed to this node.
+  // Best-effort and fire-and-forget — the message already shows in the UI; a
+  // write failure toasts but never blocks the chat. Idempotent on the message
+  // id, so re-persisting a seed on remount is a no-op. No-op when the board
+  // isn't backed by a saved canvas item (no `canvasItemId`).
+  const persist = useCallback(
+    (message: ChatMessage) => {
+      const canvasItemId = useCanvasStore.getState().canvasItemId;
+      if (!canvasItemId) return;
+      void appendCanvasChatMessageAction({
+        itemId: canvasItemId,
+        nodeId: id,
+        message: { id: message.id, role: message.role, text: message.text },
+      })
+        .then((r) => {
+          if (!r.success) notify("⚠️ Couldn't save message");
+        })
+        .catch(() => undefined);
+    },
+    [id, notify],
+  );
+
+  // Persist the messages a node mounts with (seed greeting / spawned question /
+  // hydrated history) exactly once. The idempotent upsert keeps history rows
+  // that were just hydrated from the DB from duplicating.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    seededRef.current = true;
+    data.messages.forEach((m) => persist(m));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Send the conversation so far to the canvas-selected chat model and append
   // the reply. With no model selected we abort + toast (no canned fallback); a
   // request failure toasts and drops an inline error bubble so it's visible.
@@ -164,21 +201,22 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       setTyping(false);
       if (result.success) {
         const text = result.data.content.trim() || "(No response.)";
-        setMessages((m) => [...m, { id: `a-${Date.now()}`, role: "ai", text }]);
+        const reply: ChatMessage = { id: `a-${Date.now()}`, role: "ai", text };
+        setMessages((m) => [...m, reply]);
+        persist(reply);
       } else {
         notify(`⚠️ ${result.error}`);
-        setMessages((m) => [
-          ...m,
-          {
-            id: `a-${Date.now()}`,
-            role: "ai",
-            text: "⚠️ Couldn't reach the model. Try again.",
-          },
-        ]);
+        const reply: ChatMessage = {
+          id: `a-${Date.now()}`,
+          role: "ai",
+          text: "⚠️ Couldn't reach the model. Try again.",
+        };
+        setMessages((m) => [...m, reply]);
+        persist(reply);
       }
       scrollToBottom();
     },
-    [notify],
+    [notify, persist],
   );
 
   // "Ask AI" spawns this node with a seeded question + `pending`; answer it on
@@ -194,11 +232,10 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
   const send = () => {
     const text = draft.trim();
     if (!text) return;
-    const next: ChatMessage[] = [
-      ...messages,
-      { id: `u-${Date.now()}`, role: "user", text },
-    ];
+    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: "user", text };
+    const next: ChatMessage[] = [...messages, userMsg];
     setMessages(next);
+    persist(userMsg);
     setDraft("");
     scrollToBottom();
     setTyping(true);
@@ -418,7 +455,12 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
         <div className="flex min-w-0 flex-col">
           <input
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              // Mirror title edits into the store so they persist in the canvas
+              // JSON (local state alone is dropped on save).
+              setTitle(e.target.value);
+              updateNodeData(id, { title: e.target.value });
+            }}
             className="nodrag min-w-0 bg-transparent text-sm font-semibold text-slate-700 focus:outline-none dark:text-slate-100"
           />
           <span className="text-[11px] text-emerald-500">● online</span>

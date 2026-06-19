@@ -22,6 +22,13 @@ export {
 } from "./history.repository";
 
 export {
+  CanvasChatMessageRepository,
+  canvasChatMessageRepository,
+  type CanvasChatMessage,
+  type NewCanvasChatMessage,
+} from "./canvas-chat-message.repository";
+
+export {
   ApiKeyRepository,
   apiKeyRepository,
   type ApiKey,

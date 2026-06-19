@@ -47,6 +47,10 @@ interface CanvasState {
   /** Canvas-level selected chat model id (ephemeral; not serialized). Read by
    *  chat nodes when they call the LLM; set from the canvas header picker. */
   chatModelId: string | null;
+  /** Id of the canvas `item` this board belongs to (ephemeral; not serialized).
+   *  Set on open; chat nodes read it to persist messages live to the DB. Null
+   *  for a board that isn't backed by a saved canvas document. */
+  canvasItemId: string | null;
 
   // react-flow controlled handlers (store is the single source of truth)
   onNodesChange: (changes: NodeChange<AppNode>[]) => void;
@@ -71,6 +75,8 @@ interface CanvasState {
   loadCanvas: (nodes: AppNode[], edges: Edge[]) => void;
   /** Set the canvas-level chat model used by chat nodes. */
   setChatModelId: (id: string | null) => void;
+  /** Set the canvas item id chat nodes use to persist messages to the DB. */
+  setCanvasItemId: (id: string | null) => void;
   notify: (message: string, action?: ToastAction) => void;
   dismissToast: (id: number) => void;
 }
@@ -171,6 +177,7 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   edges: initialEdges,
   toasts: [],
   chatModelId: null,
+  canvasItemId: null,
 
   onNodesChange: (changes) =>
     set((s) => ({ nodes: applyNodeChanges(changes, s.nodes) })),
@@ -341,6 +348,8 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   },
 
   setChatModelId: (id) => set({ chatModelId: id }),
+
+  setCanvasItemId: (id) => set({ canvasItemId: id }),
 
   notify: (message, action) => {
     const id = Date.now() + Math.random();

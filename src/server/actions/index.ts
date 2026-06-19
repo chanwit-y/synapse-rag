@@ -60,6 +60,12 @@ export {
 } from "./document.actions";
 
 export {
+  listCanvasChatMessagesAction,
+  appendCanvasChatMessageAction,
+  pruneCanvasChatMessagesAction,
+} from "./canvas-chat.actions";
+
+export {
   listAzureProjectsAction,
   listAzureTeamsAction,
   listAzureEpicsAction,

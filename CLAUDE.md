@@ -75,6 +75,7 @@ Located in `src/server/db/schema/` (one file per table, re-exported from `index.
 - `collections` → `items` (one-to-many)
 - `items` self-reference for folder hierarchy (`folder_id`)
 - `items` → `histories` (one-to-many, document version tracking)
+- `items` → `canvas_chat_messages` (one-to-many; live transcript of a canvas chat node, keyed by item + node id. The canvas graph JSON holds node structure only — chat messages are persisted here per-turn, hydrated on open, GC'd on save.)
 - `items` ↔ `rags` (many-to-many via `item_rags`)
 - `rags` → `rag_chunks` (embedded chunks for vector search via `sqlite-vec`)
 - `api_keys` → `models` → `rags` (dependency chain)

@@ -37,6 +37,7 @@ import type {
 import { CanvasDocumentView } from "@/components/container/canvas";
 
 <CanvasDocumentView
+  itemId={canvasItemId}                     // the canvas item's id (DB key)
   content={serializedGraphJson}            // '{"nodes":[...],"edges":[...]}'
   onSave={async (next) => {
     await saveDocument(next);               // persist the serialized graph
@@ -64,6 +65,7 @@ const CanvasDocumentView = dynamic(
 
 | Prop | Type | Description |
 | --- | --- | --- |
+| `itemId` | `string` | The canvas item's id. Chat nodes use it to persist messages live to the DB, and it scopes the transcript hydrate / GC. |
 | `content` | `string` | Serialized `{ nodes, edges }` JSON for this canvas. Empty / invalid JSON safely hydrates to an empty board. |
 | `onSave` | `(content: string) => Promise<void>` | Persist the serialized graph. Resolves once saved; the Save button shows a busy state until it does. |
 
@@ -189,6 +191,16 @@ A canvas serializes to a plain JSON object:
 - Save: `JSON.stringify(useCanvasStore.getState())` (the `{ nodes, edges }` slice).
 - Open: `loadCanvas(parsed.nodes, parsed.edges)`.
 - `CanvasDocumentView` does both for you, and additionally garbage-collects `/canvas-images/...` files that a save dropped from the graph (best-effort; a failed unlink never blocks the save).
+
+### Chat messages are stored separately (not in the graph JSON)
+
+Chat-node transcripts are **not** carried in the `{ nodes, edges }` JSON. They live in the `canvas_chat_messages` DB table (one row per message, keyed by `itemId` + node id), persisted **live, per turn** — each user message and AI reply is written the moment it happens, so a conversation survives even if the user never clicks Save. `CanvasDocumentView`:
+
+- **strips** chat nodes' `messages` (and the transient `pending` flag) out of the graph before saving — the JSON holds chat *structure* only;
+- **hydrates** each chat node's `messages` from the table on open (via `listCanvasChatMessagesAction`);
+- **GCs** transcripts of chat nodes removed from the graph after a save (`pruneCanvasChatMessagesAction`, best-effort), mirroring the image GC.
+
+Writes are idempotent on the message id, so re-persisting a seed on remount (or a retried write) never duplicates. The chat node's editable **title**, by contrast, is plain structure — it stays in the graph JSON (synced into the store via `updateNodeData` as you type).
 
 ## Notes & Gotchas
 

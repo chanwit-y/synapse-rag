@@ -2,6 +2,7 @@ export * from "./enums";
 export * from "./collections";
 export * from "./items";
 export * from "./histories";
+export * from "./canvas-chat-messages";
 export * from "./api-keys";
 export * from "./ai-instructions";
 export * from "./models";

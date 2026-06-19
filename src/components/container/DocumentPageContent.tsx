@@ -798,6 +798,7 @@ export default function DocumentPageContent({
                 fileContents[selectedFile.id] !== undefined ? (
                   <CanvasDocumentView
                     key={selectedFile.id}
+                    itemId={selectedFile.id}
                     content={fileContents[selectedFile.id]}
                     onSave={handleSaveCanvas}
                   />
