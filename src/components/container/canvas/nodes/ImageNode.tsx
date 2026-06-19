@@ -140,23 +140,31 @@ export default function ImageNode({ id, data, selected }: NodeProps<ImageNodeTyp
         {displaySrc ? (
           <div className="group relative">
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
-              {blurHash && !imgLoaded && (
-                <Blurhash
-                  hash={blurHash}
-                  width="100%"
-                  height="100%"
-                  resolutionX={32}
-                  resolutionY={32}
-                  punch={1}
-                  style={{ position: "absolute", inset: 0 }}
-                />
+              {/* The blur stays painted behind the image (not gated on load) so
+                  the sharp photo fades in on top of it — a true blur→sharp
+                  crossfade with no flash of the flat gray box between them.
+                  Wrapped in our own absolute layer because react-blurhash hard-
+                  codes `position: relative` on its wrapper (ignoring a style
+                  override), which would otherwise sit it in flow and clip the
+                  image. */}
+              {blurHash && (
+                <div className="absolute inset-0">
+                  <Blurhash
+                    hash={blurHash}
+                    width="100%"
+                    height="100%"
+                    resolutionX={32}
+                    resolutionY={32}
+                    punch={1}
+                  />
+                </div>
               )}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={displaySrc}
                 alt={caption}
                 onLoad={() => setImgLoaded(true)}
-                className={`h-full w-full object-cover transition-opacity duration-500 ${
+                className={`relative z-10 h-full w-full object-cover transition-opacity duration-300 ${
                   imgLoaded ? "opacity-100" : "opacity-0"
                 }`}
               />
