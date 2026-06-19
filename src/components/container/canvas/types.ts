@@ -130,12 +130,21 @@ export type Stroke = {
   points: number[];
 };
 
+/** The drawing-surface (paper) color of a Draw node — distinct from the node
+ *  accent. `default` keeps the theme-adaptive white/dark-slate surface; every
+ *  other option is a solid light tint that renders the same in light and dark
+ *  (paper stays light so the dark ink remains readable). */
+export type PaperColor = "default" | "white" | "cream" | "blue" | "green" | "pink";
+
 export type DrawNodeData = {
   title: string;
   /** The freehand strokes making up the sketch. */
   strokes: Stroke[];
   /** Accent color picked from the palette (tints header + border). */
   color?: NodeColor;
+  /** Drawing-surface (paper) color. Absent / "default" keeps the theme-adaptive
+   *  white/dark-slate surface. */
+  background?: PaperColor;
 };
 
 export type MapNodeData = {

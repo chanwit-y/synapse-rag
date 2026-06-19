@@ -1,4 +1,4 @@
-import type { NodeColor } from "../types";
+import type { NodeColor, PaperColor } from "../types";
 
 /** Per-color class sets for the node accent. Each holds the **rest** border,
  *  the header background tint, the picker swatch, the deeper `ring` shade used to
@@ -47,4 +47,29 @@ export const TEXT_COLORS: Record<NodeColor, { label: string; text: string; swatc
 /** Resolve a Text node's font color classes (falling back to default). */
 export function textColor(color: NodeColor | undefined) {
   return TEXT_COLORS[color ?? "default"];
+}
+
+/** Per-color paper (drawing-surface) options for the Draw node. `default` is
+ *  theme-adaptive — `surface: null` signals "don't override", so the node keeps
+ *  its existing `bg-white dark:bg-slate-900` surface and theme-adaptive dots.
+ *  Every other option is a solid light fill rendered identically in light and
+ *  dark, paired with a fixed subtle-gray dot color (paper is always light, so
+ *  the dark ink stays readable). `swatch` is the popover swatch background. */
+export const PAPER_COLORS: Record<
+  PaperColor,
+  { label: string; surface: string | null; dot: string; swatch: string }
+> = {
+  default: { label: "Default", surface: null, dot: "#cbd5e1", swatch: "bg-white ring-1 ring-inset ring-slate-300 dark:bg-slate-900 dark:ring-slate-600" },
+  white: { label: "White", surface: "#ffffff", dot: "#e2e8f0", swatch: "bg-white ring-1 ring-inset ring-slate-300" },
+  cream: { label: "Cream", surface: "#fdf6e3", dot: "#e7dcb8", swatch: "bg-[#fdf6e3] ring-1 ring-inset ring-amber-200" },
+  blue: { label: "Blue", surface: "#eff6ff", dot: "#cfe0f5", swatch: "bg-[#eff6ff] ring-1 ring-inset ring-sky-200" },
+  green: { label: "Green", surface: "#f0fdf4", dot: "#cdeed7", swatch: "bg-[#f0fdf4] ring-1 ring-inset ring-emerald-200" },
+  pink: { label: "Pink", surface: "#fdf2f8", dot: "#f3d9e6", swatch: "bg-[#fdf2f8] ring-1 ring-inset ring-rose-200" },
+};
+
+export const PAPER_COLOR_KEYS = Object.keys(PAPER_COLORS) as PaperColor[];
+
+/** Resolve a Draw node's paper color (falling back to default). */
+export function paperColor(color: PaperColor | undefined) {
+  return PAPER_COLORS[color ?? "default"];
 }

@@ -1,12 +1,13 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { NodeResizer, type NodeProps } from "@xyflow/react";
-import { Pencil, Eraser, Undo2, Trash2 } from "lucide-react";
+import { Pencil, Eraser, Undo2, Trash2, PaintBucket } from "lucide-react";
 import SideHandles from "./SideHandles";
 import NodeRemoveButton from "./NodeRemoveButton";
 import NodeColorButton from "./NodeColorButton";
-import { nodeColor } from "./nodeColors";
+import { nodeColor, paperColor, PAPER_COLORS, PAPER_COLOR_KEYS } from "./nodeColors";
+import { useCanvasStore } from "../store/canvas-store";
 import type { Stroke, DrawNode as DrawNodeType } from "../types";
 
 /** Fixed internal coordinate space. The SVG fills the body with this viewBox
@@ -55,7 +56,25 @@ function toPath(points: number[]): string {
 
 export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeProps<DrawNodeType>) {
   const c = nodeColor(data.color);
+  const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Drawing-surface (paper) color. `surface: null` is the theme-adaptive default
+  // — we keep the existing bg-white/dark-slate classes; any other option paints
+  // a solid light fill with a fixed-gray dot grid (so the dark ink stays legible).
+  const paper = paperColor(data.background);
+  const customPaper = paper.surface !== null;
+  const [paperOpen, setPaperOpen] = useState(false);
+  const paperRef = useRef<HTMLDivElement>(null);
+  // Close the paper popover on any pointerdown outside it (mirrors NodeColorButton).
+  useEffect(() => {
+    if (!paperOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (!paperRef.current?.contains(e.target as Node)) setPaperOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [paperOpen]);
 
   // Toolbar tracks node width: full-size when the node is wide enough to hold
   // it, shrinking proportionally (clamped to TOOLBAR_MIN_SCALE) as the node
@@ -171,9 +190,19 @@ export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeP
           onPointerMove={onPointerMove}
           onPointerUp={endStroke}
           onPointerLeave={endStroke}
-          className={`nodrag nopan nowheel h-full w-full rounded-b-2xl bg-[radial-gradient(circle,#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] dark:bg-[radial-gradient(circle,#334155_1px,transparent_1px)] ${
-            tool === "eraser" ? "cursor-cell" : "cursor-crosshair"
-          }`}
+          style={
+            customPaper
+              ? {
+                  backgroundColor: paper.surface!,
+                  backgroundImage: `radial-gradient(circle, ${paper.dot} 1px, transparent 1px)`,
+                }
+              : undefined
+          }
+          className={`nodrag nopan nowheel h-full w-full rounded-b-2xl [background-size:24px_24px] ${
+            customPaper
+              ? ""
+              : "bg-[radial-gradient(circle,#e2e8f0_1px,transparent_1px)] dark:bg-[radial-gradient(circle,#334155_1px,transparent_1px)]"
+          } ${tool === "eraser" ? "cursor-cell" : "cursor-crosshair"}`}
         >
           {strokes.map((s) => (
             <path
@@ -287,6 +316,50 @@ export default function DrawNode({ id, data, selected, width: nodeWidth }: NodeP
             >
               <Trash2 size={14} />
             </button>
+
+            <div className="h-5 w-px bg-slate-200 dark:bg-slate-600" />
+
+            {/* Paper (drawing-surface) color — a bucket that opens a swatch
+                popover above the bar. The bucket is tinted to the current paper;
+                swatches are rounded squares to set them apart from round inks. */}
+            <div ref={paperRef} className="relative">
+              <button
+                title="Paper color"
+                onClick={() => setPaperOpen((o) => !o)}
+                style={!paperOpen && customPaper ? { backgroundColor: paper.surface! } : undefined}
+                className={`flex h-6 w-6 items-center justify-center rounded-md ring-1 ring-inset transition-colors ${
+                  paperOpen
+                    ? "bg-slate-800 text-white ring-transparent dark:bg-slate-600"
+                    : customPaper
+                      ? "text-slate-600 ring-slate-200 dark:ring-slate-600"
+                      : "text-slate-500 ring-transparent hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                }`}
+              >
+                <PaintBucket size={14} />
+              </button>
+
+              {paperOpen && (
+                <div className="absolute bottom-9 right-0 z-30 flex gap-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-lg shadow-slate-900/15 dark:border-slate-700 dark:bg-slate-800">
+                  {PAPER_COLOR_KEYS.map((key) => {
+                    const p = PAPER_COLORS[key];
+                    const isActive = (data.background ?? "default") === key;
+                    return (
+                      <button
+                        key={key}
+                        title={p.label}
+                        onClick={() => {
+                          updateNodeData(id, { background: key });
+                          setPaperOpen(false);
+                        }}
+                        className={`h-6 w-6 rounded-md ${p.swatch} transition-transform hover:scale-110 ${
+                          isActive ? "ring-2 ring-slate-400 ring-offset-1 ring-offset-white dark:ring-offset-slate-800" : ""
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
