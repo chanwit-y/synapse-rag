@@ -14,6 +14,7 @@ import {
 import type { TreeNode, TreeViewGroup, FileType } from "./types";
 import TreeNodeItem from "./TreeNodeItem";
 import InlineEditInput from "./InlineEditInput";
+import { Popover } from "../Popover";
 
 export interface TreeViewGroupItemProps {
   group: TreeViewGroup;
@@ -114,6 +115,15 @@ export default function TreeViewGroupItem({
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [contentHeight, setContentHeight] = useState<number>(0);
 
+  // Create-file editor-type popover, anchored to the add-file button.
+  const [addFileMenuOpen, setAddFileMenuOpen] = useState(false);
+  const addFileButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const handlePickFileType = (fileType: FileType) => {
+    setAddFileMenuOpen(false);
+    onAddFile?.(selectedNode, selectedNodePath, groupIndex, fileType);
+  };
+
   // A breadcrumb reveal forces this collection open if it was collapsed.
   useEffect(() => {
     if (revealTick && forceExpandGroupId === group.id) setIsExpanded(true);
@@ -213,16 +223,49 @@ export default function TreeViewGroupItem({
             )}
             <div className="flex items-center gap-0.5 rounded-md px-0.5 bg-surface-strong">
               <button
+                ref={addFileButtonRef}
                 type="button"
                 className="p-1 hover:bg-surface rounded transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onAddFile?.(selectedNode, selectedNodePath, groupIndex, "md");
+                  setAddFileMenuOpen((open) => !open);
                 }}
+                aria-haspopup="menu"
+                aria-expanded={addFileMenuOpen}
                 title="Add File"
               >
                 <FileText className="w-3.5 h-3.5 text-muted-foreground" />
               </button>
+              <Popover
+                open={addFileMenuOpen}
+                onClose={() => setAddFileMenuOpen(false)}
+                anchorRef={addFileButtonRef}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePickFileType("md");
+                  }}
+                >
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  Markdown
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePickFileType("rt");
+                  }}
+                >
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  Rich Text
+                </button>
+              </Popover>
               {onAddCanvas && (
                 <button
                   type="button"

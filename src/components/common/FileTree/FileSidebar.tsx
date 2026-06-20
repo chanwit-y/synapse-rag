@@ -15,6 +15,7 @@ import { File as FileIcon, Folder as FolderIcon } from "lucide-react";
 import { PanelLeftClose, PanelLeftOpen, PlusIcon } from "lucide-react";
 import TreeView from "./TreeView";
 import type { FileType, TreeNode, TreeViewGroup } from "./types";
+import { fileTypeExtension, isRichTextFileName } from "./types";
 import FileSidebarModals from "./FileSidebarModals";
 import MoveItemModal from "./MoveItemModal";
 import { useSnackbar } from "@/components/common/Snackbar/Snackbar";
@@ -179,6 +180,9 @@ export default function FileSidebar({
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [itemName, setItemName] = useState("");
   const [itemType, setItemType] = useState<"file" | "folder" | "canvas">("file");
+  // Editor for a new file, chosen in the create-file popover. Only meaningful
+  // when itemType === "file"; selects the extension (`.md` vs `.rt`).
+  const [fileEditorType, setFileEditorType] = useState<FileType>("md");
   const [isSavingItem, setIsSavingItem] = useState(false);
   const [selectedNodeForAdd, setSelectedNodeForAdd] = useState<{
     node: TreeNode | null;
@@ -361,7 +365,7 @@ export default function FileSidebar({
     selectedNode: TreeNode | null,
     selectedNodePath: string | null,
     groupIndex: number,
-    _fileType: FileType,
+    fileType: FileType,
   ) => {
     setSelectedNodeForAdd({
       node: selectedNode,
@@ -369,6 +373,7 @@ export default function FileSidebar({
       groupIndex,
     });
     setItemType("file");
+    setFileEditorType(fileType);
     setItemName("");
     setIsAddItemModalOpen(true);
   };
@@ -487,7 +492,9 @@ export default function FileSidebar({
     }
 
     const resolvedName =
-      itemType === "file" && !name.includes(".") ? `${name}.md` : name;
+      itemType === "file" && !name.includes(".")
+        ? `${name}.${fileTypeExtension(fileEditorType)}`
+        : name;
 
     const newItem: TreeNode = {
       id: generateId(),
@@ -818,11 +825,17 @@ export default function FileSidebar({
     const trimmed = value.trim();
     if (!trimmed) return; // empty → treat as cancel
 
-    // Mirror the add flow: extensionless files get a `.md` suffix and canvases
-    // a `.canvas` suffix.
+    // Mirror the add flow: extensionless files get a suffix preserving their
+    // editor (`.rt` for rich-text, else `.md`) and canvases a `.canvas` suffix.
+    const renameExt =
+      node.type === "canvas"
+        ? "canvas"
+        : isRichTextFileName(node.name)
+          ? "rt"
+          : "md";
     const normalized =
       !trimmed.includes(".") && (node.type === "file" || node.type === "canvas")
-        ? `${trimmed}.${node.type === "canvas" ? "canvas" : "md"}`
+        ? `${trimmed}.${renameExt}`
         : trimmed;
 
     if (normalized === node.name) return; // unchanged → silent no-op

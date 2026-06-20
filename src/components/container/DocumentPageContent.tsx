@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
-import { FileSidebar, findNodeById, findNodeByPath, flattenFileNodes } from "@/components/common/FileTree";
+import { FileSidebar, findNodeById, findNodeByPath, flattenFileNodes, isRichTextFileName } from "@/components/common/FileTree";
 import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
 
 // The markdown editor pulls in @uiw/react-md-editor (+ remark/rehype/katex),
@@ -10,6 +10,19 @@ import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
 // stays out of the document route's initial JS.
 const MarkdownEditor = dynamic(
   () => import("@/components/common/MarkdownEditor").then((m) => m.MarkdownEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
+        Loading editor…
+      </div>
+    ),
+  },
+);
+// The Tiptap editor (ProseMirror + extensions) is only needed for `.rt` files;
+// load it lazily and client-only, same as the markdown editor.
+const TiptapEditor = dynamic(
+  () => import("@/components/common/TiptapEditor").then((m) => m.TiptapEditor),
   {
     ssr: false,
     loading: () => (
@@ -92,7 +105,9 @@ function getPrefersDark() {
 }
 
 function getDefaultContent(fileName: string): string {
-  const title = fileName.replace(/\.md$/i, "");
+  // Rich-text (.rt) files start blank; the markdown editor seeds a heading.
+  if (isRichTextFileName(fileName)) return "";
+  const title = fileName.replace(/\.(md|rt)$/i, "");
   return `# ${title}\n\nStart writing your document here.`;
 }
 
@@ -866,6 +881,21 @@ export default function DocumentPageContent({
                     Loading canvas…
                   </div>
                 )
+              ) : isRichTextFileName(selectedFile.name) ? (
+              <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+                <TiptapEditor
+                  key={`${selectedFile.id}:${viewLang}`}
+                  selectedFile={selectedFile}
+                  theme={resolvedTheme}
+                  initialContent={editorSeed}
+                  fullHeight
+                  onChange={handleContentChange}
+                  onSave={handleSave}
+                  onUploadImage={handleUploadImage}
+                  documents={documents}
+                  onOpenItem={openItemById}
+                />
+              </div>
               ) : (
               <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                 <MarkdownEditor

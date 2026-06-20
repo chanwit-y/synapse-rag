@@ -6,6 +6,11 @@ export { default as FileSidebarModals } from "./FileSidebarModals";
 export { default as MoveItemModal } from "./MoveItemModal";
 
 export type { TreeNode, TreeViewGroup, FileType } from "./types";
+export {
+  RICH_TEXT_EXTENSION,
+  isRichTextFileName,
+  fileTypeExtension,
+} from "./types";
 export type { FileSidebarProps } from "./FileSidebar";
 export type { TreeViewProps } from "./TreeView";
 export type { TreeViewGroupItemProps } from "./TreeViewGroupItem";
