@@ -69,3 +69,17 @@ export {
   type ItemRag,
   type NewItemRag,
 } from "./item-rag.repository";
+
+export {
+  TagRepository,
+  tagRepository,
+  type Tag,
+  type NewTag,
+} from "./tag.repository";
+
+export {
+  ItemTagRepository,
+  itemTagRepository,
+  type ItemTag,
+  type NewItemTag,
+} from "./item-tag.repository";

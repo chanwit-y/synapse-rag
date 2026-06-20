@@ -9,4 +9,6 @@ export * from "./models";
 export * from "./rags";
 export * from "./rag-chunks";
 export * from "./item-rags";
+export * from "./tags";
+export * from "./item-tags";
 export * from "./relations";

@@ -13,7 +13,8 @@ export {
 } from "./context-summary.service";
 export { DocumentService, documentService } from "./document.service";
 export { CanvasChatService, canvasChatService } from "./canvas-chat.service";
-export type { CanvasChatMessageRecord } from "./mappers";
+export { TagService, tagService } from "./tag.service";
+export type { CanvasChatMessageRecord, TagRecord } from "./mappers";
 export { AzureService, azureService } from "./azure";
 export type {
   AzureProject,

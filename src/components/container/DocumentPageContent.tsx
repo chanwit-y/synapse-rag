@@ -82,7 +82,17 @@ import {
   saveDocumentTranslationAction,
   syncCollectionDirectoriesAction,
   uploadDocumentImageAction,
+  listAllTagsAction,
+  listAllItemTagsAction,
+  listItemTagsAction,
+  addItemTagAction,
+  removeItemTagAction,
 } from "@/server/actions";
+import { TagBar, type TagItem } from "@/components/common/TagBar";
+import {
+  CommandPalette,
+  type CommandPaletteItem,
+} from "@/components/common/CommandPalette";
 import Drawer from "@/components/common/Drawer/Drawer";
 import Modal from "@/components/common/Modal/Modal";
 import DiffViewer from "@/components/common/DiffViewer/DiffViewer";
@@ -151,6 +161,20 @@ export default function DocumentPageContent({
   const [thSeed, setThSeed] = useState("");
   const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
   const [translationModelId, setTranslationModelId] = useState<string | null>(null);
+  // Tags applied to each open document, keyed by item id; plus the global tag
+  // list that powers add-input suggestions.
+  const [tagsByItem, setTagsByItem] = useState<Record<string, TagItem[]>>({});
+  const [allTags, setAllTags] = useState<TagItem[]>([]);
+
+  // Command-palette (Cmd/Ctrl+K) search. The candidate list is built from the
+  // already-in-memory collections tree, so searching is purely client-side.
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  // All item→tag links, fetched lazily the first time the palette opens and
+  // invalidated (set back to null) after any tag edit so it refetches.
+  const [itemTagsIndex, setItemTagsIndex] = useState<Record<
+    string,
+    TagItem[]
+  > | null>(null);
   const { isLoading, withLoading } = useApiLoading();
   const { showSnackbar } = useSnackbar();
 
@@ -272,6 +296,129 @@ export default function DocumentPageContent({
     setBackStack((stack) => stack.slice(0, -1));
     openItemById(prev.id, { push: false });
   }, [backStack, openItemById]);
+
+  // ── Tags ────────────────────────────────────────────────────────────────
+  const refreshAllTags = useCallback(async () => {
+    const result = await listAllTagsAction();
+    if (result.success) setAllTags(result.data);
+  }, []);
+
+  // Load the global suggestion list once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const result = await listAllTagsAction();
+      if (!cancelled && result.success) setAllTags(result.data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Load the open document's tags whenever the selection changes.
+  const selectedFileId = selectedFile?.id ?? null;
+  useEffect(() => {
+    if (!selectedFileId) return;
+    let cancelled = false;
+    void (async () => {
+      const result = await listItemTagsAction(selectedFileId);
+      if (!cancelled && result.success) {
+        setTagsByItem((prev) => ({ ...prev, [selectedFileId]: result.data }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFileId]);
+
+  const handleAddTag = useCallback(
+    async (name: string) => {
+      if (!selectedFileId) return;
+      const result = await addItemTagAction(selectedFileId, name);
+      if (!result.success) {
+        showSnackbar({ variant: "error", message: result.error });
+        return;
+      }
+      const tag = result.data;
+      setTagsByItem((prev) => {
+        const current = prev[selectedFileId] ?? [];
+        if (current.some((t) => t.id === tag.id)) return prev;
+        return { ...prev, [selectedFileId]: [...current, tag] };
+      });
+      setItemTagsIndex(null); // stale — refetch on next palette open
+      void refreshAllTags();
+    },
+    [selectedFileId, showSnackbar, refreshAllTags],
+  );
+
+  const handleRemoveTag = useCallback(
+    async (tagId: string) => {
+      if (!selectedFileId) return;
+      const result = await removeItemTagAction(selectedFileId, tagId);
+      if (!result.success) {
+        showSnackbar({ variant: "error", message: result.error });
+        return;
+      }
+      setTagsByItem((prev) => ({
+        ...prev,
+        [selectedFileId]: (prev[selectedFileId] ?? []).filter((t) => t.id !== tagId),
+      }));
+      setItemTagsIndex(null); // stale — refetch on next palette open
+      void refreshAllTags();
+    },
+    [selectedFileId, showSnackbar, refreshAllTags],
+  );
+
+  // ── Command palette (Cmd/Ctrl+K) ──────────────────────────────────────────
+  // Global shortcut to toggle the search palette.
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // Fetch the item→tag index the first time the palette opens (lazy).
+  useEffect(() => {
+    if (!paletteOpen || itemTagsIndex !== null) return;
+    let cancelled = false;
+    void (async () => {
+      const result = await listAllItemTagsAction();
+      if (!cancelled && result.success) setItemTagsIndex(result.data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [paletteOpen, itemTagsIndex]);
+
+  // Flatten files + canvases across every collection into palette rows, each
+  // carrying a "Collection / folder" breadcrumb and its tags (when loaded).
+  const paletteItems = useMemo<CommandPaletteItem[]>(() => {
+    const out: CommandPaletteItem[] = [];
+    const walk = (nodes: TreeNode[], prefix: string[]) => {
+      for (const node of nodes) {
+        if (node.type === "file" || node.type === "canvas") {
+          out.push({
+            id: node.id,
+            name: node.name,
+            type: node.type,
+            path: prefix.join(" / "),
+            tags: itemTagsIndex?.[node.id] ?? [],
+          });
+        } else if (node.children?.length) {
+          walk(node.children, [...prefix, node.name]);
+        }
+      }
+    };
+    for (const group of collections) {
+      walk(group.directories, [group.name]);
+    }
+    return out;
+  }, [collections, itemTagsIndex]);
 
   // Clicking a file node in the graph opens it; handleSelectFile (reached via
   // openItemById) flips the main pane back to editor mode. (Folder/collection
@@ -865,6 +1012,12 @@ export default function DocumentPageContent({
                     </div>
                   ) : null}
                 </div>
+                <TagBar
+                  tags={tagsByItem[selectedFile.id] ?? []}
+                  suggestions={allTags}
+                  onAdd={handleAddTag}
+                  onRemove={handleRemoveTag}
+                />
               </div>
               {selectedFile.type === "canvas" ? (
                 // Mount only once the saved graph is loaded so the store hydrates
@@ -999,6 +1152,14 @@ export default function DocumentPageContent({
         onClose={() => setAzureOpen(false)}
         onImport={handleImportUserStories}
       />
+
+      {paletteOpen && (
+        <CommandPalette
+          onClose={() => setPaletteOpen(false)}
+          items={paletteItems}
+          onSelect={(id) => openItemById(id)}
+        />
+      )}
     </div>
   );
 }

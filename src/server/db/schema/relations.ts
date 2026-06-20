@@ -4,10 +4,12 @@ import { canvasChatMessages } from "./canvas-chat-messages";
 import { collections } from "./collections";
 import { histories } from "./histories";
 import { itemRags } from "./item-rags";
+import { itemTags } from "./item-tags";
 import { items } from "./items";
 import { models } from "./models";
 import { ragChunks } from "./rag-chunks";
 import { rags } from "./rags";
+import { tags } from "./tags";
 
 export const collectionsRelations = relations(collections, ({ many }) => ({
   items: many(items),
@@ -26,6 +28,7 @@ export const itemsRelations = relations(items, ({ one, many }) => ({
   children: many(items, { relationName: "folderHierarchy" }),
   histories: many(histories),
   rags: many(itemRags),
+  tags: many(itemTags),
   canvasChatMessages: many(canvasChatMessages),
 }));
 
@@ -82,5 +85,20 @@ export const ragChunksRelations = relations(ragChunks, ({ one }) => ({
   rag: one(rags, {
     fields: [ragChunks.ragId],
     references: [rags.id],
+  }),
+}));
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  items: many(itemTags),
+}));
+
+export const itemTagsRelations = relations(itemTags, ({ one }) => ({
+  item: one(items, {
+    fields: [itemTags.itemId],
+    references: [items.id],
+  }),
+  tag: one(tags, {
+    fields: [itemTags.tagId],
+    references: [tags.id],
   }),
 }));

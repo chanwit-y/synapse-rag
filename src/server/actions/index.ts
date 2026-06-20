@@ -68,6 +68,14 @@ export {
 } from "./canvas-chat.actions";
 
 export {
+  listAllTagsAction,
+  listAllItemTagsAction,
+  listItemTagsAction,
+  addItemTagAction,
+  removeItemTagAction,
+} from "./tag.actions";
+
+export {
   listAzureProjectsAction,
   listAzureTeamsAction,
   listAzureEpicsAction,
