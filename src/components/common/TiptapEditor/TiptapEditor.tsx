@@ -13,6 +13,7 @@ import {
   Heading3,
   List,
   ListOrdered,
+  ListTodo,
   Quote,
   SquareCode,
   Minus,
@@ -28,6 +29,9 @@ import type { TreeNode } from "../FileTree/types";
 import type { FlatFileNode } from "../FileTree/treeUtils";
 import { htmlToMarkdown, markdownToHtml } from "./markdown";
 import { TIPTAP_EDITOR_CSS } from "./editorCss";
+import { buildTableExtensions } from "./tableExtensions";
+import { buildTaskListExtensions } from "./taskListExtensions";
+import TableMenu from "./TableMenu";
 
 export type TiptapEditorProps = {
   selectedFile: TreeNode | null;
@@ -121,6 +125,10 @@ export default function TiptapEditor({
       // with core turndown (no GFM plugin), which is the v1 content contract.
       StarterKit.configure({ strike: false, underline: false }),
       Image.configure({ inline: false }),
+      // Resizable off: column widths can't survive the GFM Markdown round-trip,
+      // so they'd silently reset on reload.
+      ...buildTableExtensions({ resizable: false }),
+      ...buildTaskListExtensions(),
     ],
     content: markdownToHtml(initialContent ?? ""),
     editorProps: {
@@ -353,6 +361,13 @@ export default function TiptapEditor({
           <ListOrdered className="h-4 w-4" />
         </ToolbarButton>
         <ToolbarButton
+          label="Task list"
+          active={editor.isActive("taskList")}
+          onClick={() => editor.chain().focus().toggleTaskList().run()}
+        >
+          <ListTodo className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
           label="Quote"
           active={editor.isActive("blockquote")}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
@@ -379,6 +394,8 @@ export default function TiptapEditor({
         <ToolbarButton label="Image" onClick={() => fileInputRef.current?.click()}>
           <ImageIcon className="h-4 w-4" />
         </ToolbarButton>
+        <Divider />
+        <TableMenu editor={editor} />
         <Divider />
         <ToolbarButton
           label="Undo"

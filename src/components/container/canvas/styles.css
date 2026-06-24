@@ -129,6 +129,79 @@
   word-break: break-word;
 }
 
+/* Tables (canvas text-editor node). Resizable here — the node persists
+   ProseMirror JSON, so column widths last. */
+.tiptap-body table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0.5em 0;
+  overflow: hidden;
+}
+.tiptap-body table td,
+.tiptap-body table th {
+  border: 1px solid rgba(120, 120, 120, 0.4);
+  padding: 0.25rem 0.45rem;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+}
+.tiptap-body table th {
+  font-weight: 600;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.04);
+}
+[data-theme="dark"] .tiptap-body table th {
+  background: rgba(255, 255, 255, 0.06);
+}
+.tiptap-body table .selectedCell:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(251, 191, 36, 0.18);
+  pointer-events: none;
+}
+.tiptap-body table .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #fbbf24;
+  cursor: col-resize;
+}
+.tiptap-body .tableWrapper { overflow-x: auto; }
+.tiptap-body .ProseMirror.resize-cursor { cursor: col-resize; }
+
+/* Task lists (both editors share the buildTaskListExtensions schema). Reset the
+   default bullet/indent and lay each item out as checkbox + content. */
+.tiptap-body ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.15em;
+}
+.tiptap-body ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4em;
+}
+.tiptap-body ul[data-type="taskList"] li > label {
+  margin-top: 0.15em;
+  flex: 0 0 auto;
+  user-select: none;
+}
+.tiptap-body ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tiptap-body ul[data-type="taskList"] li > div > p { margin: 0; }
+.tiptap-body ul[data-type="taskList"] input[type="checkbox"] {
+  accent-color: #0BA6DF;
+  cursor: pointer;
+}
+.tiptap-body ul[data-type="taskList"] ul[data-type="taskList"] {
+  margin-top: 0.25em;
+}
+
 /* The spawn-highlight mark: transparent at rest, yellow "highlighter" look once
    its node activates it (data-active, toggled by the node on focus-reveal). */
 .spawn-highlight {

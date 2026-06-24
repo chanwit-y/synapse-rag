@@ -13,6 +13,8 @@
         "@tanstack/react-table": "^8.21.3",
         "@tiptap/core": "^3.27.0",
         "@tiptap/extension-image": "^3.27.1",
+        "@tiptap/extension-list": "^3.27",
+        "@tiptap/extension-table": "^3.27.1",
         "@tiptap/pm": "^3.27.0",
         "@tiptap/react": "^3.27.0",
         "@tiptap/starter-kit": "^3.27.0",
@@ -38,6 +40,7 @@
         "sigma": "^3.0.3",
         "sqlite-vec": "^0.1.9",
         "turndown": "^7.2.4",
+        "turndown-plugin-gfm": "^1.0.2",
         "zustand": "^5.0.0",
       },
       "devDependencies": {
@@ -434,6 +437,8 @@
     "@tiptap/extension-paragraph": ["@tiptap/extension-paragraph@3.27.0", "", { "peerDependencies": { "@tiptap/core": "3.27.0" } }, "sha512-miy096NqJJwD3ulGnOleXEIYP+pOICd5A9M3Zqy1Jpc7mw0+/YMZeR5JAXqdsYV3eq/pgYpykKlF4k+Gi84RYw=="],
 
     "@tiptap/extension-strike": ["@tiptap/extension-strike@3.27.0", "", { "peerDependencies": { "@tiptap/core": "3.27.0" } }, "sha512-srDgYCxu2OdYGB8rtJraYzrXCvj5qRmyrSG4NObVfDYNoMuVdkbNlxA8/LNJeKKZ9H8PZlrspvmxM4F91Lvb9g=="],
+
+    "@tiptap/extension-table": ["@tiptap/extension-table@3.27.1", "", { "peerDependencies": { "@tiptap/core": "3.27.1", "@tiptap/pm": "3.27.1" } }, "sha512-tNB8kjxo0+XPremnWkd6NUikpeJ+JQrss7HntL8GgIxX4t0gkdnLn9yUWb0JzcaYP7Y8iTZZHdkPs0P154DG8Q=="],
 
     "@tiptap/extension-text": ["@tiptap/extension-text@3.27.0", "", { "peerDependencies": { "@tiptap/core": "3.27.0" } }, "sha512-3ZiEeDDbvhvXwqSre62yxhe0Rc7t2+BGSNoVCCUFPsNUNvBL9s9bOwwnOG4fPZNBCyF38qBnTxblDwJ92E4AGw=="],
 
@@ -1738,6 +1743,8 @@
     "tunnel-agent": ["tunnel-agent@0.6.0", "", { "dependencies": { "safe-buffer": "^5.0.1" } }, "sha512-McnNiV1l8RYeY8tBgEpuodCC1mLUdbSN+CYBL7kJsJNInOP8UjDDEwdk6Mw60vdLLrr5NHKZhMAOSrR2NZuQ+w=="],
 
     "turndown": ["turndown@7.2.4", "", { "dependencies": { "@mixmark-io/domino": "^2.2.0" } }, "sha512-I8yFsfRzmzK0WV1pNNOA4A7y4RDfFxPRxb3t+e3ui14qSGOxGtiSP6GjeX+Y6CHb7HYaFj7ECUD7VE5kQMZWGQ=="],
+
+    "turndown-plugin-gfm": ["turndown-plugin-gfm@1.0.2", "", {}, "sha512-vwz9tfvF7XN/jE0dGoBei3FXWuvll78ohzCZQuOb+ZjWrs3a0XhQVomJEb2Qh4VHTPNRO4GPZh0V7VRbiWwkRg=="],
 
     "type-check": ["type-check@0.4.0", "", { "dependencies": { "prelude-ls": "^1.2.1" } }, "sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew=="],
 
