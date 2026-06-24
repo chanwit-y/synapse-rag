@@ -77,6 +77,8 @@ export interface FileSidebarProps {
     folderId: string | null;
     name: string;
   }) => Promise<{ id: string }>;
+  /** Convert a markdown/rich-text file into a new canvas in the same folder. */
+  onConvertToCanvas?: (node: TreeNode, parentFolderId: string | null) => void;
   /** Persist a renamed file/folder. Throws on failure (caller reverts). */
   onRenameItem?: (
     itemId: string,
@@ -139,6 +141,7 @@ export default function FileSidebar({
   onDeleteCollection,
   onImportFromAzure,
   onCreateCanvas,
+  onConvertToCanvas,
   onRenameItem,
   onRenameCollection,
   onRenamedSelection,
@@ -1033,6 +1036,7 @@ export default function FileSidebar({
                 onRequestDeleteNode={handleRequestDeleteNode}
                 onDuplicateNode={onDuplicateFile ? handleDuplicateNode : undefined}
                 onMoveNode={onMoveItem ? handleRequestMoveNode : undefined}
+                onConvertToCanvas={onConvertToCanvas}
                 onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
                 onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                 onRequestDeleteGroup={
@@ -1060,6 +1064,7 @@ export default function FileSidebar({
                   onRequestDeleteNode={handleRequestDeleteNode}
                   onDuplicateNode={onDuplicateFile ? handleDuplicateNode : undefined}
                   onMoveNode={onMoveItem ? handleRequestMoveNode : undefined}
+                  onConvertToCanvas={onConvertToCanvas}
                   onToggleFavorite={onToggleFavorite}
                   onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
                   onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}

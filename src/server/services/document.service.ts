@@ -151,14 +151,16 @@ export class DocumentService {
   }
 
   /**
-   * Create an empty canvas document (`type: "canvas"`) under a collection,
-   * optionally inside a folder. Its `content` holds the serialized react-flow
-   * graph; a fresh canvas starts as an empty `{ nodes, edges }`.
+   * Create a canvas document (`type: "canvas"`) under a collection, optionally
+   * inside a folder. Its `content` holds the serialized react-flow graph; a fresh
+   * canvas starts as an empty `{ nodes, edges }`, but an optional `content` may
+   * seed a pre-populated graph (e.g. converting a markdown file to a canvas).
    */
   async createCanvas(params: {
     collectionId: string;
     folderId: string | null;
     name: string;
+    content?: string;
   }): Promise<{ id: string }> {
     const collectionId = parseId(params.collectionId);
     if (collectionId == null) {
@@ -181,7 +183,7 @@ export class DocumentService {
       folderId,
       type: "canvas",
       name,
-      content: JSON.stringify({ nodes: [], edges: [] }),
+      content: params.content ?? JSON.stringify({ nodes: [], edges: [] }),
     });
     const row = assertFound(created, "Failed to create canvas");
     return { id: toIdString(row.id) };

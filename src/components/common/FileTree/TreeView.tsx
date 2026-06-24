@@ -31,6 +31,7 @@ export interface TreeViewProps {
     groupIndex: number,
   ) => void;
   onMoveNode?: (node: TreeNode, parentFolderId: string | null) => void;
+  onConvertToCanvas?: (node: TreeNode, parentFolderId: string | null) => void;
   onToggleFavorite?: (node: TreeNode) => void;
   onImportFromAzure?: (
     collectionId: string,
@@ -78,6 +79,7 @@ export default function TreeView({
   onRequestDeleteNode,
   onDuplicateNode,
   onMoveNode,
+  onConvertToCanvas,
   onToggleFavorite,
   onImportFromAzure,
   onAddCanvas,
@@ -153,6 +155,7 @@ export default function TreeView({
             onAddFolder={onAddFolder}
             onRequestDeleteNode={onRequestDeleteNode}
             onDuplicateNode={onDuplicateNode}
+            onConvertToCanvas={onConvertToCanvas}
             onMoveNode={onMoveNode}
             onToggleFavorite={onToggleFavorite}
             onImportFromAzure={onImportFromAzure}

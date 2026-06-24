@@ -138,6 +138,7 @@ export async function createCanvasAction(params: {
   collectionId: string;
   folderId: string | null;
   name: string;
+  content?: string;
 }): Promise<ActionResult<{ id: string }>> {
   try {
     return actionSuccess(await documentService.createCanvas(params));

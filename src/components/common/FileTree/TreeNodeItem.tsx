@@ -50,6 +50,8 @@ export interface TreeNodeItemProps {
   ) => void;
   /** Move a node (file/canvas/folder) to another collection/folder. */
   onMoveNode?: (node: TreeNode, parentFolderId: string | null) => void;
+  /** Convert a markdown/rich-text file into a new canvas in the same folder. */
+  onConvertToCanvas?: (node: TreeNode, parentFolderId: string | null) => void;
   /** Star/unstar a node. Available even in read-only trees (the favorites list). */
   onToggleFavorite?: (node: TreeNode) => void;
   editingNodeId?: string | null;
@@ -82,6 +84,7 @@ export default function TreeNodeItem({
   onRequestDeleteNode,
   onDuplicateNode,
   onMoveNode,
+  onConvertToCanvas,
   onToggleFavorite,
   editingNodeId,
   onStartRenameNode,
@@ -101,6 +104,9 @@ export default function TreeNodeItem({
   const isFile = node.type === "file";
   const isCanvas = node.type === "canvas";
   const canDuplicate = !!onDuplicateNode && (isFile || isCanvas);
+  // Only markdown (.md) / rich-text (.rt) files convert to a canvas.
+  const canConvertToCanvas =
+    !!onConvertToCanvas && isFile && /\.(md|rt)$/i.test(node.name);
   const indentLevel = level > 0 ? level * 20 + 8 : 8;
   const isSelected = selectedNodePath === nodePath;
   const isHighlighted = !!highlightNodeId && highlightNodeId === node.id;
@@ -333,6 +339,21 @@ export default function TreeNodeItem({
                   Duplicate
                 </button>
               )}
+              {canConvertToCanvas && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setMenuOpen(false);
+                    onConvertToCanvas?.(node, parentFolderId);
+                  }}
+                >
+                  <Frame className="h-3.5 w-3.5 text-muted-foreground" />
+                  Convert to Canvas
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"
@@ -383,6 +404,7 @@ export default function TreeNodeItem({
                 onRequestDeleteNode={onRequestDeleteNode}
                 onDuplicateNode={onDuplicateNode}
                 onMoveNode={onMoveNode}
+                onConvertToCanvas={onConvertToCanvas}
                 onToggleFavorite={onToggleFavorite}
                 editingNodeId={editingNodeId}
                 onStartRenameNode={onStartRenameNode}
