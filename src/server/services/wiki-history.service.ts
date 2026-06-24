@@ -1,10 +1,8 @@
-import { modelRepository } from "@/server/db/repository";
+import { appSettingService } from "./app-settings.service";
 import { getChatModelFromDb } from "./llm";
 
 type ModelIdLike = number | string;
 
-/** Provider model id used for the cheap classify+extract call by default. */
-const CLASSIFY_MODEL = "gpt-4o-mini";
 /** Abandon the classify call after this long and skip wiki grounding. */
 const CLASSIFY_TIMEOUT_MS = 8_000;
 /** Abandon a Wikipedia HTTP call after this long and skip wiki grounding. */
@@ -88,22 +86,15 @@ function parseClassification(raw: string): Classification | null {
  * timeout, non-historical message, no article found — resolves to `null`, so
  * the chat reply proceeds ungrounded and the feature never blocks a turn.
  *
- * The classify call runs on OpenAI's {@link CLASSIFY_MODEL} using the active
- * OpenAI chat model's linked key; if none exists, it reuses the caller's
- * selected model (same resolution as query expansion).
+ * The classify call runs on the configured background model (Settings →
+ * Background Model); if none is configured, it reuses the caller's selected
+ * model (same resolution as query expansion).
  */
 export class WikiHistoryService {
-  /** Resolve a chat model for classification: prefer OpenAI gpt-4o-mini, else the selected model. */
+  /** Resolve a chat model for classification: the configured background model, else the selected model. */
   private async resolveClassifyModel(fallbackModelId: ModelIdLike) {
-    const active = await modelRepository.findActive();
-    const openAiChat = active.find((m) => m.provider === "openai" && m.type === "chat");
-    if (openAiChat) {
-      return getChatModelFromDb(openAiChat.id, {
-        model: CLASSIFY_MODEL,
-        temperature: 0,
-      });
-    }
-    return getChatModelFromDb(fallbackModelId, { temperature: 0 });
+    const configured = await appSettingService.getBackgroundChatModelId();
+    return getChatModelFromDb(configured ?? fallbackModelId, { temperature: 0 });
   }
 
   private async classify(

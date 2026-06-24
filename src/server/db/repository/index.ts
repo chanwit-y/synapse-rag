@@ -50,6 +50,13 @@ export {
 } from "./model.repository";
 
 export {
+  AppSettingRepository,
+  appSettingRepository,
+  type AppSetting,
+  type NewAppSetting,
+} from "./app-settings.repository";
+
+export {
   RagRepository,
   ragRepository,
   type Rag,

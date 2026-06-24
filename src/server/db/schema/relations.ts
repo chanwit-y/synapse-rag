@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import { apiKeys } from "./api-keys";
+import { appSettings } from "./app-settings";
 import { canvasChatMessages } from "./canvas-chat-messages";
 import { collections } from "./collections";
 import { histories } from "./histories";
@@ -59,6 +60,14 @@ export const modelsRelations = relations(models, ({ one, many }) => ({
     references: [apiKeys.id],
   }),
   rags: many(rags),
+  appSettings: many(appSettings),
+}));
+
+export const appSettingsRelations = relations(appSettings, ({ one }) => ({
+  model: one(models, {
+    fields: [appSettings.modelId],
+    references: [models.id],
+  }),
 }));
 
 export const ragsRelations = relations(rags, ({ one, many }) => ({

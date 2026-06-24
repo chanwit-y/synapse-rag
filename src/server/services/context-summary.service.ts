@@ -1,4 +1,4 @@
-import { modelRepository } from "@/server/db/repository";
+import { appSettingService } from "./app-settings.service";
 import { getChatModelFromDb } from "./llm";
 
 type ModelIdLike = number | string;
@@ -6,8 +6,6 @@ type ModelIdLike = number | string;
 /** What the source content is, so the prompt can be tailored. */
 export type ContextSummaryKind = "chat" | "note";
 
-/** Provider model id used for summarization by default. */
-const SUMMARY_MODEL = "gpt-4o-mini";
 /** Abandon summarization after this long and fall back to no context. */
 const SUMMARY_TIMEOUT_MS = 8_000;
 /** Below this many characters of source content, summarizing adds no value. */
@@ -55,21 +53,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  * output — or trivially-short content degrades to an empty string, so the caller
  * spawns the chat with no context (today's behavior) rather than blocking.
  *
- * Runs on OpenAI's {@link SUMMARY_MODEL} using the active OpenAI chat model's
- * linked key; if none exists, it reuses the caller's selected model.
+ * Runs on the configured background model (Settings → Background Model); if none
+ * is configured, it reuses the caller's selected model.
  */
 export class ContextSummaryService {
-  /** Resolve a chat model for summarization: prefer OpenAI gpt-4o-mini, else the selected model. */
+  /** Resolve a chat model for summarization: the configured background model, else the selected model. */
   private async resolveSummaryModel(fallbackModelId: ModelIdLike) {
-    const active = await modelRepository.findActive();
-    const openAiChat = active.find((m) => m.provider === "openai" && m.type === "chat");
-    if (openAiChat) {
-      return getChatModelFromDb(openAiChat.id, {
-        model: SUMMARY_MODEL,
-        temperature: 0,
-      });
-    }
-    return getChatModelFromDb(fallbackModelId, { temperature: 0 });
+    const configured = await appSettingService.getBackgroundChatModelId();
+    return getChatModelFromDb(configured ?? fallbackModelId, { temperature: 0 });
   }
 
   async summarize(

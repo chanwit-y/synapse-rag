@@ -1,12 +1,10 @@
-import { modelRepository } from "@/server/db/repository";
+import { appSettingService } from "./app-settings.service";
 import { getChatModelFromDb } from "./llm";
 
 type ModelIdLike = number | string;
 
 /** Number of alternative query phrasings to generate (the original is searched separately). */
 const EXPANSION_COUNT = 3;
-/** Provider model id used for expansion by default. */
-const EXPANSION_MODEL = "gpt-4o-mini";
 /** Abandon expansion after this long and fall back to the original query only. */
 const EXPANSION_TIMEOUT_MS = 8_000;
 
@@ -59,21 +57,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  * error, timeout, garbage output — degrades silently to an empty list so the
  * caller falls back to searching the original query alone.
  *
- * The expansion runs on OpenAI's {@link EXPANSION_MODEL} using the active OpenAI
- * chat model's linked key; if none exists, it reuses the caller's selected model.
+ * The expansion runs on the configured background model (Settings → Background
+ * Model); if none is configured, it reuses the caller's selected model.
  */
 export class QueryExpansionService {
-  /** Resolve a chat model for expansion: prefer OpenAI gpt-4o-mini, else the selected model. */
+  /** Resolve a chat model for expansion: the configured background model, else the selected model. */
   private async resolveExpansionModel(fallbackModelId: ModelIdLike) {
-    const active = await modelRepository.findActive();
-    const openAiChat = active.find((m) => m.provider === "openai" && m.type === "chat");
-    if (openAiChat) {
-      return getChatModelFromDb(openAiChat.id, {
-        model: EXPANSION_MODEL,
-        temperature: 0,
-      });
-    }
-    return getChatModelFromDb(fallbackModelId, { temperature: 0 });
+    const configured = await appSettingService.getBackgroundChatModelId();
+    return getChatModelFromDb(configured ?? fallbackModelId, { temperature: 0 });
   }
 
   async expandQuery(prompt: string, fallbackModelId: ModelIdLike): Promise<string[]> {

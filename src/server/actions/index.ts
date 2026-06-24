@@ -26,6 +26,11 @@ export {
 } from "./ai-model.actions";
 
 export {
+  getBackgroundModelSettingAction,
+  setBackgroundModelAction,
+} from "./app-settings.actions";
+
+export {
   listRagsAction,
   listRagDocumentsAction,
   createRagAction,

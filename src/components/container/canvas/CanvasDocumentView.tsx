@@ -63,6 +63,7 @@ export default function CanvasDocumentView({
   onSave,
 }: CanvasDocumentViewProps) {
   const loadCanvas = useCanvasStore((s) => s.loadCanvas);
+  const setNodes = useCanvasStore((s) => s.setNodes);
   const setCanvasItemId = useCanvasStore((s) => s.setCanvasItemId);
   const chatModelId = useCanvasStore((s) => s.chatModelId);
   const setChatModelId = useCanvasStore((s) => s.setChatModelId);
@@ -153,48 +154,54 @@ export default function CanvasDocumentView({
   // component's life (it changes only on save, where re-hydrating is a no-op) —
   // in-canvas edits never trigger a reload.
   //
+  // The store is a singleton shared across canvases, so paint the parsed graph
+  // SYNCHRONOUSLY on mount: otherwise a just-opened canvas keeps showing the
+  // previously-open canvas's graph until the (async) transcript fetch resolves.
+  //
   // Chat messages are NOT in the graph JSON (stripped on save); they're the
-  // canvas_chat_messages table's authority. Fetch them and merge onto each chat
-  // node's `messages` before loading, so a chat opens with its real transcript.
-  // A fetch failure degrades to the (empty) seed — the rows stay safe in the DB.
+  // canvas_chat_messages table's authority. Fetch them and merge onto the live
+  // store nodes once they arrive (functional `setNodes`, so any react-flow
+  // measured/position updates that landed meanwhile are preserved). A fetch
+  // failure degrades to the (empty) seed — the rows stay safe in the DB.
   useEffect(() => {
     let cancelled = false;
     setCanvasItemId(itemId);
-    void (async () => {
-      const { nodes, edges } = parseGraph(content);
-      const result = await listCanvasChatMessagesAction(itemId);
-      if (cancelled) return;
 
-      let hydrated = nodes;
-      if (result.success) {
-        const byNode = new Map<string, ChatMessage[]>();
-        for (const m of result.data) {
-          const list = byNode.get(m.nodeId) ?? [];
-          list.push({
-            id: m.id,
-            role: m.role,
-            text: m.text,
-            ...(m.source ? { source: m.source } : {}),
-          });
-          byNode.set(m.nodeId, list);
-        }
-        hydrated = nodes.map((n) =>
-          n.type === "chat"
-            ? ({
-                ...n,
-                data: { ...n.data, messages: byNode.get(n.id) ?? n.data.messages },
-              } as AppNode)
-            : n,
-        );
+    const { nodes, edges } = parseGraph(content);
+    loadCanvas(nodes, edges);
+    savedImagePathsRef.current = canvasImagePaths(content);
+
+    void (async () => {
+      const result = await listCanvasChatMessagesAction(itemId);
+      if (cancelled || !result.success) return;
+
+      const byNode = new Map<string, ChatMessage[]>();
+      for (const m of result.data) {
+        const list = byNode.get(m.nodeId) ?? [];
+        list.push({
+          id: m.id,
+          role: m.role,
+          text: m.text,
+          ...(m.source ? { source: m.source } : {}),
+        });
+        byNode.set(m.nodeId, list);
       }
 
-      loadCanvas(hydrated, edges);
-      savedImagePathsRef.current = canvasImagePaths(content);
+      setNodes((current) =>
+        current.map((n) =>
+          n.type === "chat" && byNode.has(n.id)
+            ? ({
+                ...n,
+                data: { ...n.data, messages: byNode.get(n.id)! },
+              } as AppNode)
+            : n,
+        ),
+      );
     })();
     return () => {
       cancelled = true;
     };
-  }, [content, itemId, loadCanvas, setCanvasItemId]);
+  }, [content, itemId, loadCanvas, setNodes, setCanvasItemId]);
 
   const handleSave = useCallback(async () => {
     if (isSaving) return;

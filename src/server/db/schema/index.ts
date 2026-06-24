@@ -5,6 +5,7 @@ export * from "./histories";
 export * from "./canvas-chat-messages";
 export * from "./api-keys";
 export * from "./ai-instructions";
+export * from "./app-settings";
 export * from "./models";
 export * from "./rags";
 export * from "./rag-chunks";
