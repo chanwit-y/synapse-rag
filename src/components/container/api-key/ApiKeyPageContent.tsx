@@ -273,6 +273,8 @@ export default function ApiKeyPageContent({
                 name: editing.name,
                 provider: editing.provider,
                 apiKey: "",
+                endpoint: editing.endpoint ?? "",
+                apiVersion: editing.apiVersion ?? "",
                 active: editing.status === "active",
               }
             : undefined

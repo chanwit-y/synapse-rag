@@ -14,6 +14,7 @@ export const apiKeyProviderValues = [
   "anthropic",
   "google",
   "azure-openai",
+  "microsoft-foundry",
   "azure-devops",
   "other",
 ] as const;
@@ -28,6 +29,7 @@ export const modelProviderValues = [
   "anthropic",
   "google",
   "azure-openai",
+  "microsoft-foundry",
   "other",
 ] as const;
 export type ModelProvider = (typeof modelProviderValues)[number];

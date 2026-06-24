@@ -5,6 +5,7 @@ export const PROVIDER_OPTIONS: { value: AiModelProvider; label: string }[] = [
   { value: "anthropic", label: "Anthropic" },
   { value: "google", label: "Google" },
   { value: "azure-openai", label: "Azure OpenAI" },
+  { value: "microsoft-foundry", label: "Microsoft Foundry" },
   { value: "other", label: "Other" },
 ];
 
@@ -38,5 +39,7 @@ export const MODEL_ID_OPTIONS: Record<
     { value: "gpt-4o", label: "gpt-4o (deployment)", type: "chat" },
     { value: "text-embedding-3-small", label: "text-embedding-3-small", type: "embedding" },
   ],
+  // Foundry models are deployment names — entered free-form (no presets).
+  "microsoft-foundry": [],
   other: [],
 };
