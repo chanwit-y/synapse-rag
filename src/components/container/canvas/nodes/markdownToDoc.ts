@@ -1,15 +1,24 @@
 import { generateJSON, type JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { marked } from "marked";
+import {
+  buildTableExtensions,
+  buildTaskListExtensions,
+  taskMarked,
+} from "@/components/common/TiptapEditor";
 import { SpawnHighlight } from "./spawnHighlight";
 
 // Mirror the TextEditorNode editor's schema exactly (same StarterKit config +
-// SpawnHighlight mark) so the doc this produces is always valid for that editor —
-// e.g. headings beyond the allowed levels degrade to paragraphs rather than
-// landing the editor in an unrepresentable state.
+// SpawnHighlight mark + table + task-list extensions) so the doc this produces is
+// always valid for that editor — e.g. headings beyond the allowed levels degrade
+// to paragraphs rather than landing the editor in an unrepresentable state, and
+// GFM tables / `- [ ]` task lists in imported Markdown render as the right nodes.
+// `taskMarked` is the shared Tiptap-aware marked instance (markdown.ts), so task
+// lists convert to Tiptap's `taskList`/`taskItem` markup here too.
 const EXTENSIONS = [
   StarterKit.configure({ link: false, heading: { levels: [2] } }),
   SpawnHighlight,
+  ...buildTableExtensions({ resizable: true }),
+  ...buildTaskListExtensions(),
 ];
 
 /** A minimal single-paragraph doc — the fallback when conversion fails. */
@@ -32,7 +41,7 @@ export function markdownToProseMirrorDoc(markdown: string): JSONContent {
   const text = markdown.trim();
   if (!text) return plainDoc("");
   try {
-    const html = marked.parse(text, { async: false }) as string;
+    const html = taskMarked.parse(text, { async: false }) as string;
     return generateJSON(html, EXTENSIONS);
   } catch {
     return plainDoc(text);

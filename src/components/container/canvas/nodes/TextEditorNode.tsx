@@ -15,6 +15,7 @@ import {
   Italic,
   Underline,
   List,
+  ListTodo,
   Heading,
   Sparkles,
   StickyNote,
@@ -24,6 +25,11 @@ import {
 import { useEditor, useEditorState, EditorContent } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import {
+  buildTableExtensions,
+  buildTaskListExtensions,
+  TableMenu,
+} from "@/components/common/TiptapEditor";
 import { summarizeContextAction } from "@/server/actions";
 import { useCanvasStore } from "../store/canvas-store";
 import { htmlToProseMirrorDoc, markdownToProseMirrorDoc } from "./markdownToDoc";
@@ -82,6 +88,12 @@ const FORMAT_BUTTONS = [
     label: "List",
     active: "bulletList" as const,
     run: (e: Editor) => e.chain().focus().toggleBulletList().run(),
+  },
+  {
+    icon: ListTodo,
+    label: "Task list",
+    active: "taskList" as const,
+    run: (e: Editor) => e.chain().focus().toggleTaskList().run(),
   },
 ];
 
@@ -248,6 +260,9 @@ export default function TextEditorNode({
     extensions: [
       StarterKit.configure({ link: false, heading: { levels: [2] } }),
       SpawnHighlight,
+      // Resizable on: the node persists ProseMirror JSON, so widths last.
+      ...buildTableExtensions({ resizable: true }),
+      ...buildTaskListExtensions(),
     ],
     content: initial.doc,
     editorProps: {
@@ -301,6 +316,7 @@ export default function TextEditorNode({
             italic: editor.isActive("italic"),
             underline: editor.isActive("underline"),
             bulletList: editor.isActive("bulletList"),
+            taskList: editor.isActive("taskList"),
           }
         : null,
   });
@@ -484,6 +500,9 @@ export default function TextEditorNode({
             </button>
           );
         })}
+
+        <span className="mx-1 h-4 w-px bg-slate-200 dark:bg-slate-700" />
+        <TableMenu editor={editor} variant="canvas" allowHeaderToggle />
 
         <span className="mx-1 h-4 w-px bg-slate-200 dark:bg-slate-700" />
         <button
