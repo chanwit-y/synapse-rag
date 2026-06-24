@@ -7,6 +7,7 @@ import type {
   AzureWorkItemNode,
   ImportUserStoriesResult,
 } from "@/server/services";
+import type { FileType } from "@/components/common/FileTree/types";
 import { actionFailure, actionSuccess, type ActionResult } from "./types";
 
 export async function listAzureProjectsAction(): Promise<
@@ -55,6 +56,7 @@ export async function importAzureUserStoriesAction(
   collectionId: string,
   project: string,
   workItemIds: number[],
+  fileType: FileType,
   folderId?: string | null,
 ): Promise<ActionResult<ImportUserStoriesResult>> {
   try {
@@ -63,6 +65,7 @@ export async function importAzureUserStoriesAction(
         collectionId,
         project,
         workItemIds,
+        fileType,
         folderId,
       ),
     );

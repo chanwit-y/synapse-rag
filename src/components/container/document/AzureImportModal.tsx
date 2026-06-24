@@ -6,6 +6,7 @@ import Modal from "@/components/common/Modal/Modal";
 import Button from "@/components/common/Button/Button";
 import Checkbox from "@/components/common/Checkbox/Checkbox";
 import SelectField from "@/components/common/SelectField/SelectField";
+import type { FileType } from "@/components/common/FileTree/types";
 import {
   listAzureChildrenAction,
   listAzureEpicsAction,
@@ -30,8 +31,13 @@ function unwrap<T>(
 export type AzureImportModalProps = {
   open: boolean;
   onClose: () => void;
-  /** Imports the selected user-story ids from a project; parent handles refresh + feedback. */
-  onImport: (project: string, workItemIds: number[]) => Promise<void>;
+  /** Imports the selected user-story ids from a project; parent handles refresh + feedback.
+   *  `fileType` picks the extension/editor each imported story opens in (.md vs .rt). */
+  onImport: (
+    project: string,
+    workItemIds: number[],
+    fileType: FileType,
+  ) => Promise<void>;
 };
 
 export default function AzureImportModal({
@@ -52,6 +58,8 @@ export default function AzureImportModal({
   const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [isImporting, setIsImporting] = useState(false);
+  // Extension/editor each imported story opens in. Defaults to rich text (.rt).
+  const [fileType, setFileType] = useState<FileType>("rt");
 
   const loadProjects = useCallback(async () => {
     try {
@@ -124,6 +132,7 @@ export default function AzureImportModal({
     setLoadingIds(new Set());
     setSelected(new Set());
     setIsImporting(false);
+    setFileType("rt");
   }, []);
 
   const handleProjectChange = useCallback((value: string | number | null) => {
@@ -190,11 +199,11 @@ export default function AzureImportModal({
     if (!project || selected.size === 0) return;
     setIsImporting(true);
     try {
-      await onImport(project, [...selected]);
+      await onImport(project, [...selected], fileType);
     } finally {
       setIsImporting(false);
     }
-  }, [onImport, project, selected]);
+  }, [onImport, project, selected, fileType]);
 
   const renderNodes = (nodes: AzureWorkItemNode[], depth: number) =>
     nodes.map((node) => {
@@ -314,6 +323,32 @@ export default function AzureImportModal({
           value={team}
           onChange={handleTeamChange}
         />
+      </div>
+
+      <div className="mb-3 flex items-center gap-3">
+        <span className="text-sm font-medium text-foreground">Save as</span>
+        <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-surface-strong p-0.5">
+          {(
+            [
+              { value: "rt", label: "Rich text (.rt)" },
+              { value: "md", label: "Markdown (.md)" },
+            ] as { value: FileType; label: string }[]
+          ).map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setFileType(opt.value)}
+              aria-pressed={fileType === opt.value}
+              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                fileType === opt.value
+                  ? "bg-surface text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {error ? (

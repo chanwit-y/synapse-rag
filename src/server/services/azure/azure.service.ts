@@ -3,6 +3,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import TurndownService from "turndown";
 import {
+  fileTypeExtension,
+  type FileType,
+} from "@/components/common/FileTree/types";
+import {
   collectionRepository,
   historyRepository,
   itemRepository,
@@ -263,6 +267,7 @@ export class AzureService {
     collectionId: string,
     project: string,
     workItemIds: number[],
+    fileType: FileType,
     folderId?: string | null,
   ): Promise<ImportUserStoriesResult> {
     const numericCollectionId = parseId(collectionId);
@@ -321,7 +326,7 @@ export class AzureService {
         : "";
       const bodyMd = html ? this.turndown.turndown(html) : "";
       const content = `# ${title}\n\n${bodyMd}`.trimEnd() + "\n";
-      const name = `${prefix}${sanitizeFileName(title)}.md`;
+      const name = `${prefix}${sanitizeFileName(title)}.${fileTypeExtension(fileType)}`;
 
       const created = await itemRepository.create({
         collectionId: numericCollectionId,

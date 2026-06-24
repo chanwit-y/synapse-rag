@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import { FileSidebar, findNodeById, findNodeByPath, flattenFileNodes, isRichTextFileName } from "@/components/common/FileTree";
-import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
+import type { FileType, TreeNode, TreeViewGroup } from "@/components/common/FileTree";
 
 // The markdown editor pulls in @uiw/react-md-editor (+ remark/rehype/katex),
 // a large bundle only needed once a document is open. Load it lazily so it
@@ -879,7 +879,7 @@ export default function DocumentPageContent({
   );
 
   const handleImportUserStories = useCallback(
-    async (project: string, workItemIds: number[]) => {
+    async (project: string, workItemIds: number[], fileType: FileType) => {
       if (!azureCollectionId) return;
       await withLoading(async () => {
         const result = unwrapAction(
@@ -887,6 +887,7 @@ export default function DocumentPageContent({
             azureCollectionId,
             project,
             workItemIds,
+            fileType,
             azureFolderId,
           ),
         );
