@@ -3,6 +3,7 @@ export type AiModelProvider =
   | "anthropic"
   | "google"
   | "azure-openai"
+  | "microsoft-foundry"
   | "other";
 
 export type AiModelType = "chat" | "embedding" | "completion";

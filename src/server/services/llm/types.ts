@@ -3,18 +3,29 @@ import type { Embeddings } from "@langchain/core/embeddings";
 import type { ApiKeyProvider } from "@/server/db/schema/enums";
 
 /** Provider keys that this connector knows how to build LangChain clients for. */
-export type LlmProvider = Extract<ApiKeyProvider, "openai" | "anthropic" | "google">;
+export type LlmProvider = Extract<
+  ApiKeyProvider,
+  "openai" | "anthropic" | "google" | "microsoft-foundry"
+>;
 
 export type ChatModelOptions = {
   /** Provider-specific model id, e.g. `gpt-4o-mini`, `claude-opus-4-8`, `gemini-1.5-pro`. */
   model?: string;
   temperature?: number;
+  /** OpenAI-compatible base URL override. Used by Microsoft Foundry. */
+  baseURL?: string;
+  /** Azure `api-version` query param. Used by Microsoft Foundry. */
+  apiVersion?: string;
 };
 
 export type EmbeddingsOptions = {
   model?: string;
   /** Output dimensionality. Honoured only by providers that support it (OpenAI). */
   dimensions?: number;
+  /** OpenAI-compatible base URL override. Used by Microsoft Foundry. */
+  baseURL?: string;
+  /** Azure `api-version` query param. Used by Microsoft Foundry. */
+  apiVersion?: string;
 };
 
 /**

@@ -49,8 +49,14 @@ export async function getChatModelFromDb(
   modelId: ModelIdLike,
   options?: ChatModelOptions,
 ): Promise<BaseChatModel> {
-  const { apiKey, provider } = await resolveApiKeyForModelId(modelId);
-  return getProviderStrategy(provider).createChatModel(apiKey, options);
+  const { apiKey, provider, model, endpoint, apiVersion } =
+    await resolveApiKeyForModelId(modelId);
+  return getProviderStrategy(provider).createChatModel(apiKey, {
+    model,
+    ...options,
+    baseURL: endpoint ?? options?.baseURL,
+    apiVersion: apiVersion ?? options?.apiVersion,
+  });
 }
 
 /** Build an embeddings client from a stored model row (resolves provider + key from the DB). */
@@ -58,7 +64,8 @@ export async function getEmbeddingsFromDb(
   modelId: ModelIdLike,
   options?: EmbeddingsOptions,
 ): Promise<Embeddings> {
-  const { apiKey, provider } = await resolveApiKeyForModelId(modelId);
+  const { apiKey, provider, model, endpoint, apiVersion } =
+    await resolveApiKeyForModelId(modelId);
   const strategy = getProviderStrategy(provider);
   if (!strategy.supportsEmbeddings) {
     throw new ServiceError(
@@ -66,5 +73,10 @@ export async function getEmbeddingsFromDb(
       "VALIDATION",
     );
   }
-  return strategy.createEmbeddings(apiKey, options);
+  return strategy.createEmbeddings(apiKey, {
+    model,
+    ...options,
+    baseURL: endpoint ?? options?.baseURL,
+    apiVersion: apiVersion ?? options?.apiVersion,
+  });
 }

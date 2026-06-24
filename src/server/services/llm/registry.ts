@@ -1,6 +1,7 @@
 import { ServiceError } from "../utils";
 import { anthropicProvider } from "./providers/anthropic.provider";
 import { googleProvider } from "./providers/google.provider";
+import { microsoftFoundryProvider } from "./providers/microsoft-foundry.provider";
 import { openAiProvider } from "./providers/openai.provider";
 import type { LlmProvider, LlmProviderStrategy } from "./types";
 
@@ -9,6 +10,7 @@ const PROVIDERS: Record<LlmProvider, LlmProviderStrategy> = {
   openai: openAiProvider,
   anthropic: anthropicProvider,
   google: googleProvider,
+  "microsoft-foundry": microsoftFoundryProvider,
 };
 
 export function isSupportedProvider(provider: string): provider is LlmProvider {

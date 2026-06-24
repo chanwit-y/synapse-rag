@@ -25,10 +25,22 @@ export interface TreeViewProps {
     nodePath: string,
     groupIndex: number,
   ) => void;
+  onDuplicateNode?: (
+    node: TreeNode,
+    nodePath: string,
+    groupIndex: number,
+  ) => void;
+  onMoveNode?: (node: TreeNode, parentFolderId: string | null) => void;
+  onToggleFavorite?: (node: TreeNode) => void;
   onImportFromAzure?: (
     collectionId: string,
     selectedNode: TreeNode | null,
     selectedNodePath: string | null,
+  ) => void;
+  onAddCanvas?: (
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+    groupIndex: number,
   ) => void;
   onRequestDeleteGroup?: (group: TreeViewGroup, groupIndex: number) => void;
   editingNodeId?: string | null;
@@ -64,7 +76,11 @@ export default function TreeView({
   onAddFile,
   onAddFolder,
   onRequestDeleteNode,
+  onDuplicateNode,
+  onMoveNode,
+  onToggleFavorite,
   onImportFromAzure,
+  onAddCanvas,
   onRequestDeleteGroup,
   editingNodeId,
   onStartRenameNode,
@@ -136,7 +152,11 @@ export default function TreeView({
             onAddFile={onAddFile}
             onAddFolder={onAddFolder}
             onRequestDeleteNode={onRequestDeleteNode}
+            onDuplicateNode={onDuplicateNode}
+            onMoveNode={onMoveNode}
+            onToggleFavorite={onToggleFavorite}
             onImportFromAzure={onImportFromAzure}
+            onAddCanvas={onAddCanvas}
             onRequestDeleteGroup={onRequestDeleteGroup}
             editingNodeId={editingNodeId}
             onStartRenameNode={onStartRenameNode}

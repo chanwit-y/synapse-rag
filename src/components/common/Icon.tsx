@@ -170,6 +170,15 @@ function ScrollText(props: IconProps) {
   );
 }
 
+function Sparkles(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M9.94 14.34 12 21l2.06-6.66L21 12l-6.94-2.34L12 3 9.94 9.66 3 12z" />
+      <path d="M19 3v4M21 5h-4M5 17v3M6.5 18.5h-3" />
+    </svg>
+  );
+}
+
 function PanelLeftClose(props: IconProps) {
   return (
     <svg {...baseProps} {...props}>
@@ -209,6 +218,7 @@ const Icon = {
   Cpu,
   Key,
   ScrollText,
+  Sparkles,
   PanelLeftClose,
   PanelRightClose,
 };

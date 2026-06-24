@@ -43,6 +43,9 @@ yarn-error.log*
 # images uploaded from the document markdown editor
 /public/document-images
 
+# images uploaded from canvas image nodes
+/public/canvas-images
+
 # vercel
 .vercel
 

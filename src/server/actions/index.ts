@@ -26,6 +26,11 @@ export {
 } from "./ai-model.actions";
 
 export {
+  getBackgroundModelSettingAction,
+  setBackgroundModelAction,
+} from "./app-settings.actions";
+
+export {
   listRagsAction,
   listRagDocumentsAction,
   createRagAction,
@@ -46,15 +51,35 @@ export {
   deleteCollectionAction,
   renameCollectionAction,
   renameDocumentItemAction,
+  setItemFavoriteAction,
   syncCollectionDirectoriesAction,
   deleteDocumentItemAction,
+  duplicateDocumentItemAction,
+  moveDocumentItemAction,
   getDocumentItemContentAction,
+  createCanvasAction,
   saveDocumentContentAction,
   uploadDocumentImageAction,
+  uploadCanvasImageAction,
+  deleteCanvasImageAction,
   listDocumentHistoryAction,
   ensureDocumentTranslationAction,
   saveDocumentTranslationAction,
 } from "./document.actions";
+
+export {
+  listCanvasChatMessagesAction,
+  appendCanvasChatMessageAction,
+  pruneCanvasChatMessagesAction,
+} from "./canvas-chat.actions";
+
+export {
+  listAllTagsAction,
+  listAllItemTagsAction,
+  listItemTagsAction,
+  addItemTagAction,
+  removeItemTagAction,
+} from "./tag.actions";
 
 export {
   listAzureProjectsAction,
@@ -66,12 +91,19 @@ export {
 
 export {
   chatWithModelFromDbAction,
+  chatTurnsWithModelFromDbAction,
   chatWithRagFromDbAction,
   embedTextsFromDbAction,
+  summarizeContextAction,
+  summarizeChatNodeAction,
   type LangChainChatTestInput,
   type LangChainChatTestOutput,
+  type LangChainChatTurn,
+  type LangChainChatTurnsInput,
   type LangChainRagChatInput,
   type LangChainRagChatOutput,
   type LangChainEmbeddingsInput,
   type LangChainEmbeddingsOutput,
+  type SummarizeContextInput,
+  type SummarizeChatNodeInput,
 } from "./langchain.actions";

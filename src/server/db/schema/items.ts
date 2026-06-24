@@ -13,11 +13,23 @@ export const items = sqliteTable("items", {
   }),
   type: text("type", { enum: itemTypeValues }).notNull(),
   name: text("name").notNull(),
+  /**
+   * Document body. For `type: "file"` this is Markdown; for `type: "canvas"`
+   * it is a JSON string of the react-flow graph (`{ nodes, edges }`); NULL for
+   * folders.
+   */
   content: text("content"),
   /** Cached Thai translation of `content` (user-editable). */
   contentTh: text("content_th"),
   /** SHA-256 of the English `content` captured when `contentTh` was generated; used to detect staleness. */
   contentThHash: text("content_th_hash"),
+  /**
+   * Whether the user has starred this item. Workspace-global (single-user app).
+   * Applies to any item type — files, canvases, and folders can be favorited.
+   */
+  isFavorite: integer("is_favorite", { mode: "boolean" })
+    .notNull()
+    .default(false),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .$defaultFn(() => new Date())
     .notNull(),

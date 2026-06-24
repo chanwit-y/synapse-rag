@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
-import { FileSidebar, findNodeById, findNodeByPath, flattenFileNodes } from "@/components/common/FileTree";
+import { FileSidebar, findNodeById, findNodeByPath, flattenFileNodes, isRichTextFileName } from "@/components/common/FileTree";
 import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
 
 // The markdown editor pulls in @uiw/react-md-editor (+ remark/rehype/katex),
@@ -19,28 +19,78 @@ const MarkdownEditor = dynamic(
     ),
   },
 );
+// The Tiptap editor (ProseMirror + extensions) is only needed for `.rt` files;
+// load it lazily and client-only, same as the markdown editor.
+const TiptapEditor = dynamic(
+  () => import("@/components/common/TiptapEditor").then((m) => m.TiptapEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
+        Loading editor…
+      </div>
+    ),
+  },
+);
+// The Sigma graph pulls in sigma + graphology (WebGL); keep it out of the
+// route's initial JS and off the server (no DOM/WebGL during SSR).
+const DocumentGraphView = dynamic(
+  () => import("@/components/container/document/DocumentGraphView"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
+        Loading graph…
+      </div>
+    ),
+  },
+);
+// The canvas pulls in @xyflow/react (a large bundle) and renders to the DOM
+// only, so keep it out of the route's initial JS and off the server.
+const CanvasDocumentView = dynamic(
+  () => import("@/components/container/canvas").then((m) => m.CanvasDocumentView),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
+        Loading canvas…
+      </div>
+    ),
+  },
+);
 import { useLayoutStore } from "@/store/layout-store";
-import { ArrowLeft, ChevronRight, Clock, FileText } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock, FileText, Network, Star } from "lucide-react";
 import ApiLoadingBackdrop from "@/components/common/ApiLoadingBackdrop/ApiLoadingBackdrop";
+import { CanvasSkeleton, DocumentSkeleton } from "@/components/common/Skeleton";
 import SelectField from "@/components/common/SelectField/SelectField";
 import { useApiLoading } from "@/hooks/useApiLoading";
 import {
+  createCanvasAction,
   createCollectionAction,
   deleteCollectionAction,
   deleteDocumentItemAction,
+  duplicateDocumentItemAction,
   ensureDocumentTranslationAction,
   getDocumentItemContentAction,
   importAzureUserStoriesAction,
   listChatModelsAction,
   listCollectionsAction,
   listDocumentHistoryAction,
+  moveDocumentItemAction,
   renameCollectionAction,
   renameDocumentItemAction,
   saveDocumentContentAction,
   saveDocumentTranslationAction,
   syncCollectionDirectoriesAction,
   uploadDocumentImageAction,
+  listAllItemTagsAction,
+  setItemFavoriteAction,
 } from "@/server/actions";
+import { TagBar, type TagItem } from "@/components/common/TagBar";
+import {
+  CommandPalette,
+  type CommandPaletteItem,
+} from "@/components/common/CommandPalette";
 import Drawer from "@/components/common/Drawer/Drawer";
 import Modal from "@/components/common/Modal/Modal";
 import DiffViewer from "@/components/common/DiffViewer/DiffViewer";
@@ -63,7 +113,9 @@ function getPrefersDark() {
 }
 
 function getDefaultContent(fileName: string): string {
-  const title = fileName.replace(/\.md$/i, "");
+  // Rich-text (.rt) files start blank; the markdown editor seeds a heading.
+  if (isRichTextFileName(fileName)) return "";
+  const title = fileName.replace(/\.(md|rt)$/i, "");
   return `# ${title}\n\nStart writing your document here.`;
 }
 
@@ -72,6 +124,38 @@ function unwrapAction<T>(result: { success: true; data: T } | { success: false; 
     throw new Error(result.error);
   }
   return result.data;
+}
+
+/**
+ * The "favorite roots" across a tree: every starred node, but never descending
+ * into one — so a favorited folder carries its whole subtree and a separately
+ * starred descendant inside it isn't also listed at the top level.
+ */
+function collectFavoriteRoots(nodes: TreeNode[]): TreeNode[] {
+  const out: TreeNode[] = [];
+  for (const node of nodes) {
+    if (node.isFavorite) {
+      out.push(node);
+    } else if (node.children?.length) {
+      out.push(...collectFavoriteRoots(node.children));
+    }
+  }
+  return out;
+}
+
+/** Immutably flip `isFavorite` on the node with `id`, anywhere in the tree. */
+function setFavoriteInTree(
+  groups: TreeViewGroup[],
+  id: string,
+  value: boolean,
+): TreeViewGroup[] {
+  const mapNodes = (nodes: TreeNode[]): TreeNode[] =>
+    nodes.map((n) => {
+      if (n.id === id) return { ...n, isFavorite: value };
+      if (n.children?.length) return { ...n, children: mapNodes(n.children) };
+      return n;
+    });
+  return groups.map((g) => ({ ...g, directories: mapNodes(g.directories) }));
 }
 
 export interface DocumentPageContentProps {
@@ -107,10 +191,38 @@ export default function DocumentPageContent({
   const [thSeed, setThSeed] = useState("");
   const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
   const [translationModelId, setTranslationModelId] = useState<string | null>(null);
+
+  // Command-palette (Cmd/Ctrl+K) search. The candidate list is built from the
+  // already-in-memory collections tree, so searching is purely client-side.
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  // While the palette is open in Graph mode, the id of the file the graph should
+  // live-preview (the highlighted result). `null` clears the preview.
+  const [previewFileId, setPreviewFileId] = useState<string | null>(null);
+  // All item→tag links powering the palette's per-result tags. Refetched each
+  // time the palette opens, so edits made via TagBar are always reflected.
+  const [itemTagsIndex, setItemTagsIndex] = useState<Record<
+    string,
+    TagItem[]
+  > | null>(null);
   const { isLoading, withLoading } = useApiLoading();
+  // Dedicated loader for fetching a file's content on open — drives the editor
+  // skeleton, kept separate from the global mutation backdrop above.
+  const { isLoading: isFileLoading, withLoading: withFileLoading } = useApiLoading();
   const { showSnackbar } = useSnackbar();
 
   const theme = useLayoutStore((s) => s.theme);
+  const documentViewMode = useLayoutStore((s) => s.documentViewMode);
+  const setDocumentViewMode = useLayoutStore((s) => s.setDocumentViewMode);
+  const toggleDocumentViewMode = useLayoutStore((s) => s.toggleDocumentViewMode);
+  // The persisted view mode isn't known during SSR. Render the editor on the
+  // first client paint (matching the server) and only honor the persisted graph
+  // mode after mount — this both avoids a hydration mismatch and forces the
+  // re-render that reads the rehydrated store value.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const isGraphMode = mounted && documentViewMode === "graph";
   const prefersDark = useSyncExternalStore(
     subscribeToColorScheme,
     getPrefersDark,
@@ -143,6 +255,12 @@ export default function DocumentPageContent({
   // demand (using any locally cached/unsaved buffer first).
   const handleSelectFile = useCallback(
     (file: TreeNode, path: string) => {
+      // Opening a document always shows the document: flip back from the graph.
+      // Read via getState so this guard doesn't recreate the callback on toggle,
+      // and skip the (persisted) write when we're already in editor mode.
+      if (useLayoutStore.getState().documentViewMode === "graph") {
+        setDocumentViewMode("editor");
+      }
       setSelectedFile(file);
       setSelectedPath(path);
       // A new file always opens in English; its Thai is loaded on demand.
@@ -156,16 +274,18 @@ export default function DocumentPageContent({
       }
 
       setEditorContent("");
-      void withLoading(async () => {
+      void withFileLoading(async () => {
         const result = await getDocumentItemContentAction(file.id);
+        // Canvas content is a JSON graph; never substitute the markdown default.
+        const fallback = file.type === "canvas" ? "" : getDefaultContent(file.name);
         const content = result.success
-          ? result.data.content || getDefaultContent(file.name)
-          : getDefaultContent(file.name);
+          ? result.data.content || fallback
+          : fallback;
         setFileContents((prev) => ({ ...prev, [file.id]: content }));
         setEditorContent(content);
       });
     },
-    [fileContents, withLoading],
+    [fileContents, withFileLoading, setDocumentViewMode],
   );
 
   // Flat list of every file across all collections — the candidate set for
@@ -184,7 +304,7 @@ export default function DocumentPageContent({
     (id: string, options?: { push?: boolean }) => {
       for (const group of collections) {
         const found = findNodeById(group.directories, id);
-        if (found && found.node.type === "file") {
+        if (found && (found.node.type === "file" || found.node.type === "canvas")) {
           if ((options?.push ?? true) && selectedFile && selectedFile.id !== id) {
             setBackStack((stack) => [...stack, { id: selectedFile.id, name: selectedFile.name }]);
           }
@@ -209,13 +329,134 @@ export default function DocumentPageContent({
     openItemById(prev.id, { push: false });
   }, [backStack, openItemById]);
 
+  // ── Command palette (Cmd/Ctrl+K) ──────────────────────────────────────────
+  // Global shortcut to toggle the search palette.
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // Refetch the item→tag index each time the palette opens, so tags edited via
+  // TagBar (which persists on its own) are always reflected in the results.
+  useEffect(() => {
+    if (!paletteOpen) return;
+    let cancelled = false;
+    void (async () => {
+      const result = await listAllItemTagsAction();
+      if (!cancelled && result.success) setItemTagsIndex(result.data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [paletteOpen]);
+
+  // Flatten files + canvases across every collection into palette rows, each
+  // carrying a "Collection / folder" breadcrumb and its tags (when loaded).
+  const paletteItems = useMemo<CommandPaletteItem[]>(() => {
+    const out: CommandPaletteItem[] = [];
+    const walk = (nodes: TreeNode[], prefix: string[]) => {
+      for (const node of nodes) {
+        if (node.type === "file" || node.type === "canvas") {
+          out.push({
+            id: node.id,
+            name: node.name,
+            type: node.type,
+            path: prefix.join(" / "),
+            tags: itemTagsIndex?.[node.id] ?? [],
+          });
+        } else if (node.children?.length) {
+          walk(node.children, [...prefix, node.name]);
+        }
+      }
+    };
+    for (const group of collections) {
+      walk(group.directories, [group.name]);
+    }
+    return out;
+  }, [collections, itemTagsIndex]);
+
+  // Clicking a file node in the graph opens it; handleSelectFile (reached via
+  // openItemById) flips the main pane back to editor mode. (Folder/collection
+  // nodes toggle in-graph and never reach here.)
+  const handleOpenFromGraph = useCallback(
+    (fileId: string) => {
+      openItemById(fileId);
+    },
+    [openItemById],
+  );
+
+  // Live-preview the highlighted palette result in the graph (Graph mode only).
+  const handlePaletteActiveChange = useCallback((item: CommandPaletteItem | null) => {
+    setPreviewFileId(item?.id ?? null);
+  }, []);
+
+  // Close the palette and drop any in-progress graph preview (reverts the view).
+  const handlePaletteClose = useCallback(() => {
+    setPaletteOpen(false);
+    setPreviewFileId(null);
+  }, []);
+
   // Sidebar selection is a fresh navigation context, so it clears the trail.
+  // Re-resolve the canonical node + path by id: the pinned Favorites group uses
+  // group-relative paths, so trusting the passed path would break the breadcrumb.
   const handleSidebarSelect = useCallback(
     (file: TreeNode, path: string) => {
       setBackStack([]);
+      for (const group of collections) {
+        const found = findNodeById(group.directories, file.id);
+        if (found) {
+          handleSelectFile(found.node, found.path);
+          return;
+        }
+      }
       handleSelectFile(file, path);
     },
-    [handleSelectFile],
+    [collections, handleSelectFile],
+  );
+
+  // Files/canvases/folders the user has starred, as a read-only group pinned
+  // atop the sidebar. A favorited folder brings its whole subtree (see
+  // collectFavoriteRoots); the group hides when empty.
+  const favoritesGroup = useMemo<TreeViewGroup | null>(() => {
+    const roots = collections.flatMap((g) => collectFavoriteRoots(g.directories));
+    if (roots.length === 0) return null;
+    return {
+      id: "__favorites__",
+      name: "Favorites",
+      directories: [...roots].sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }, [collections]);
+
+  // Whether the open document is starred — derived from the tree (the source of
+  // truth) rather than the selection snapshot, so the header star stays in sync.
+  const selectedFavorite = useMemo(() => {
+    if (!selectedFile) return false;
+    for (const group of collections) {
+      const found = findNodeById(group.directories, selectedFile.id);
+      if (found) return !!found.node.isFavorite;
+    }
+    return false;
+  }, [collections, selectedFile]);
+
+  // Toggle a node's favorite flag: optimistic tree update, persisted; revert on
+  // failure. Drives both the sidebar stars and the document-header star.
+  const handleToggleFavorite = useCallback(
+    async (node: TreeNode) => {
+      const next = !node.isFavorite;
+      setCollections((prev) => setFavoriteInTree(prev, node.id, next));
+      const result = await setItemFavoriteAction(node.id, next);
+      if (!result.success) {
+        setCollections((prev) => setFavoriteInTree(prev, node.id, !next));
+        showSnackbar({ variant: "error", message: result.error });
+      }
+    },
+    [showSnackbar],
   );
 
   // Reveal a breadcrumb segment in the sidebar (expand + scroll + highlight),
@@ -284,6 +525,55 @@ export default function DocumentPageContent({
       });
     },
     [withLoading],
+  );
+
+  const handleDuplicateFile = useCallback(
+    async (fileId: string): Promise<TreeNode> =>
+      withLoading(async () =>
+        unwrapAction(await duplicateDocumentItemAction(fileId)),
+      ),
+    [withLoading],
+  );
+
+  // Move an item to another collection/folder. The id is preserved, so after
+  // refetching we re-resolve the open file by id across the new tree and update
+  // its selection (new collection + breadcrumb path); if it's gone, clear it.
+  const handleMoveItem = useCallback(
+    async (
+      itemId: string,
+      destCollectionId: string,
+      destFolderId: string | null,
+    ) => {
+      await withLoading(async () => {
+        unwrapAction(
+          await moveDocumentItemAction(itemId, destCollectionId, destFolderId),
+        );
+        const listResult = await listCollectionsAction();
+        if (!listResult.success) return;
+        setCollections(listResult.data);
+
+        // Keep the open editor in sync if it (or one of its moved ancestors)
+        // was relocated — re-resolve it by id in the rebuilt tree.
+        const openId = selectedFile?.id;
+        if (!openId) return;
+        for (const group of listResult.data) {
+          const found = findNodeById(group.directories, openId);
+          if (found) {
+            setSelectedFile(found.node);
+            setSelectedPath(found.path);
+            return;
+          }
+        }
+        // Open file no longer exists (defensive — a move shouldn't delete it).
+        setSelectedFile(null);
+        setSelectedPath(null);
+        setEditorContent("");
+        setViewLang("en");
+        setThSeed("");
+        setBackStack([]);
+      });
+    },
+    [selectedFile, withLoading],
   );
 
   const handleUploadImage = useCallback(async (file: File): Promise<string> => {
@@ -495,6 +785,56 @@ export default function DocumentPageContent({
     [],
   );
 
+  // Create a persisted canvas document, refresh the tree, and open it in the
+  // main pane so the user can start editing immediately. We open from the
+  // freshly fetched tree (not openItemById, which closes over stale collections).
+  const handleCreateCanvas = useCallback(
+    async (params: {
+      collectionId: string;
+      folderId: string | null;
+      name: string;
+    }) =>
+      withLoading(async () => {
+        const created = unwrapAction(await createCanvasAction(params));
+        const listResult = await listCollectionsAction();
+        if (listResult.success) {
+          setCollections(listResult.data);
+          for (const group of listResult.data) {
+            const found = findNodeById(group.directories, created.id);
+            if (found) {
+              setBackStack([]);
+              handleSelectFile(found.node, found.path);
+              window.history.replaceState(null, "", `?item=${created.id}`);
+              break;
+            }
+          }
+        }
+        return created;
+      }),
+    [handleSelectFile, withLoading],
+  );
+
+  // Persist a canvas's serialized graph (reuses the document save path, which
+  // also snapshots history).
+  const handleSaveCanvas = useCallback(
+    async (content: string) => {
+      if (!selectedFile) return;
+      await withLoading(async () => {
+        unwrapAction(
+          await saveDocumentContentAction({
+            id: selectedFile.id,
+            name: selectedFile.name,
+            content,
+            collectionId: selectedFile.collectionId,
+          }),
+        );
+        setFileContents((prev) => ({ ...prev, [selectedFile.id]: content }));
+        showSnackbar({ variant: "success", message: "Canvas saved." });
+      });
+    },
+    [selectedFile, showSnackbar, withLoading],
+  );
+
   const handleImportUserStories = useCallback(
     async (project: string, workItemIds: number[]) => {
       if (!azureCollectionId) return;
@@ -543,12 +883,16 @@ export default function DocumentPageContent({
           onCreateCollection={handleCreateCollection}
           onUpdateDirectories={handleUpdateDirectories}
           onDeleteFile={handleDeleteFile}
+          onDuplicateFile={handleDuplicateFile}
+          onMoveItem={handleMoveItem}
           onDeleteCollection={handleDeleteCollection}
           onRenameItem={handleRenameItem}
           onRenameCollection={handleRenameCollection}
           onRenamedSelection={handleRenamedSelection}
+          onToggleFavorite={handleToggleFavorite}
+          favoritesGroup={favoritesGroup}
           onImportFromAzure={handleOpenAzureImport}
-          collapsed={collapsed}
+          onCreateCanvas={handleCreateCanvas}
           onToggleCollapsed={() => setCollapsed((c) => !c)}
           width={width}
           onWidthChange={setWidth}
@@ -566,10 +910,40 @@ export default function DocumentPageContent({
           revealTarget={reveal}
           title="Documents"
           className="h-full! shrink-0"
+          collapsed={collapsed}
+          headerAction={
+            <button
+              type="button"
+              onClick={toggleDocumentViewMode}
+              aria-label={isGraphMode ? "Show document editor" : "Show document graph"}
+              aria-pressed={isGraphMode}
+              title={isGraphMode ? "Document view" : "Graph view"}
+              className={`p-1.5 rounded-md transition-colors ${
+                isGraphMode
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-surface-strong hover:text-foreground"
+              }`}
+            >
+              {isGraphMode ? <FileText className="h-4 w-4" /> : <Network className="h-4 w-4" />}
+            </button>
+          }
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
-          {selectedFile && selectedPath ? (
+          {isGraphMode ? (
+            <DocumentGraphView
+              collections={collections}
+              theme={resolvedTheme}
+              onOpenFile={handleOpenFromGraph}
+              previewFileId={previewFileId}
+            />
+          ) : isFileLoading ? (
+            selectedFile?.type === "canvas" ? (
+              <CanvasSkeleton />
+            ) : (
+              <DocumentSkeleton />
+            )
+          ) : selectedFile && selectedPath ? (
             <>
               <div className="shrink-0 border-b border-border px-6 py-4">
                 <div className="flex items-start justify-between gap-4">
@@ -612,60 +986,118 @@ export default function DocumentPageContent({
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    {viewLang === "th" && chatModels.length > 1 ? (
-                      <SelectField
-                        size="small"
-                        aria-label="Translation model"
-                        placeholder="Model"
-                        options={chatModels.map((m) => ({ value: m.id, label: m.name }))}
-                        value={translationModelId}
-                        onChange={(v) => setTranslationModelId(v == null ? null : String(v))}
-                        className="w-44"
-                      />
-                    ) : null}
-                    <div
-                      className="inline-flex overflow-hidden rounded-md border border-border"
-                      role="group"
-                      aria-label="Document language"
-                    >
-                      <button
-                        type="button"
-                        className={`px-3 py-1.5 text-xs transition-colors ${
-                          viewLang === "en"
-                            ? "bg-primary font-semibold text-primary-foreground shadow-sm"
-                            : "bg-surface font-medium text-muted-foreground hover:bg-surface/70 hover:text-foreground"
-                        }`}
-                        onClick={() => void handleToggleLang("en")}
-                        aria-pressed={viewLang === "en"}
-                      >
-                        EN
-                      </button>
-                      <button
-                        type="button"
-                        className={`border-l border-border px-3 py-1.5 text-xs transition-colors ${
-                          viewLang === "th"
-                            ? "bg-primary font-semibold text-primary-foreground shadow-sm"
-                            : "bg-surface font-medium text-muted-foreground hover:bg-surface/70 hover:text-foreground"
-                        }`}
-                        onClick={() => void handleToggleLang("th")}
-                        aria-pressed={viewLang === "th"}
-                        title="Translate to Thai with AI"
-                      >
-                        TH
-                      </button>
-                    </div>
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-md border border-border bg-surface p-2 text-sm text-foreground hover:bg-surface/70"
-                      onClick={() => setHistoryOpen(true)}
-                      aria-label="Open history"
-                      title="History"
+                      className={`inline-flex items-center justify-center rounded-md border p-2 text-sm transition-colors ${
+                        selectedFavorite
+                          ? "border-amber-200 bg-amber-50 text-amber-500 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/15"
+                          : "border-border bg-surface text-foreground hover:bg-surface/70"
+                      }`}
+                      onClick={() =>
+                        void handleToggleFavorite({
+                          ...selectedFile,
+                          isFavorite: selectedFavorite,
+                        })
+                      }
+                      aria-label={selectedFavorite ? "Remove from favorites" : "Add to favorites"}
+                      aria-pressed={selectedFavorite}
+                      title={selectedFavorite ? "Remove from favorites" : "Add to favorites"}
                     >
-                      <Clock className="h-4 w-4" />
+                      <Star
+                        className="h-4 w-4"
+                        fill={selectedFavorite ? "currentColor" : "none"}
+                      />
                     </button>
+                    {selectedFile.type !== "canvas" ? (
+                      <>
+                      {viewLang === "th" && chatModels.length > 1 ? (
+                        <SelectField
+                          size="small"
+                          aria-label="Translation model"
+                          placeholder="Model"
+                          options={chatModels.map((m) => ({ value: m.id, label: m.name }))}
+                          value={translationModelId}
+                          onChange={(v) => setTranslationModelId(v == null ? null : String(v))}
+                          className="w-44"
+                        />
+                      ) : null}
+                      <div
+                        className="inline-flex overflow-hidden rounded-md border border-border"
+                        role="group"
+                        aria-label="Document language"
+                      >
+                        <button
+                          type="button"
+                          className={`px-3 py-1.5 text-xs transition-colors ${
+                            viewLang === "en"
+                              ? "bg-primary font-semibold text-primary-foreground shadow-sm"
+                              : "bg-surface font-medium text-muted-foreground hover:bg-surface/70 hover:text-foreground"
+                          }`}
+                          onClick={() => void handleToggleLang("en")}
+                          aria-pressed={viewLang === "en"}
+                        >
+                          EN
+                        </button>
+                        <button
+                          type="button"
+                          className={`border-l border-border px-3 py-1.5 text-xs transition-colors ${
+                            viewLang === "th"
+                              ? "bg-primary font-semibold text-primary-foreground shadow-sm"
+                              : "bg-surface font-medium text-muted-foreground hover:bg-surface/70 hover:text-foreground"
+                          }`}
+                          onClick={() => void handleToggleLang("th")}
+                          aria-pressed={viewLang === "th"}
+                          title="Translate to Thai with AI"
+                        >
+                          TH
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md border border-border bg-surface p-2 text-sm text-foreground hover:bg-surface/70"
+                        onClick={() => setHistoryOpen(true)}
+                        aria-label="Open history"
+                        title="History"
+                      >
+                        <Clock className="h-4 w-4" />
+                      </button>
+                      </>
+                    ) : null}
                   </div>
                 </div>
+                <TagBar itemId={selectedFile.id} />
               </div>
+              {selectedFile.type === "canvas" ? (
+                // Mount only once the saved graph is loaded so the store hydrates
+                // from real content (the view seeds the store on mount).
+                fileContents[selectedFile.id] !== undefined ? (
+                  <CanvasDocumentView
+                    key={selectedFile.id}
+                    itemId={selectedFile.id}
+                    content={fileContents[selectedFile.id]}
+                    onSave={handleSaveCanvas}
+                  />
+                ) : (
+                  <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
+                    Loading canvas…
+                  </div>
+                )
+              ) : isRichTextFileName(selectedFile.name) ? (
+              <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+                <TiptapEditor
+                  key={`${selectedFile.id}:${viewLang}`}
+                  selectedFile={selectedFile}
+                  theme={resolvedTheme}
+                  initialContent={editorSeed}
+                  fullHeight
+                  onChange={handleContentChange}
+                  onSave={handleSave}
+                  onUploadImage={handleUploadImage}
+                  documents={documents}
+                  onOpenItem={openItemById}
+                />
+              </div>
+              ) : (
               <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                 <MarkdownEditor
                   key={`${selectedFile.id}:${viewLang}`}
@@ -680,6 +1112,7 @@ export default function DocumentPageContent({
                   onOpenItem={openItemById}
                 />
               </div>
+              )}
             </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
@@ -767,6 +1200,16 @@ export default function DocumentPageContent({
         onClose={() => setAzureOpen(false)}
         onImport={handleImportUserStories}
       />
+
+      {paletteOpen && (
+        <CommandPalette
+          onClose={handlePaletteClose}
+          items={paletteItems}
+          onSelect={(id) => openItemById(id)}
+          onActiveChange={isGraphMode ? handlePaletteActiveChange : undefined}
+          dimBackdrop={!isGraphMode}
+        />
+      )}
     </div>
   );
 }

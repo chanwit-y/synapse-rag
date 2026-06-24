@@ -59,6 +59,19 @@ export async function renameDocumentItemAction(
   }
 }
 
+export async function setItemFavoriteAction(
+  itemId: string,
+  isFavorite: boolean,
+): Promise<ActionResult<{ id: string; isFavorite: boolean }>> {
+  try {
+    return actionSuccess(
+      await documentService.setItemFavorite(itemId, isFavorite),
+    );
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 export async function syncCollectionDirectoriesAction(
   collectionId: string,
   directories: TreeNode[],
@@ -82,11 +95,52 @@ export async function deleteDocumentItemAction(
   }
 }
 
+export async function duplicateDocumentItemAction(
+  itemId: string,
+): Promise<ActionResult<TreeNode>> {
+  try {
+    return actionSuccess(await documentService.duplicateItem(itemId));
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+/**
+ * Move a file, canvas, or folder into another collection (and optionally a
+ * folder within it). The item id is preserved, so histories, RAG links, canvas
+ * chats, and `?item=` deep-links all survive. `destFolderId` null = the
+ * destination collection's root. A folder moves recursively.
+ */
+export async function moveDocumentItemAction(
+  itemId: string,
+  destCollectionId: string,
+  destFolderId: string | null,
+): Promise<ActionResult<void>> {
+  try {
+    await documentService.moveItem(itemId, destCollectionId, destFolderId);
+    return actionSuccess(undefined);
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 export async function getDocumentItemContentAction(
   itemId: string,
 ): Promise<ActionResult<{ content: string }>> {
   try {
     return actionSuccess({ content: await documentService.getItemContent(itemId) });
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function createCanvasAction(params: {
+  collectionId: string;
+  folderId: string | null;
+  name: string;
+}): Promise<ActionResult<{ id: string }>> {
+  try {
+    return actionSuccess(await documentService.createCanvas(params));
   } catch (error) {
     return actionFailure(error);
   }
@@ -114,6 +168,31 @@ export async function uploadDocumentImageAction(
       return actionFailure(new Error("No image file provided"));
     }
     return actionSuccess(await documentService.uploadImage(file));
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function uploadCanvasImageAction(
+  formData: FormData,
+): Promise<ActionResult<{ path: string }>> {
+  try {
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      return actionFailure(new Error("No image file provided"));
+    }
+    return actionSuccess(await documentService.uploadCanvasImage(file));
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function deleteCanvasImageAction(
+  path: string,
+): Promise<ActionResult<void>> {
+  try {
+    await documentService.deleteCanvasImage(path);
+    return actionSuccess(undefined);
   } catch (error) {
     return actionFailure(error);
   }

@@ -1,15 +1,20 @@
-export const itemTypeValues = ["file", "folder"] as const;
+export const itemTypeValues = ["file", "folder", "canvas"] as const;
 export type ItemType = (typeof itemTypeValues)[number];
 
 /** Languages a document's content / history snapshot can be in. */
 export const contentLangValues = ["en", "th"] as const;
 export type ContentLang = (typeof contentLangValues)[number];
 
+/** Author of a canvas chat message (mirrors the client `ChatMessage.role`). */
+export const chatRoleValues = ["user", "ai"] as const;
+export type ChatRole = (typeof chatRoleValues)[number];
+
 export const apiKeyProviderValues = [
   "openai",
   "anthropic",
   "google",
   "azure-openai",
+  "microsoft-foundry",
   "azure-devops",
   "other",
 ] as const;
@@ -24,6 +29,7 @@ export const modelProviderValues = [
   "anthropic",
   "google",
   "azure-openai",
+  "microsoft-foundry",
   "other",
 ] as const;
 export type ModelProvider = (typeof modelProviderValues)[number];

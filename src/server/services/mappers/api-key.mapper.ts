@@ -8,6 +8,8 @@ export function toApiKeyRecord(row: ApiKey): ApiKeyRecord {
     name: row.name,
     provider: row.provider,
     keyMasked: row.keyMasked,
+    endpoint: row.endpoint ?? null,
+    apiVersion: row.apiVersion ?? null,
     status: row.status,
     updatedAt: toIsoString(row.updatedAt),
   };

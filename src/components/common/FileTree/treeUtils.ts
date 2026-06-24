@@ -139,6 +139,37 @@ export function flattenFileNodes(
   return out;
 }
 
+/** A flat view of one folder node: its id, name, and indented label path. */
+export interface FlatFolderNode {
+  id: string;
+  name: string;
+  /** Folder names from the root joined by " / " (e.g. "Azure / Backend"). */
+  path: string;
+}
+
+/**
+ * Collect every folder under `nodes`, each with its " / "-joined label path —
+ * the candidate destinations for the Move picker. `exclude` ids (and, since we
+ * never recurse into them, their descendants) are skipped so a folder can't be
+ * offered itself or its own subtree as a destination.
+ */
+export function flattenFolderNodes(
+  nodes: TreeNode[],
+  exclude: Set<string> = new Set(),
+  prefix: string[] = [],
+  out: FlatFolderNode[] = [],
+): FlatFolderNode[] {
+  for (const node of nodes) {
+    if (node.type !== "folder" || exclude.has(node.id)) continue;
+    const currentPath = [...prefix, node.name];
+    out.push({ id: node.id, name: node.name, path: currentPath.join(" / ") });
+    if (node.children?.length) {
+      flattenFolderNodes(node.children, exclude, currentPath, out);
+    }
+  }
+  return out;
+}
+
 export function removeNodeByIdInPlace(
   nodes: TreeNode[],
   nodeId: string,
@@ -153,6 +184,30 @@ export function removeNodeByIdInPlace(
     if (node.type === "folder" && node.children?.length) {
       const removed = removeNodeByIdInPlace(node.children, nodeId);
       if (removed) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Insert `newNode` directly after the node with id `afterId`, searching nested
+ * folders. Mutates `nodes` in place and returns true when the anchor was found.
+ */
+export function insertNodeAfterId(
+  nodes: TreeNode[],
+  afterId: string,
+  newNode: TreeNode,
+): boolean {
+  const index = nodes.findIndex((item) => item.id === afterId);
+  if (index !== -1) {
+    nodes.splice(index + 1, 0, newNode);
+    return true;
+  }
+
+  for (const node of nodes) {
+    if (node.type === "folder" && node.children?.length) {
+      if (insertNodeAfterId(node.children, afterId, newNode)) return true;
     }
   }
 
@@ -178,13 +233,15 @@ export function collectNodeAndDescendantIds(
  */
 export function dedupeName(
   name: string,
-  type: "folder" | "file",
+  type: TreeNode["type"],
   siblings: TreeNode[],
 ): string {
   const taken = new Set(siblings.map((s) => s.name));
   if (!taken.has(name)) return name;
 
-  const dot = type === "file" ? name.lastIndexOf(".") : -1;
+  // Files and canvases carry an extension to preserve; folders dedupe on the
+  // whole name.
+  const dot = type !== "folder" ? name.lastIndexOf(".") : -1;
   const base = dot > 0 ? name.slice(0, dot) : name;
   const ext = dot > 0 ? name.slice(dot) : "";
 
@@ -251,7 +308,7 @@ export function moveNodeInTree(
 export function getSiblingContainerList(
   directories: TreeNode[],
   pathSegments: string[],
-  selectedType: "folder" | "file" | null,
+  selectedType: TreeNode["type"] | null,
 ): TreeNode[] {
   if (pathSegments.length === 0 || selectedType == null) {
     return directories;

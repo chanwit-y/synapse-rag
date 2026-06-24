@@ -1,11 +1,15 @@
 "use server";
 
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {
   aiInstructionService,
+  contextSummaryService,
   getChatModelFromDb,
   getEmbeddingsFromDb,
   queryExpansionService,
+  wikiHistoryService,
+  type ContextSummaryKind,
+  type WikiSource,
 } from "@/server/services";
 import {
   itemRepository,
@@ -21,6 +25,41 @@ export type LangChainChatTestInput = {
 
 export type LangChainChatTestOutput = {
   content: string;
+};
+
+/** One turn of a multi-turn conversation sent to the model. */
+export type LangChainChatTurn = {
+  role: "user" | "ai";
+  text: string;
+};
+
+export type LangChainChatTurnsInput = {
+  modelId: string;
+  messages: LangChainChatTurn[];
+  /** Optional AI instruction template id — its content is injected as a system
+   *  prompt ahead of the transcript. */
+  instructionId?: string | null;
+  /** Optional pre-computed context brief (e.g. a summary of the conversation an
+   *  "Ask AI" node was spawned from) — injected as a system prompt so the chat
+   *  stays grounded in where its question came from. */
+  contextSummary?: string | null;
+  /** When `false`, skip the Wikipedia grounding of historical questions. Omitted
+   *  / `true` keeps it on (the canvas header toggle drives this). */
+  wikiSearch?: boolean;
+};
+
+/** A Wikipedia article that grounded a reply — surfaced to the client as a
+ *  source chip. Omits the (already-consumed) summary text. */
+export type ChatWikiSource = {
+  title: string;
+  url: string;
+  lang: string;
+};
+
+export type LangChainChatTurnsOutput = {
+  content: string;
+  /** Present when a historical question was grounded with a Wikipedia article. */
+  wikiSource?: ChatWikiSource;
 };
 
 export type LangChainRagChatInput = {
@@ -121,6 +160,154 @@ export async function chatWithModelFromDbAction(
     const result = await llm.invoke(prompt);
 
     return actionSuccess({ content: normalizeMessageContent(result.content) });
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+/**
+ * Multi-turn chat: maps a conversation transcript to LangChain Human/AI messages
+ * (preserving roles) and invokes the selected model. Used by the canvas chat
+ * node so a chat keeps its prior context across turns.
+ */
+export async function chatTurnsWithModelFromDbAction(
+  input: LangChainChatTurnsInput,
+): Promise<ActionResult<LangChainChatTurnsOutput>> {
+  try {
+    const turns = input.messages
+      .map((m) => ({ role: m.role, text: m.text.trim() }))
+      .filter((m) => m.text.length > 0);
+
+    if (turns.length === 0) {
+      return actionSuccess({ content: "" });
+    }
+
+    // Resolve the selected instruction template (if any) into a leading system
+    // prompt. Best-effort: a missing/empty template just omits the system turn.
+    const instruction = input.instructionId
+      ? (await aiInstructionService.getContent(input.instructionId)).trim()
+      : "";
+
+    // A spawned "Ask AI" node carries a brief of the chat/note it came from;
+    // inject it as its own system turn so the model has that background.
+    const context = input.contextSummary?.trim()
+      ? `Context the user's question was carried over from:\n${input.contextSummary.trim()}`
+      : "";
+
+    // Wikipedia grounding: if the latest user message is a historical question,
+    // fetch a Wikipedia summary and inject it as a system turn. Best-effort —
+    // `ground` returns null for non-historical messages or any failure, so a
+    // normal turn is unaffected (and we surface the source to the client).
+    const lastUser =
+      input.wikiSearch === false
+        ? undefined
+        : [...turns].reverse().find((m) => m.role === "user");
+    const wiki: WikiSource | null = lastUser
+      ? await wikiHistoryService.ground(lastUser.text, input.modelId)
+      : null;
+    const wikiBlock = wiki
+      ? `Use the following Wikipedia summary to help answer the user's historical question. Treat it as a reference, not the user's words. If you draw on it, you may cite "${wiki.title}".\n\n${wiki.title}:\n${wiki.summary}`
+      : "";
+
+    const llm = await getChatModelFromDb(input.modelId);
+    const result = await llm.invoke([
+      ...(instruction ? [new SystemMessage(instruction)] : []),
+      ...(context ? [new SystemMessage(context)] : []),
+      ...(wikiBlock ? [new SystemMessage(wikiBlock)] : []),
+      ...turns.map((m) =>
+        m.role === "ai" ? new AIMessage(m.text) : new HumanMessage(m.text),
+      ),
+    ]);
+
+    return actionSuccess({
+      content: normalizeMessageContent(result.content),
+      ...(wiki
+        ? { wikiSource: { title: wiki.title, url: wiki.url, lang: wiki.lang } }
+        : {}),
+    });
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export type SummarizeContextInput = {
+  /** What the content is, so the summary prompt can be tailored. */
+  kind: ContextSummaryKind;
+  /** The source content (a joined chat transcript or a note's text). */
+  content: string;
+  /** Model used only if no active OpenAI chat key exists for gpt-4o-mini. */
+  fallbackModelId: string;
+};
+
+/**
+ * Summarize a chat transcript or note into a short context brief for a spawned
+ * "Ask AI" node. Always succeeds with a string — best-effort summarization
+ * degrades to `""` (no context), so a failure never blocks the spawn.
+ */
+export async function summarizeContextAction(
+  input: SummarizeContextInput,
+): Promise<ActionResult<{ summary: string }>> {
+  try {
+    const summary = await contextSummaryService.summarize(
+      input.kind,
+      input.content,
+      input.fallbackModelId,
+    );
+    return actionSuccess({ summary });
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export type SummarizeChatNodeInput = {
+  /** Chat model to summarize with — the one picked in the canvas toolbar. */
+  modelId: string;
+  /** Optional AI instruction template id (toolbar pick) — its content becomes
+   *  the system prompt; when absent a default summarize system prompt is used. */
+  instructionId?: string | null;
+  /** The chat transcript to summarize (joined "User:/AI:" lines). */
+  transcript: string;
+};
+
+/** Default system prompt when the toolbar has no AI instruction selected. */
+const SUMMARIZE_CHAT_SYSTEM_PROMPT = `You are a helpful assistant that summarizes a conversation into clear, well-structured notes. Capture the key points, decisions, and any facts worth keeping. Use Markdown (short headings, bold, and bullet lists where it helps). Do not add a preamble — output only the summary.`;
+
+/** Always-on language guard. Sent as its own system turn AFTER any selected
+ *  instruction so the summary stays in the conversation's language even when the
+ *  picked instruction is written in (or asks for) another language. */
+const SUMMARIZE_LANGUAGE_DIRECTIVE = `Write the entire summary in the same language as the conversation being summarized. Detect the conversation's dominant language and respond only in that language — never translate it to another language.`;
+
+/**
+ * Summarize an "Ask AI" (chat) node's transcript into a Markdown note, using the
+ * model and instruction selected in the canvas toolbar. The selected instruction
+ * (if any) drives the system prompt; otherwise a default summarize prompt is used.
+ * Unlike {@link summarizeContextAction}, this honors the user's model/instruction
+ * choice and surfaces failures (the caller keeps the chat node intact on error).
+ */
+export async function summarizeChatNodeAction(
+  input: SummarizeChatNodeInput,
+): Promise<ActionResult<{ summary: string }>> {
+  try {
+    const transcript = input.transcript.trim();
+    if (!transcript) {
+      return actionSuccess({ summary: "" });
+    }
+
+    const instruction = input.instructionId
+      ? (await aiInstructionService.getContent(input.instructionId)).trim()
+      : "";
+    const system = instruction || SUMMARIZE_CHAT_SYSTEM_PROMPT;
+
+    const llm = await getChatModelFromDb(input.modelId);
+    const result = await llm.invoke([
+      new SystemMessage(system),
+      new SystemMessage(SUMMARIZE_LANGUAGE_DIRECTIVE),
+      new HumanMessage(
+        `Summarize this conversation, writing the summary in the same language as the conversation:\n\n${transcript}`,
+      ),
+    ]);
+
+    return actionSuccess({ summary: normalizeMessageContent(result.content).trim() });
   } catch (error) {
     return actionFailure(error);
   }

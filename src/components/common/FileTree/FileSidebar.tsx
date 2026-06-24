@@ -15,12 +15,15 @@ import { File as FileIcon, Folder as FolderIcon } from "lucide-react";
 import { PanelLeftClose, PanelLeftOpen, PlusIcon } from "lucide-react";
 import TreeView from "./TreeView";
 import type { FileType, TreeNode, TreeViewGroup } from "./types";
+import { fileTypeExtension, isRichTextFileName } from "./types";
 import FileSidebarModals from "./FileSidebarModals";
+import MoveItemModal from "./MoveItemModal";
 import { useSnackbar } from "@/components/common/Snackbar/Snackbar";
 import {
   countFiles,
   findNodeById,
   findNodeByPath,
+  insertNodeAfterId,
   moveNodeInTree,
   removeNodeByIdInPlace,
 } from "./treeUtils";
@@ -45,10 +48,35 @@ export interface FileSidebarProps {
   onUpdateDirectories?: (groupId: string, directories: TreeNode[]) => Promise<void>;
   /** Called to delete a file node from the backend. */
   onDeleteFile?: (fileId: string) => Promise<void>;
+  /**
+   * Duplicate a file/canvas node on the backend, resolving to the created
+   * item's tree node so the sidebar can place it next to the original.
+   */
+  onDuplicateFile?: (fileId: string) => Promise<TreeNode>;
+  /**
+   * Move a file/canvas/folder into another collection (and optionally a folder
+   * within it). `destFolderId` null = the destination collection's root. The
+   * caller refetches the tree and re-syncs the open editor. When omitted, the
+   * Move action is hidden.
+   */
+  onMoveItem?: (
+    itemId: string,
+    destCollectionId: string,
+    destFolderId: string | null,
+  ) => Promise<void>;
   /** Called to delete an entire collection from the backend. */
   onDeleteCollection?: (collectionId: string) => Promise<void>;
   /** Called when the user clicks "Import from Azure DevOps" for a collection. */
   onImportFromAzure?: (collectionId: string, folderId: string | null) => void;
+  /**
+   * Create a new canvas document. Resolves to the created item's id so the
+   * caller can open it. `folderId` is the target folder (null = collection root).
+   */
+  onCreateCanvas?: (params: {
+    collectionId: string;
+    folderId: string | null;
+    name: string;
+  }) => Promise<{ id: string }>;
   /** Persist a renamed file/folder. Throws on failure (caller reverts). */
   onRenameItem?: (
     itemId: string,
@@ -81,6 +109,23 @@ export interface FileSidebarProps {
   readOnlyTree?: boolean;
   title?: string;
   className?: string;
+  /**
+   * Optional control rendered in the header, just before the add-collection (+)
+   * button (e.g. a view-mode toggle). Hidden when the sidebar is collapsed, like
+   * the + button. Only the Document page supplies this; other usages are unaffected.
+   */
+  headerAction?: React.ReactNode;
+  /**
+   * Star/unstar a node. When provided, every tree node shows a star toggle and
+   * (with {@link favoritesGroup}) a pinned Favorites group renders on top.
+   */
+  onToggleFavorite?: (node: TreeNode) => void;
+  /**
+   * A read-only "Favorites" group pinned above the collections, built by the
+   * caller from the starred nodes across all collections. Omitted/empty → no
+   * Favorites section is shown.
+   */
+  favoritesGroup?: TreeViewGroup | null;
 }
 
 export default function FileSidebar({
@@ -89,8 +134,11 @@ export default function FileSidebar({
   onCreateCollection,
   onUpdateDirectories,
   onDeleteFile,
+  onDuplicateFile,
+  onMoveItem,
   onDeleteCollection,
   onImportFromAzure,
+  onCreateCanvas,
   onRenameItem,
   onRenameCollection,
   onRenamedSelection,
@@ -107,6 +155,9 @@ export default function FileSidebar({
   readOnlyTree,
   title = "Collection",
   className,
+  headerAction,
+  onToggleFavorite,
+  favoritesGroup,
 }: FileSidebarProps) {
   const { showSnackbar } = useSnackbar();
 
@@ -141,7 +192,10 @@ export default function FileSidebar({
 
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [itemName, setItemName] = useState("");
-  const [itemType, setItemType] = useState<"file" | "folder">("file");
+  const [itemType, setItemType] = useState<"file" | "folder" | "canvas">("file");
+  // Editor for a new file, chosen in the create-file popover. Only meaningful
+  // when itemType === "file"; selects the extension (`.md` vs `.rt`).
+  const [fileEditorType, setFileEditorType] = useState<FileType>("md");
   const [isSavingItem, setIsSavingItem] = useState(false);
   const [selectedNodeForAdd, setSelectedNodeForAdd] = useState<{
     node: TreeNode | null;
@@ -163,6 +217,13 @@ export default function FileSidebar({
   const [selectedGroupForDelete, setSelectedGroupForDelete] = useState<{
     group: TreeViewGroup;
     groupIndex: number;
+  } | null>(null);
+
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [isMovingItem, setIsMovingItem] = useState(false);
+  const [selectedNodeForMove, setSelectedNodeForMove] = useState<{
+    node: TreeNode;
+    parentFolderId: string | null;
   } | null>(null);
 
   const [activeDrag, setActiveDrag] = useState<{
@@ -274,7 +335,7 @@ export default function FileSidebar({
   );
 
   const handleNodeClick = (node: TreeNode, nodePath: string) => {
-    if (node.type === "file") {
+    if (node.type === "file" || node.type === "canvas") {
       onSelectFile?.(node, nodePath);
     }
   };
@@ -317,7 +378,7 @@ export default function FileSidebar({
     selectedNode: TreeNode | null,
     selectedNodePath: string | null,
     groupIndex: number,
-    _fileType: FileType,
+    fileType: FileType,
   ) => {
     setSelectedNodeForAdd({
       node: selectedNode,
@@ -325,6 +386,7 @@ export default function FileSidebar({
       groupIndex,
     });
     setItemType("file");
+    setFileEditorType(fileType);
     setItemName("");
     setIsAddItemModalOpen(true);
   };
@@ -340,6 +402,21 @@ export default function FileSidebar({
       groupIndex,
     });
     setItemType("folder");
+    setItemName("");
+    setIsAddItemModalOpen(true);
+  };
+
+  const handleAddCanvas = (
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+    groupIndex: number,
+  ) => {
+    setSelectedNodeForAdd({
+      node: selectedNode,
+      path: selectedNodePath,
+      groupIndex,
+    });
+    setItemType("canvas");
     setItemName("");
     setIsAddItemModalOpen(true);
   };
@@ -379,12 +456,58 @@ export default function FileSidebar({
     setSelectedNodeForAdd(null);
   };
 
+  // From the current tree selection, resolve which folder a new item should
+  // land in: a selected folder is the target; a selected file targets its
+  // parent folder; anything else falls back to the collection root (null).
+  const resolveTargetFolderId = (
+    group: TreeViewGroup,
+    selected: { node: TreeNode | null; path: string | null },
+  ): string | null => {
+    if (!selected.node || !selected.path) return null;
+    const segments = selected.path.split("/");
+    const node = findNodeByPath(group.directories, segments);
+    if (!node || node.id !== selected.node.id) return null;
+    if (node.type === "folder") return node.id;
+    if (segments.length > 1) {
+      const parent = findNodeByPath(group.directories, segments.slice(0, -1));
+      if (parent && parent.type === "folder") return parent.id;
+    }
+    return null;
+  };
+
   const handleAddItem = async () => {
     const name = itemName.trim();
     if (!name || isSavingItem || !selectedNodeForAdd) return;
 
+    // Canvas creation is persisted server-side (it owns its JSON content), so it
+    // bypasses the optimistic structure sync used by files/folders. The caller
+    // refreshes the tree and opens the new canvas.
+    if (itemType === "canvas") {
+      const group = collections[selectedNodeForAdd.groupIndex ?? 0];
+      if (!group || !onCreateCanvas) return;
+      const folderId = resolveTargetFolderId(group, selectedNodeForAdd);
+
+      setIsSavingItem(true);
+      try {
+        await onCreateCanvas({ collectionId: group.id, folderId, name });
+        handleCloseAddItemModal();
+        showSnackbar({ variant: "success", message: `Canvas "${name}" added.` });
+      } catch (err) {
+        console.error("Failed to create canvas:", err);
+        showSnackbar({
+          variant: "error",
+          message: "Failed to add canvas. Please try again.",
+        });
+      } finally {
+        setIsSavingItem(false);
+      }
+      return;
+    }
+
     const resolvedName =
-      itemType === "file" && !name.includes(".") ? `${name}.md` : name;
+      itemType === "file" && !name.includes(".")
+        ? `${name}.${fileTypeExtension(fileEditorType)}`
+        : name;
 
     const newItem: TreeNode = {
       id: generateId(),
@@ -511,7 +634,7 @@ export default function FileSidebar({
 
     setIsDeletingItem(true);
     try {
-      if (target.node.type === "file") {
+      if (target.node.type === "file" || target.node.type === "canvas") {
         await onDeleteFile?.(target.node.id);
       }
       await onUpdateDirectories?.(group.id, group.directories);
@@ -538,6 +661,89 @@ export default function FileSidebar({
       });
     } finally {
       setIsDeletingItem(false);
+    }
+  };
+
+  // Duplicate a file/canvas: the backend clones it (content, translation,
+  // history, and — for canvases — chat transcripts) and returns the new node,
+  // which we drop into the tree right after the original. A backdrop covers the
+  // in-flight call (parent's withLoading), so this needs no optimistic state.
+  const handleDuplicateNode = async (
+    node: TreeNode,
+    _nodePath: string,
+    groupIndex: number,
+  ) => {
+    if (!onDuplicateFile) return;
+
+    try {
+      const created = await onDuplicateFile(node.id);
+
+      const updatedCollections: TreeViewGroup[] = JSON.parse(
+        JSON.stringify(collections),
+      );
+      const group = updatedCollections[groupIndex];
+      if (group) {
+        if (!insertNodeAfterId(group.directories, node.id, created)) {
+          group.directories.push(created);
+        }
+        onCollectionsChange(updatedCollections);
+      }
+
+      showSnackbar({
+        variant: "success",
+        message: `${node.type === "canvas" ? "Canvas" : "File"} "${created.name}" created.`,
+      });
+    } catch (err) {
+      console.error("Failed to duplicate item:", err);
+      showSnackbar({
+        variant: "error",
+        message: `Failed to duplicate ${node.type}. Please try again.`,
+      });
+    }
+  };
+
+  const handleRequestMoveNode = (
+    node: TreeNode,
+    parentFolderId: string | null,
+  ) => {
+    setSelectedNodeForMove({ node, parentFolderId });
+    setIsMoveModalOpen(true);
+  };
+
+  const handleCloseMoveModal = () => {
+    if (isMovingItem) return;
+    setIsMoveModalOpen(false);
+    setSelectedNodeForMove(null);
+  };
+
+  // Move a node to another collection/folder. The backend reassigns the item
+  // (and, for a folder, its whole subtree) preserving ids; the caller then
+  // refetches the tree and re-syncs the open editor. A backdrop (parent's
+  // withLoading) covers the call, so no optimistic tree edit is needed here.
+  const handleConfirmMove = async (
+    destCollectionId: string,
+    destFolderId: string | null,
+  ) => {
+    if (!selectedNodeForMove || !onMoveItem || isMovingItem) return;
+
+    const { node } = selectedNodeForMove;
+    setIsMovingItem(true);
+    try {
+      await onMoveItem(node.id, destCollectionId, destFolderId);
+      setIsMoveModalOpen(false);
+      setSelectedNodeForMove(null);
+      showSnackbar({
+        variant: "success",
+        message: `${node.type === "folder" ? "Folder" : node.type === "canvas" ? "Canvas" : "File"} "${node.name}" moved.`,
+      });
+    } catch (err) {
+      console.error("Failed to move item:", err);
+      showSnackbar({
+        variant: "error",
+        message: `Failed to move ${node.type}. Please try again.`,
+      });
+    } finally {
+      setIsMovingItem(false);
     }
   };
 
@@ -632,9 +838,18 @@ export default function FileSidebar({
     const trimmed = value.trim();
     if (!trimmed) return; // empty → treat as cancel
 
-    // Mirror the add flow: extensionless files get a `.md` suffix.
+    // Mirror the add flow: extensionless files get a suffix preserving their
+    // editor (`.rt` for rich-text, else `.md`) and canvases a `.canvas` suffix.
+    const renameExt =
+      node.type === "canvas"
+        ? "canvas"
+        : isRichTextFileName(node.name)
+          ? "rt"
+          : "md";
     const normalized =
-      node.type === "file" && !trimmed.includes(".") ? `${trimmed}.md` : trimmed;
+      !trimmed.includes(".") && (node.type === "file" || node.type === "canvas")
+        ? `${trimmed}.${renameExt}`
+        : trimmed;
 
     if (normalized === node.name) return; // unchanged → silent no-op
 
@@ -770,14 +985,21 @@ export default function FileSidebar({
             </h2>
           </div>
 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className={`p-1.5 rounded-md transition-colors text-muted-foreground hover:bg-surface-strong hover:text-foreground ${
-              collapsed ? "sr-only" : ""
-            }`}
-          >
-            <PlusIcon className="w-4 h-4" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {headerAction ? (
+              <span className={collapsed ? "sr-only" : ""}>{headerAction}</span>
+            ) : null}
+            <button
+              onClick={() => setIsModalOpen(true)}
+              aria-label="Add collection"
+              title="Add collection"
+              className={`p-1.5 rounded-md transition-colors text-muted-foreground hover:bg-surface-strong hover:text-foreground ${
+                collapsed ? "sr-only" : ""
+              }`}
+            >
+              <PlusIcon className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Tree */}
@@ -786,6 +1008,18 @@ export default function FileSidebar({
             collapsed ? "opacity-0 pointer-events-none" : "opacity-100"
           }`}
         >
+          {!isLoading &&
+            favoritesGroup &&
+            favoritesGroup.directories.length > 0 && (
+              <div className="shrink-0 max-h-[45%] overflow-y-auto border-b border-border">
+                <TreeView
+                  data={[favoritesGroup]}
+                  onNodeClick={handleNodeClick}
+                  onToggleFavorite={onToggleFavorite}
+                  readOnlyTree
+                />
+              </div>
+            )}
           <div className="flex-1 overflow-hidden">
             {isLoading ? (
               <SkeletonTree />
@@ -793,10 +1027,14 @@ export default function FileSidebar({
               <TreeView
                 data={collections}
                 onNodeClick={handleNodeClick}
+                onToggleFavorite={onToggleFavorite}
                 onAddFile={handleAddFile}
                 onAddFolder={handleAddFolder}
                 onRequestDeleteNode={handleRequestDeleteNode}
+                onDuplicateNode={onDuplicateFile ? handleDuplicateNode : undefined}
+                onMoveNode={onMoveItem ? handleRequestMoveNode : undefined}
                 onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
+                onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                 onRequestDeleteGroup={
                   onDeleteCollection ? handleRequestDeleteGroup : undefined
                 }
@@ -820,7 +1058,11 @@ export default function FileSidebar({
                   onAddFile={handleAddFile}
                   onAddFolder={handleAddFolder}
                   onRequestDeleteNode={handleRequestDeleteNode}
+                  onDuplicateNode={onDuplicateFile ? handleDuplicateNode : undefined}
+                  onMoveNode={onMoveItem ? handleRequestMoveNode : undefined}
+                  onToggleFavorite={onToggleFavorite}
                   onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
+                  onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                   onRequestDeleteGroup={
                     onDeleteCollection ? handleRequestDeleteGroup : undefined
                   }
@@ -906,6 +1148,16 @@ export default function FileSidebar({
               }
             : null
         }
+      />
+
+      <MoveItemModal
+        open={isMoveModalOpen}
+        onClose={handleCloseMoveModal}
+        node={selectedNodeForMove?.node ?? null}
+        currentFolderId={selectedNodeForMove?.parentFolderId ?? null}
+        collections={collections}
+        onConfirm={handleConfirmMove}
+        isMoving={isMovingItem}
       />
     </>
   );

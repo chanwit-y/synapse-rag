@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 export interface InlineEditInputProps {
   initialValue: string;
-  /** For files, the basename (before the extension) is preselected. */
-  kind?: "file" | "folder" | "collection";
+  /** For files and canvases, the basename (before the extension) is preselected. */
+  kind?: "file" | "folder" | "collection" | "canvas";
   onCommit: (value: string) => void;
   onCancel: () => void;
   className?: string;
@@ -32,7 +32,7 @@ export default function InlineEditInput({
     const el = inputRef.current;
     if (!el) return;
     el.focus();
-    if (kind === "file") {
+    if (kind === "file" || kind === "canvas") {
       const dot = initialValue.lastIndexOf(".");
       if (dot > 0) el.setSelectionRange(0, dot);
       else el.select();

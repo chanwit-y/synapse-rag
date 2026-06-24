@@ -22,6 +22,13 @@ export {
 } from "./history.repository";
 
 export {
+  CanvasChatMessageRepository,
+  canvasChatMessageRepository,
+  type CanvasChatMessage,
+  type NewCanvasChatMessage,
+} from "./canvas-chat-message.repository";
+
+export {
   ApiKeyRepository,
   apiKeyRepository,
   type ApiKey,
@@ -43,6 +50,13 @@ export {
 } from "./model.repository";
 
 export {
+  AppSettingRepository,
+  appSettingRepository,
+  type AppSetting,
+  type NewAppSetting,
+} from "./app-settings.repository";
+
+export {
   RagRepository,
   ragRepository,
   type Rag,
@@ -62,3 +76,17 @@ export {
   type ItemRag,
   type NewItemRag,
 } from "./item-rag.repository";
+
+export {
+  TagRepository,
+  tagRepository,
+  type Tag,
+  type NewTag,
+} from "./tag.repository";
+
+export {
+  ItemTagRepository,
+  itemTagRepository,
+  type ItemTag,
+  type NewItemTag,
+} from "./item-tag.repository";

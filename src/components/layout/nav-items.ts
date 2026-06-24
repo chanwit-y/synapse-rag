@@ -25,6 +25,11 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { href: "/settings/ai-model", label: "AI Model", Icon: Icon.Cpu },
       {
+        href: "/settings/background-model",
+        label: "Background Model",
+        Icon: Icon.Sparkles,
+      },
+      {
         href: "/settings/ai-instruction",
         label: "AI Instruction",
         Icon: Icon.ScrollText,

@@ -1,12 +1,16 @@
 import { relations } from "drizzle-orm";
 import { apiKeys } from "./api-keys";
+import { appSettings } from "./app-settings";
+import { canvasChatMessages } from "./canvas-chat-messages";
 import { collections } from "./collections";
 import { histories } from "./histories";
 import { itemRags } from "./item-rags";
+import { itemTags } from "./item-tags";
 import { items } from "./items";
 import { models } from "./models";
 import { ragChunks } from "./rag-chunks";
 import { rags } from "./rags";
+import { tags } from "./tags";
 
 export const collectionsRelations = relations(collections, ({ many }) => ({
   items: many(items),
@@ -25,6 +29,8 @@ export const itemsRelations = relations(items, ({ one, many }) => ({
   children: many(items, { relationName: "folderHierarchy" }),
   histories: many(histories),
   rags: many(itemRags),
+  tags: many(itemTags),
+  canvasChatMessages: many(canvasChatMessages),
 }));
 
 export const historiesRelations = relations(histories, ({ one }) => ({
@@ -33,6 +39,16 @@ export const historiesRelations = relations(histories, ({ one }) => ({
     references: [items.id],
   }),
 }));
+
+export const canvasChatMessagesRelations = relations(
+  canvasChatMessages,
+  ({ one }) => ({
+    item: one(items, {
+      fields: [canvasChatMessages.itemId],
+      references: [items.id],
+    }),
+  }),
+);
 
 export const apiKeysRelations = relations(apiKeys, ({ many }) => ({
   models: many(models),
@@ -44,6 +60,14 @@ export const modelsRelations = relations(models, ({ one, many }) => ({
     references: [apiKeys.id],
   }),
   rags: many(rags),
+  appSettings: many(appSettings),
+}));
+
+export const appSettingsRelations = relations(appSettings, ({ one }) => ({
+  model: one(models, {
+    fields: [appSettings.modelId],
+    references: [models.id],
+  }),
 }));
 
 export const ragsRelations = relations(rags, ({ one, many }) => ({
@@ -70,5 +94,20 @@ export const ragChunksRelations = relations(ragChunks, ({ one }) => ({
   rag: one(rags, {
     fields: [ragChunks.ragId],
     references: [rags.id],
+  }),
+}));
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  items: many(itemTags),
+}));
+
+export const itemTagsRelations = relations(itemTags, ({ one }) => ({
+  item: one(items, {
+    fields: [itemTags.itemId],
+    references: [items.id],
+  }),
+  tag: one(tags, {
+    fields: [itemTags.tagId],
+    references: [tags.id],
   }),
 }));
