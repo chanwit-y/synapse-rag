@@ -19,12 +19,14 @@ import {
   Sparkles,
   StickyNote,
   ArrowLeft,
+  FileInput,
 } from "lucide-react";
 import { useEditor, useEditorState, EditorContent } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { summarizeContextAction } from "@/server/actions";
 import { useCanvasStore } from "../store/canvas-store";
+import { htmlToProseMirrorDoc, markdownToProseMirrorDoc } from "./markdownToDoc";
 import SideHandles, { SIDES } from "./SideHandles";
 import NodeRemoveButton from "./NodeRemoveButton";
 import NodeColorButton from "./NodeColorButton";
@@ -138,6 +140,12 @@ export default function TextEditorNode({
   const [picker, setPicker] = useState<Picker | null>(null);
   // While true, "Create" is awaiting the context summary before spawning.
   const [summarizing, setSummarizing] = useState(false);
+  // Import-from-source popover: open flag, chosen source format, pasted text, and
+  // whether we're on the "replace existing content?" confirmation step.
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFormat, setImportFormat] = useState<"markdown" | "html">("markdown");
+  const [importText, setImportText] = useState("");
+  const [importConfirm, setImportConfirm] = useState(false);
 
   // Comma-joined ids of this node's selected highlight-children (primitive, to
   // limit re-renders) — drives per-pair focus reveal.
@@ -388,6 +396,38 @@ export default function TextEditorNode({
     setLive(null);
   }, [picker, live, editor, id, spawn, summarizing]);
 
+  // Reset and close the import popover.
+  const closeImport = useCallback(() => {
+    setImportOpen(false);
+    setImportConfirm(false);
+    setImportText("");
+  }, []);
+
+  // Convert the pasted source and replace the body. `setContent` updates the live
+  // editor (which is create-once and won't re-read `data.doc`); its `onUpdate`
+  // then persists the new doc via the existing debounced flush.
+  const applyImport = useCallback(() => {
+    if (!editor) return;
+    const doc =
+      importFormat === "markdown"
+        ? markdownToProseMirrorDoc(importText)
+        : htmlToProseMirrorDoc(importText);
+    editor.commands.setContent(doc);
+    closeImport();
+    notify("✅ Replaced the note from the imported content");
+  }, [editor, importFormat, importText, closeImport, notify]);
+
+  // Convert pressed: if the body already has content, step to a replace
+  // confirmation first; otherwise replace straight away.
+  const runImport = useCallback(() => {
+    if (!editor || !importText.trim()) return;
+    if (!editor.isEmpty) {
+      setImportConfirm(true);
+      return;
+    }
+    applyImport();
+  }, [editor, importText, applyImport]);
+
   const anchorOf = (rects: Rect[]) =>
     rects[0] ? { x: rects[0].left + rects[0].width / 2, y: rects[0].top } : null;
 
@@ -425,7 +465,7 @@ export default function TextEditorNode({
       </div>
 
       {/* Formatting toolbar */}
-      <div className="flex items-center gap-0.5 border-b border-slate-100 px-3 py-1.5 dark:border-slate-800">
+      <div className="relative flex items-center gap-0.5 border-b border-slate-100 px-3 py-1.5 dark:border-slate-800">
         {FORMAT_BUTTONS.map(({ icon: Icon, label, active, run }) => {
           const isActive = toolbarState?.[active] ?? false;
           return (
@@ -444,6 +484,91 @@ export default function TextEditorNode({
             </button>
           );
         })}
+
+        <span className="mx-1 h-4 w-px bg-slate-200 dark:bg-slate-700" />
+        <button
+          title="Import Markdown / HTML"
+          disabled={!editor}
+          onClick={() => (importOpen ? closeImport() : setImportOpen(true))}
+          className={`nodrag rounded-md p-1.5 transition-colors ${
+            importOpen
+              ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+              : "text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+          }`}
+        >
+          <FileInput size={15} strokeWidth={2} />
+        </button>
+
+        {/* Import-from-source popover */}
+        {importOpen && (
+          <div className="nodrag nowheel absolute left-3 top-full z-30 mt-1 w-[280px] rounded-xl border border-slate-200 bg-white p-2.5 shadow-lg shadow-slate-900/15 dark:border-slate-700 dark:bg-slate-800">
+            {importConfirm ? (
+              <div className="flex flex-col gap-2 p-0.5">
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  This note already has content. Replace it with the imported text?
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={applyImport}
+                    className="flex-1 rounded-lg bg-rose-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-rose-600"
+                  >
+                    Replace
+                  </button>
+                  <button
+                    onClick={() => setImportConfirm(false)}
+                    className="flex-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-700/50">
+                  {(["markdown", "html"] as const).map((fmt) => (
+                    <button
+                      key={fmt}
+                      onClick={() => setImportFormat(fmt)}
+                      className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                        importFormat === fmt
+                          ? "bg-white text-slate-800 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                          : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                      }`}
+                    >
+                      {fmt === "markdown" ? "Markdown" : "Rich text"}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder={
+                    importFormat === "markdown"
+                      ? "Paste Markdown here…"
+                      : "Paste HTML markup here…"
+                  }
+                  rows={6}
+                  className="nodrag nowheel w-full resize-y rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-amber-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
+                />
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={runImport}
+                    disabled={!importText.trim()}
+                    className="flex-1 rounded-lg bg-violet-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-violet-600 disabled:opacity-50"
+                  >
+                    Convert
+                  </button>
+                  <button
+                    onClick={closeImport}
+                    className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Editable body */}

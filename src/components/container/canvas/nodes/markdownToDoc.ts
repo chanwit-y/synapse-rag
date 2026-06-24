@@ -38,3 +38,21 @@ export function markdownToProseMirrorDoc(markdown: string): JSONContent {
     return plainDoc(text);
   }
 }
+
+/**
+ * Convert an HTML markup string (pasted rich-text source) into a ProseMirror doc
+ * the text-editor node renders. Browser-only — `generateJSON` parses HTML via the
+ * DOM, so this must run from a user-triggered client path, never during SSR. Only
+ * schema-allowed nodes/marks survive (scripts, styles, unknown tags are dropped),
+ * so the input is sanitized as a side effect. Any failure degrades to a single
+ * plain-text paragraph rather than throwing.
+ */
+export function htmlToProseMirrorDoc(html: string): JSONContent {
+  const text = html.trim();
+  if (!text) return plainDoc("");
+  try {
+    return generateJSON(text, EXTENSIONS);
+  } catch {
+    return plainDoc(text);
+  }
+}

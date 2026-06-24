@@ -793,6 +793,7 @@ export default function DocumentPageContent({
       collectionId: string;
       folderId: string | null;
       name: string;
+      content?: string;
     }) =>
       withLoading(async () => {
         const created = unwrapAction(await createCanvasAction(params));
@@ -812,6 +813,48 @@ export default function DocumentPageContent({
         return created;
       }),
     [handleSelectFile, withLoading],
+  );
+
+  // Convert a markdown/rich-text file into a new canvas holding a single
+  // text-editor node with the file's content. Both .md and .rt store Markdown in
+  // `content`, so the conversion path is uniform. The ProseMirror conversion is
+  // browser-only (lazy-imported so Tiptap/marked stay out of the page's initial
+  // bundle), then the graph seeds a new "<name>.canvas" beside the source file.
+  const handleConvertToCanvas = useCallback(
+    async (node: TreeNode, parentFolderId: string | null) => {
+      await withLoading(async () => {
+        let markdown = fileContents[node.id];
+        if (markdown === undefined) {
+          const res = await getDocumentItemContentAction(node.id);
+          markdown = res.success ? res.data.content : "";
+        }
+        const { markdownToProseMirrorDoc } = await import(
+          "./canvas/nodes/markdownToDoc"
+        );
+        const doc = markdownToProseMirrorDoc(markdown ?? "");
+        const base = node.name.replace(/\.[^/.]+$/, "") || "Untitled";
+        const graph = JSON.stringify({
+          nodes: [
+            {
+              id: `textEditor-${Date.now()}-0`,
+              type: "textEditor",
+              position: { x: 120, y: 80 },
+              style: { width: 480 },
+              data: { title: base, doc, paragraph: "" },
+            },
+          ],
+          edges: [],
+        });
+        await handleCreateCanvas({
+          collectionId: node.collectionId,
+          folderId: parentFolderId,
+          name: base,
+          content: graph,
+        });
+        showSnackbar({ variant: "success", message: `Converted "${node.name}" to a canvas.` });
+      });
+    },
+    [fileContents, handleCreateCanvas, showSnackbar, withLoading],
   );
 
   // Persist a canvas's serialized graph (reuses the document save path, which
@@ -893,6 +936,7 @@ export default function DocumentPageContent({
           favoritesGroup={favoritesGroup}
           onImportFromAzure={handleOpenAzureImport}
           onCreateCanvas={handleCreateCanvas}
+          onConvertToCanvas={handleConvertToCanvas}
           onToggleCollapsed={() => setCollapsed((c) => !c)}
           width={width}
           onWidthChange={setWidth}
