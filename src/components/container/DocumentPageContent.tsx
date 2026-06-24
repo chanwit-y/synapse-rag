@@ -61,6 +61,7 @@ const CanvasDocumentView = dynamic(
 import { useLayoutStore } from "@/store/layout-store";
 import { ArrowLeft, ChevronRight, Clock, FileText, Network, Star } from "lucide-react";
 import ApiLoadingBackdrop from "@/components/common/ApiLoadingBackdrop/ApiLoadingBackdrop";
+import { CanvasSkeleton, DocumentSkeleton } from "@/components/common/Skeleton";
 import SelectField from "@/components/common/SelectField/SelectField";
 import { useApiLoading } from "@/hooks/useApiLoading";
 import {
@@ -204,6 +205,9 @@ export default function DocumentPageContent({
     TagItem[]
   > | null>(null);
   const { isLoading, withLoading } = useApiLoading();
+  // Dedicated loader for fetching a file's content on open — drives the editor
+  // skeleton, kept separate from the global mutation backdrop above.
+  const { isLoading: isFileLoading, withLoading: withFileLoading } = useApiLoading();
   const { showSnackbar } = useSnackbar();
 
   const theme = useLayoutStore((s) => s.theme);
@@ -270,7 +274,7 @@ export default function DocumentPageContent({
       }
 
       setEditorContent("");
-      void withLoading(async () => {
+      void withFileLoading(async () => {
         const result = await getDocumentItemContentAction(file.id);
         // Canvas content is a JSON graph; never substitute the markdown default.
         const fallback = file.type === "canvas" ? "" : getDefaultContent(file.name);
@@ -281,7 +285,7 @@ export default function DocumentPageContent({
         setEditorContent(content);
       });
     },
-    [fileContents, withLoading, setDocumentViewMode],
+    [fileContents, withFileLoading, setDocumentViewMode],
   );
 
   // Flat list of every file across all collections — the candidate set for
@@ -933,6 +937,12 @@ export default function DocumentPageContent({
               onOpenFile={handleOpenFromGraph}
               previewFileId={previewFileId}
             />
+          ) : isFileLoading ? (
+            selectedFile?.type === "canvas" ? (
+              <CanvasSkeleton />
+            ) : (
+              <DocumentSkeleton />
+            )
           ) : selectedFile && selectedPath ? (
             <>
               <div className="shrink-0 border-b border-border px-6 py-4">
