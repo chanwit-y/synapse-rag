@@ -7,6 +7,11 @@ export { RagService, ragService } from "./rag.service";
 export { RagChunkService, ragChunkService } from "./rag-chunk.service";
 export { QueryExpansionService, queryExpansionService } from "./query-expansion.service";
 export {
+  WikiHistoryService,
+  wikiHistoryService,
+  type WikiSource,
+} from "./wiki-history.service";
+export {
   ContextSummaryService,
   contextSummaryService,
   type ContextSummaryKind,

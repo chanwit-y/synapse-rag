@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Edge } from "@xyflow/react";
-import { Maximize2, Minimize2, Save } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Save } from "lucide-react";
 import {
   deleteCanvasImageAction,
   listActiveAiInstructionsAction,
@@ -68,6 +68,8 @@ export default function CanvasDocumentView({
   const setChatModelId = useCanvasStore((s) => s.setChatModelId);
   const instructionId = useCanvasStore((s) => s.instructionId);
   const setInstructionId = useCanvasStore((s) => s.setInstructionId);
+  const wikiSearchEnabled = useCanvasStore((s) => s.wikiSearchEnabled);
+  const setWikiSearchEnabled = useCanvasStore((s) => s.setWikiSearchEnabled);
   const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
   const [instructions, setInstructions] = useState<InstructionOption[]>([]);
   // The image paths present in the last persisted graph. Diffed on save so an
@@ -168,7 +170,12 @@ export default function CanvasDocumentView({
         const byNode = new Map<string, ChatMessage[]>();
         for (const m of result.data) {
           const list = byNode.get(m.nodeId) ?? [];
-          list.push({ id: m.id, role: m.role, text: m.text });
+          list.push({
+            id: m.id,
+            role: m.role,
+            text: m.text,
+            ...(m.source ? { source: m.source } : {}),
+          });
           byNode.set(m.nodeId, list);
         }
         hydrated = nodes.map((n) =>
@@ -287,6 +294,24 @@ export default function CanvasDocumentView({
             }
             className="w-44"
           />
+          <button
+            type="button"
+            onClick={() => setWikiSearchEnabled(!wikiSearchEnabled)}
+            aria-pressed={wikiSearchEnabled}
+            title={
+              wikiSearchEnabled
+                ? "Wikipedia grounding on — historical questions are grounded with Wikipedia"
+                : "Wikipedia grounding off"
+            }
+            aria-label="Toggle Wikipedia grounding for historical questions"
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-md border shadow-sm transition-colors ${
+              wikiSearchEnabled
+                ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+                : "border-border bg-surface text-muted-foreground hover:bg-surface-strong hover:text-foreground"
+            }`}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+          </button>
           <button
             type="button"
             onClick={toggleFullscreen}

@@ -46,6 +46,7 @@ export interface TreeViewGroupItemProps {
     groupIndex: number,
   ) => void;
   onMoveNode?: (node: TreeNode, parentFolderId: string | null) => void;
+  onToggleFavorite?: (node: TreeNode) => void;
   onImportFromAzure?: (
     collectionId: string,
     selectedNode: TreeNode | null,
@@ -95,6 +96,7 @@ export default function TreeViewGroupItem({
   onRequestDeleteNode,
   onDuplicateNode,
   onMoveNode,
+  onToggleFavorite,
   onImportFromAzure,
   onAddCanvas,
   onRequestDeleteGroup,
@@ -340,6 +342,7 @@ export default function TreeViewGroupItem({
               onRequestDeleteNode={onRequestDeleteNode}
               onDuplicateNode={onDuplicateNode}
               onMoveNode={onMoveNode}
+              onToggleFavorite={onToggleFavorite}
               editingNodeId={editingNodeId}
               onStartRenameNode={onStartRenameNode}
               onSubmitRenameNode={onSubmitRenameNode}

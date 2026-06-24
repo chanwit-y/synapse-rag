@@ -42,10 +42,20 @@ export type TextEditorNodeData = {
   color?: NodeColor;
 };
 
+/** A grounding source attached to an AI message — rendered as a link chip under
+ *  the bubble (e.g. the Wikipedia article a historical answer was grounded with). */
+export type ChatMessageSource = {
+  title: string;
+  url: string;
+  lang: string;
+};
+
 export type ChatMessage = {
   id: string;
   role: "user" | "ai";
   text: string;
+  /** Present on an AI message that was grounded with an external source. */
+  source?: ChatMessageSource;
 };
 
 export type ChatNodeData = {

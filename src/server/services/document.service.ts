@@ -234,6 +234,24 @@ export class DocumentService {
     return { id: toIdString(row.id), name: row.name };
   }
 
+  /**
+   * Star/unstar an item. Any item type (file, canvas, folder) can be favorited.
+   * Returns the item id and its new favorite state so the caller can confirm.
+   */
+  async setItemFavorite(
+    itemId: string,
+    isFavorite: boolean,
+  ): Promise<{ id: string; isFavorite: boolean }> {
+    const numericId = parseId(itemId);
+    if (numericId == null) {
+      throw new ServiceError("Invalid item id", "VALIDATION");
+    }
+
+    const updated = await itemRepository.update(numericId, { isFavorite });
+    const row = assertFound(updated, "Item not found");
+    return { id: toIdString(row.id), isFavorite: row.isFavorite };
+  }
+
   async syncDirectories(
     collectionId: string,
     directories: TreeNode[],

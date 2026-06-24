@@ -2,6 +2,13 @@ import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-co
 import { chatRoleValues } from "./enums";
 import { items } from "./items";
 
+/** Grounding source attached to an AI chat message (e.g. a Wikipedia article). */
+export type CanvasChatMessageSource = {
+  title: string;
+  url: string;
+  lang: string;
+};
+
 /**
  * Live transcript of an "Ask AI" / chat node on a canvas document.
  *
@@ -26,6 +33,10 @@ export const canvasChatMessages = sqliteTable(
     messageId: text("message_id").notNull(),
     role: text("role", { enum: chatRoleValues }).notNull(),
     content: text("content").notNull(),
+    /** Optional grounding source for an AI message (e.g. the Wikipedia article a
+     *  historical answer was grounded with). JSON: `{title,url,lang}`. Null for
+     *  user messages and ungrounded replies. */
+    source: text("source", { mode: "json" }).$type<CanvasChatMessageSource>(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .$defaultFn(() => new Date())
       .notNull(),

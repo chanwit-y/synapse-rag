@@ -1,4 +1,5 @@
 import { canvasChatMessageRepository } from "@/server/db/repository";
+import type { CanvasChatMessageSource } from "@/server/db/schema/canvas-chat-messages";
 import type { ChatRole } from "@/server/db/schema/enums";
 import {
   toCanvasChatMessageRecord,
@@ -24,7 +25,12 @@ export class CanvasChatService {
   async appendMessage(params: {
     itemId: string;
     nodeId: string;
-    message: { id: string; role: ChatRole; text: string };
+    message: {
+      id: string;
+      role: ChatRole;
+      text: string;
+      source?: CanvasChatMessageSource;
+    };
   }): Promise<void> {
     const id = parseId(params.itemId);
     if (id == null) throw new ServiceError("Invalid item id", "VALIDATION");
@@ -39,6 +45,7 @@ export class CanvasChatService {
       messageId,
       role: params.message.role,
       content: params.message.text,
+      source: params.message.source ?? null,
     });
   }
 

@@ -59,7 +59,7 @@ const CanvasDocumentView = dynamic(
   },
 );
 import { useLayoutStore } from "@/store/layout-store";
-import { ArrowLeft, ChevronRight, Clock, FileText, Network } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock, FileText, Network, Star } from "lucide-react";
 import ApiLoadingBackdrop from "@/components/common/ApiLoadingBackdrop/ApiLoadingBackdrop";
 import SelectField from "@/components/common/SelectField/SelectField";
 import { useApiLoading } from "@/hooks/useApiLoading";
@@ -82,11 +82,8 @@ import {
   saveDocumentTranslationAction,
   syncCollectionDirectoriesAction,
   uploadDocumentImageAction,
-  listAllTagsAction,
   listAllItemTagsAction,
-  listItemTagsAction,
-  addItemTagAction,
-  removeItemTagAction,
+  setItemFavoriteAction,
 } from "@/server/actions";
 import { TagBar, type TagItem } from "@/components/common/TagBar";
 import {
@@ -128,6 +125,38 @@ function unwrapAction<T>(result: { success: true; data: T } | { success: false; 
   return result.data;
 }
 
+/**
+ * The "favorite roots" across a tree: every starred node, but never descending
+ * into one — so a favorited folder carries its whole subtree and a separately
+ * starred descendant inside it isn't also listed at the top level.
+ */
+function collectFavoriteRoots(nodes: TreeNode[]): TreeNode[] {
+  const out: TreeNode[] = [];
+  for (const node of nodes) {
+    if (node.isFavorite) {
+      out.push(node);
+    } else if (node.children?.length) {
+      out.push(...collectFavoriteRoots(node.children));
+    }
+  }
+  return out;
+}
+
+/** Immutably flip `isFavorite` on the node with `id`, anywhere in the tree. */
+function setFavoriteInTree(
+  groups: TreeViewGroup[],
+  id: string,
+  value: boolean,
+): TreeViewGroup[] {
+  const mapNodes = (nodes: TreeNode[]): TreeNode[] =>
+    nodes.map((n) => {
+      if (n.id === id) return { ...n, isFavorite: value };
+      if (n.children?.length) return { ...n, children: mapNodes(n.children) };
+      return n;
+    });
+  return groups.map((g) => ({ ...g, directories: mapNodes(g.directories) }));
+}
+
 export interface DocumentPageContentProps {
   initialCollections: TreeViewGroup[];
   loadError?: string | null;
@@ -161,16 +190,15 @@ export default function DocumentPageContent({
   const [thSeed, setThSeed] = useState("");
   const [chatModels, setChatModels] = useState<ChatModelOption[]>([]);
   const [translationModelId, setTranslationModelId] = useState<string | null>(null);
-  // Tags applied to each open document, keyed by item id; plus the global tag
-  // list that powers add-input suggestions.
-  const [tagsByItem, setTagsByItem] = useState<Record<string, TagItem[]>>({});
-  const [allTags, setAllTags] = useState<TagItem[]>([]);
 
   // Command-palette (Cmd/Ctrl+K) search. The candidate list is built from the
   // already-in-memory collections tree, so searching is purely client-side.
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // All item→tag links, fetched lazily the first time the palette opens and
-  // invalidated (set back to null) after any tag edit so it refetches.
+  // While the palette is open in Graph mode, the id of the file the graph should
+  // live-preview (the highlighted result). `null` clears the preview.
+  const [previewFileId, setPreviewFileId] = useState<string | null>(null);
+  // All item→tag links powering the palette's per-result tags. Refetched each
+  // time the palette opens, so edits made via TagBar are always reflected.
   const [itemTagsIndex, setItemTagsIndex] = useState<Record<
     string,
     TagItem[]
@@ -297,78 +325,6 @@ export default function DocumentPageContent({
     openItemById(prev.id, { push: false });
   }, [backStack, openItemById]);
 
-  // ── Tags ────────────────────────────────────────────────────────────────
-  const refreshAllTags = useCallback(async () => {
-    const result = await listAllTagsAction();
-    if (result.success) setAllTags(result.data);
-  }, []);
-
-  // Load the global suggestion list once on mount.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const result = await listAllTagsAction();
-      if (!cancelled && result.success) setAllTags(result.data);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Load the open document's tags whenever the selection changes.
-  const selectedFileId = selectedFile?.id ?? null;
-  useEffect(() => {
-    if (!selectedFileId) return;
-    let cancelled = false;
-    void (async () => {
-      const result = await listItemTagsAction(selectedFileId);
-      if (!cancelled && result.success) {
-        setTagsByItem((prev) => ({ ...prev, [selectedFileId]: result.data }));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedFileId]);
-
-  const handleAddTag = useCallback(
-    async (name: string) => {
-      if (!selectedFileId) return;
-      const result = await addItemTagAction(selectedFileId, name);
-      if (!result.success) {
-        showSnackbar({ variant: "error", message: result.error });
-        return;
-      }
-      const tag = result.data;
-      setTagsByItem((prev) => {
-        const current = prev[selectedFileId] ?? [];
-        if (current.some((t) => t.id === tag.id)) return prev;
-        return { ...prev, [selectedFileId]: [...current, tag] };
-      });
-      setItemTagsIndex(null); // stale — refetch on next palette open
-      void refreshAllTags();
-    },
-    [selectedFileId, showSnackbar, refreshAllTags],
-  );
-
-  const handleRemoveTag = useCallback(
-    async (tagId: string) => {
-      if (!selectedFileId) return;
-      const result = await removeItemTagAction(selectedFileId, tagId);
-      if (!result.success) {
-        showSnackbar({ variant: "error", message: result.error });
-        return;
-      }
-      setTagsByItem((prev) => ({
-        ...prev,
-        [selectedFileId]: (prev[selectedFileId] ?? []).filter((t) => t.id !== tagId),
-      }));
-      setItemTagsIndex(null); // stale — refetch on next palette open
-      void refreshAllTags();
-    },
-    [selectedFileId, showSnackbar, refreshAllTags],
-  );
-
   // ── Command palette (Cmd/Ctrl+K) ──────────────────────────────────────────
   // Global shortcut to toggle the search palette.
   useEffect(() => {
@@ -382,9 +338,10 @@ export default function DocumentPageContent({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Fetch the item→tag index the first time the palette opens (lazy).
+  // Refetch the item→tag index each time the palette opens, so tags edited via
+  // TagBar (which persists on its own) are always reflected in the results.
   useEffect(() => {
-    if (!paletteOpen || itemTagsIndex !== null) return;
+    if (!paletteOpen) return;
     let cancelled = false;
     void (async () => {
       const result = await listAllItemTagsAction();
@@ -393,7 +350,7 @@ export default function DocumentPageContent({
     return () => {
       cancelled = true;
     };
-  }, [paletteOpen, itemTagsIndex]);
+  }, [paletteOpen]);
 
   // Flatten files + canvases across every collection into palette rows, each
   // carrying a "Collection / folder" breadcrumb and its tags (when loaded).
@@ -430,13 +387,72 @@ export default function DocumentPageContent({
     [openItemById],
   );
 
+  // Live-preview the highlighted palette result in the graph (Graph mode only).
+  const handlePaletteActiveChange = useCallback((item: CommandPaletteItem | null) => {
+    setPreviewFileId(item?.id ?? null);
+  }, []);
+
+  // Close the palette and drop any in-progress graph preview (reverts the view).
+  const handlePaletteClose = useCallback(() => {
+    setPaletteOpen(false);
+    setPreviewFileId(null);
+  }, []);
+
   // Sidebar selection is a fresh navigation context, so it clears the trail.
+  // Re-resolve the canonical node + path by id: the pinned Favorites group uses
+  // group-relative paths, so trusting the passed path would break the breadcrumb.
   const handleSidebarSelect = useCallback(
     (file: TreeNode, path: string) => {
       setBackStack([]);
+      for (const group of collections) {
+        const found = findNodeById(group.directories, file.id);
+        if (found) {
+          handleSelectFile(found.node, found.path);
+          return;
+        }
+      }
       handleSelectFile(file, path);
     },
-    [handleSelectFile],
+    [collections, handleSelectFile],
+  );
+
+  // Files/canvases/folders the user has starred, as a read-only group pinned
+  // atop the sidebar. A favorited folder brings its whole subtree (see
+  // collectFavoriteRoots); the group hides when empty.
+  const favoritesGroup = useMemo<TreeViewGroup | null>(() => {
+    const roots = collections.flatMap((g) => collectFavoriteRoots(g.directories));
+    if (roots.length === 0) return null;
+    return {
+      id: "__favorites__",
+      name: "Favorites",
+      directories: [...roots].sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }, [collections]);
+
+  // Whether the open document is starred — derived from the tree (the source of
+  // truth) rather than the selection snapshot, so the header star stays in sync.
+  const selectedFavorite = useMemo(() => {
+    if (!selectedFile) return false;
+    for (const group of collections) {
+      const found = findNodeById(group.directories, selectedFile.id);
+      if (found) return !!found.node.isFavorite;
+    }
+    return false;
+  }, [collections, selectedFile]);
+
+  // Toggle a node's favorite flag: optimistic tree update, persisted; revert on
+  // failure. Drives both the sidebar stars and the document-header star.
+  const handleToggleFavorite = useCallback(
+    async (node: TreeNode) => {
+      const next = !node.isFavorite;
+      setCollections((prev) => setFavoriteInTree(prev, node.id, next));
+      const result = await setItemFavoriteAction(node.id, next);
+      if (!result.success) {
+        setCollections((prev) => setFavoriteInTree(prev, node.id, !next));
+        showSnackbar({ variant: "error", message: result.error });
+      }
+    },
+    [showSnackbar],
   );
 
   // Reveal a breadcrumb segment in the sidebar (expand + scroll + highlight),
@@ -869,6 +885,8 @@ export default function DocumentPageContent({
           onRenameItem={handleRenameItem}
           onRenameCollection={handleRenameCollection}
           onRenamedSelection={handleRenamedSelection}
+          onToggleFavorite={handleToggleFavorite}
+          favoritesGroup={favoritesGroup}
           onImportFromAzure={handleOpenAzureImport}
           onCreateCanvas={handleCreateCanvas}
           onToggleCollapsed={() => setCollapsed((c) => !c)}
@@ -913,6 +931,7 @@ export default function DocumentPageContent({
               collections={collections}
               theme={resolvedTheme}
               onOpenFile={handleOpenFromGraph}
+              previewFileId={previewFileId}
             />
           ) : selectedFile && selectedPath ? (
             <>
@@ -956,8 +975,31 @@ export default function DocumentPageContent({
                       </nav>
                     </div>
                   </div>
-                  {selectedFile.type !== "canvas" ? (
-                    <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      className={`inline-flex items-center justify-center rounded-md border p-2 text-sm transition-colors ${
+                        selectedFavorite
+                          ? "border-amber-200 bg-amber-50 text-amber-500 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/15"
+                          : "border-border bg-surface text-foreground hover:bg-surface/70"
+                      }`}
+                      onClick={() =>
+                        void handleToggleFavorite({
+                          ...selectedFile,
+                          isFavorite: selectedFavorite,
+                        })
+                      }
+                      aria-label={selectedFavorite ? "Remove from favorites" : "Add to favorites"}
+                      aria-pressed={selectedFavorite}
+                      title={selectedFavorite ? "Remove from favorites" : "Add to favorites"}
+                    >
+                      <Star
+                        className="h-4 w-4"
+                        fill={selectedFavorite ? "currentColor" : "none"}
+                      />
+                    </button>
+                    {selectedFile.type !== "canvas" ? (
+                      <>
                       {viewLang === "th" && chatModels.length > 1 ? (
                         <SelectField
                           size="small"
@@ -1009,15 +1051,11 @@ export default function DocumentPageContent({
                       >
                         <Clock className="h-4 w-4" />
                       </button>
-                    </div>
-                  ) : null}
+                      </>
+                    ) : null}
+                  </div>
                 </div>
-                <TagBar
-                  tags={tagsByItem[selectedFile.id] ?? []}
-                  suggestions={allTags}
-                  onAdd={handleAddTag}
-                  onRemove={handleRemoveTag}
-                />
+                <TagBar itemId={selectedFile.id} />
               </div>
               {selectedFile.type === "canvas" ? (
                 // Mount only once the saved graph is loaded so the store hydrates
@@ -1155,9 +1193,11 @@ export default function DocumentPageContent({
 
       {paletteOpen && (
         <CommandPalette
-          onClose={() => setPaletteOpen(false)}
+          onClose={handlePaletteClose}
           items={paletteItems}
           onSelect={(id) => openItemById(id)}
+          onActiveChange={isGraphMode ? handlePaletteActiveChange : undefined}
+          dimBackdrop={!isGraphMode}
         />
       )}
     </div>

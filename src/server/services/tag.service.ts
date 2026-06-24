@@ -5,6 +5,7 @@ import {
 } from "@/server/db/repository";
 import { toTagRecord, type TagRecord } from "./mappers";
 import { assertFound, parseId, ServiceError } from "./utils";
+import { randomTagColorKey } from "@/util/const/tagColor";
 
 /** Tags can only be applied to leaf documents (files and canvases). */
 const TAGGABLE_TYPES = new Set(["file", "canvas"]);
@@ -67,7 +68,10 @@ export class TagService {
 
     const tag =
       (await tagRepository.findByName(name)) ??
-      assertFound(await tagRepository.create({ name }), "Failed to create tag");
+      assertFound(
+        await tagRepository.create({ name, color: randomTagColorKey() }),
+        "Failed to create tag",
+      );
 
     await itemTagRepository.link({ itemId: numericId, tagId: tag.id });
     return toTagRecord(tag);

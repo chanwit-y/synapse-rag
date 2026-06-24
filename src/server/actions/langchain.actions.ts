@@ -7,7 +7,9 @@ import {
   getChatModelFromDb,
   getEmbeddingsFromDb,
   queryExpansionService,
+  wikiHistoryService,
   type ContextSummaryKind,
+  type WikiSource,
 } from "@/server/services";
 import {
   itemRepository,
@@ -41,6 +43,23 @@ export type LangChainChatTurnsInput = {
    *  "Ask AI" node was spawned from) — injected as a system prompt so the chat
    *  stays grounded in where its question came from. */
   contextSummary?: string | null;
+  /** When `false`, skip the Wikipedia grounding of historical questions. Omitted
+   *  / `true` keeps it on (the canvas header toggle drives this). */
+  wikiSearch?: boolean;
+};
+
+/** A Wikipedia article that grounded a reply — surfaced to the client as a
+ *  source chip. Omits the (already-consumed) summary text. */
+export type ChatWikiSource = {
+  title: string;
+  url: string;
+  lang: string;
+};
+
+export type LangChainChatTurnsOutput = {
+  content: string;
+  /** Present when a historical question was grounded with a Wikipedia article. */
+  wikiSource?: ChatWikiSource;
 };
 
 export type LangChainRagChatInput = {
@@ -153,7 +172,7 @@ export async function chatWithModelFromDbAction(
  */
 export async function chatTurnsWithModelFromDbAction(
   input: LangChainChatTurnsInput,
-): Promise<ActionResult<LangChainChatTestOutput>> {
+): Promise<ActionResult<LangChainChatTurnsOutput>> {
   try {
     const turns = input.messages
       .map((m) => ({ role: m.role, text: m.text.trim() }))
@@ -175,16 +194,37 @@ export async function chatTurnsWithModelFromDbAction(
       ? `Context the user's question was carried over from:\n${input.contextSummary.trim()}`
       : "";
 
+    // Wikipedia grounding: if the latest user message is a historical question,
+    // fetch a Wikipedia summary and inject it as a system turn. Best-effort —
+    // `ground` returns null for non-historical messages or any failure, so a
+    // normal turn is unaffected (and we surface the source to the client).
+    const lastUser =
+      input.wikiSearch === false
+        ? undefined
+        : [...turns].reverse().find((m) => m.role === "user");
+    const wiki: WikiSource | null = lastUser
+      ? await wikiHistoryService.ground(lastUser.text, input.modelId)
+      : null;
+    const wikiBlock = wiki
+      ? `Use the following Wikipedia summary to help answer the user's historical question. Treat it as a reference, not the user's words. If you draw on it, you may cite "${wiki.title}".\n\n${wiki.title}:\n${wiki.summary}`
+      : "";
+
     const llm = await getChatModelFromDb(input.modelId);
     const result = await llm.invoke([
       ...(instruction ? [new SystemMessage(instruction)] : []),
       ...(context ? [new SystemMessage(context)] : []),
+      ...(wikiBlock ? [new SystemMessage(wikiBlock)] : []),
       ...turns.map((m) =>
         m.role === "ai" ? new AIMessage(m.text) : new HumanMessage(m.text),
       ),
     ]);
 
-    return actionSuccess({ content: normalizeMessageContent(result.content) });
+    return actionSuccess({
+      content: normalizeMessageContent(result.content),
+      ...(wiki
+        ? { wikiSource: { title: wiki.title, url: wiki.url, lang: wiki.lang } }
+        : {}),
+    });
   } catch (error) {
     return actionFailure(error);
   }

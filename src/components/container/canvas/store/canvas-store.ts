@@ -62,6 +62,10 @@ interface CanvasState {
    *  Set on open; chat nodes read it to persist messages live to the DB. Null
    *  for a board that isn't backed by a saved canvas document. */
   canvasItemId: string | null;
+  /** Whether chat nodes ground historical questions with a Wikipedia lookup
+   *  (ephemeral; not serialized). On by default; toggled from the canvas header.
+   *  When off, chat turns skip the classify+fetch step entirely. */
+  wikiSearchEnabled: boolean;
 
   // react-flow controlled handlers (store is the single source of truth)
   onNodesChange: (changes: NodeChange<AppNode>[]) => void;
@@ -94,6 +98,8 @@ interface CanvasState {
   setInstructionId: (id: string | null) => void;
   /** Set the canvas item id chat nodes use to persist messages to the DB. */
   setCanvasItemId: (id: string | null) => void;
+  /** Toggle Wikipedia grounding of historical questions for chat nodes. */
+  setWikiSearchEnabled: (enabled: boolean) => void;
   notify: (message: string, action?: ToastAction) => void;
   dismissToast: (id: number) => void;
 }
@@ -196,6 +202,7 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   chatModelId: null,
   instructionId: null,
   canvasItemId: null,
+  wikiSearchEnabled: true,
 
   onNodesChange: (changes) =>
     set((s) => ({ nodes: applyNodeChanges(changes, s.nodes) })),
@@ -420,6 +427,8 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   setInstructionId: (id) => set({ instructionId: id }),
 
   setCanvasItemId: (id) => set({ canvasItemId: id }),
+
+  setWikiSearchEnabled: (enabled) => set({ wikiSearchEnabled: enabled }),
 
   notify: (message, action) => {
     const id = Date.now() + Math.random();

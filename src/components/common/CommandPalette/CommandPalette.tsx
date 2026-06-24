@@ -8,7 +8,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { FileText, Search, Shapes } from "lucide-react";
-import { tagColor, type TagItem } from "@/components/common/TagBar";
+import { tagColorClasses, type TagItem } from "@/components/common/TagBar";
 
 export interface CommandPaletteItem {
   id: string;
@@ -26,6 +26,17 @@ export interface CommandPaletteProps {
   items: CommandPaletteItem[];
   /** Open the chosen document by its item id. */
   onSelect: (id: string) => void;
+  /**
+   * Fired as the highlighted result changes (and with `null` when the query is
+   * empty or there are no matches). Used by Graph mode to live-preview the
+   * active result in the graph; ignored in editor mode.
+   */
+  onActiveChange?: (item: CommandPaletteItem | null) => void;
+  /**
+   * Dim + blur the backdrop behind the palette. Defaults to `true`. Graph mode
+   * passes `false` so the graph stays visible behind the palette for preview.
+   */
+  dimBackdrop?: boolean;
 }
 
 /** Cap rendered rows so a huge workspace never bogs the palette down. */
@@ -54,6 +65,8 @@ export default function CommandPalette({
   onClose,
   items,
   onSelect,
+  onActiveChange,
+  dimBackdrop = true,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -88,6 +101,16 @@ export default function CommandPalette({
   const activeIndex =
     results.length === 0 ? -1 : Math.min(active, results.length - 1);
 
+  // The result the graph should preview: the highlighted row, but only once a
+  // query is typed (an empty palette leaves the graph untouched).
+  const previewItem =
+    query.trim() && activeIndex >= 0 ? (results[activeIndex] ?? null) : null;
+
+  // Notify the parent as the previewed result changes.
+  useEffect(() => {
+    onActiveChange?.(previewItem);
+  }, [previewItem, onActiveChange]);
+
   // Scroll the highlighted row into view.
   useEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(
@@ -120,7 +143,9 @@ export default function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[12vh] backdrop-blur-sm"
+      className={`fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh] ${
+        dimBackdrop ? "bg-black/40 backdrop-blur-sm" : ""
+      }`}
       onMouseDown={onClose}
       role="presentation"
     >
@@ -189,7 +214,7 @@ export default function CommandPalette({
                       {item.tags.map((tag) => (
                         <span
                           key={tag.id}
-                          className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${tagColor(tag.name)}`}
+                          className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${tagColorClasses(tag.color, tag.name)}`}
                         >
                           {tag.name}
                         </span>

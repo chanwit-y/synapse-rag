@@ -9,7 +9,7 @@ import { toIdString } from "../utils";
  */
 type TreeItemRow = Pick<
   Item,
-  "id" | "name" | "type" | "folderId" | "createdAt" | "updatedAt"
+  "id" | "name" | "type" | "folderId" | "createdAt" | "updatedAt" | "isFavorite"
 >;
 
 export function buildItemTree(
@@ -29,6 +29,7 @@ export function buildItemTree(
         type: item.type,
         createdAt: item.createdAt.getTime(),
         updatedAt: item.updatedAt.getTime(),
+        isFavorite: item.isFavorite,
       };
 
       if (item.type === "folder") {

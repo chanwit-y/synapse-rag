@@ -23,6 +23,13 @@ export const items = sqliteTable("items", {
   contentTh: text("content_th"),
   /** SHA-256 of the English `content` captured when `contentTh` was generated; used to detect staleness. */
   contentThHash: text("content_th_hash"),
+  /**
+   * Whether the user has starred this item. Workspace-global (single-user app).
+   * Applies to any item type — files, canvases, and folders can be favorited.
+   */
+  isFavorite: integer("is_favorite", { mode: "boolean" })
+    .notNull()
+    .default(false),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .$defaultFn(() => new Date())
     .notNull(),

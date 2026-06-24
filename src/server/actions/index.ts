@@ -46,6 +46,7 @@ export {
   deleteCollectionAction,
   renameCollectionAction,
   renameDocumentItemAction,
+  setItemFavoriteAction,
   syncCollectionDirectoriesAction,
   deleteDocumentItemAction,
   duplicateDocumentItemAction,

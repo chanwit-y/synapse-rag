@@ -8,6 +8,8 @@ export interface TreeNode {
   content?: string | null;
   createdAt?: number;
   updatedAt?: number;
+  /** Whether the user has starred this item (files, canvases, and folders). */
+  isFavorite?: boolean;
   children?: TreeNode[];
 }
 

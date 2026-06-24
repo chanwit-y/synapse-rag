@@ -25,6 +25,7 @@ import {
   ChevronDown,
   FileText,
   Loader2,
+  BookOpen,
 } from "lucide-react";
 import {
   appendCanvasChatMessageAction,
@@ -216,7 +217,12 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       void appendCanvasChatMessageAction({
         itemId: canvasItemId,
         nodeId: id,
-        message: { id: message.id, role: message.role, text: message.text },
+        message: {
+          id: message.id,
+          role: message.role,
+          text: message.text,
+          ...(message.source ? { source: message.source } : {}),
+        },
       })
         .then((r) => {
           if (!r.success) notify("⚠️ Couldn't save message");
@@ -252,12 +258,18 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
         modelId,
         instructionId: useCanvasStore.getState().instructionId,
         contextSummary: data.contextSummary,
+        wikiSearch: useCanvasStore.getState().wikiSearchEnabled,
         messages: history.map((m) => ({ role: m.role, text: m.text })),
       });
       setTyping(false);
       if (result.success) {
         const text = result.data.content.trim() || "(No response.)";
-        const reply: ChatMessage = { id: `a-${Date.now()}`, role: "ai", text };
+        const reply: ChatMessage = {
+          id: `a-${Date.now()}`,
+          role: "ai",
+          text,
+          ...(result.data.wikiSource ? { source: result.data.wikiSource } : {}),
+        };
         setMessages((m) => [...m, reply]);
         persist(reply);
       } else {
@@ -610,7 +622,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
         {messages.map((m) => (
           <div
             key={m.id}
-            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}
           >
             <div
               data-mid={m.role === "ai" ? m.id : undefined}
@@ -623,6 +635,20 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
             >
               {m.text}
             </div>
+            {/* Grounding source chip — links to the Wikipedia article that
+                grounded a historical answer. Persisted with the message. */}
+            {m.role === "ai" && m.source && (
+              <a
+                href={m.source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Wikipedia: ${m.source.title}`}
+                className="nodrag mt-1 inline-flex max-w-[80%] items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10.5px] font-medium text-slate-500 transition-colors hover:border-violet-300 hover:text-violet-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-violet-500 dark:hover:text-violet-300"
+              >
+                <BookOpen size={11} className="shrink-0" />
+                <span className="truncate">Wikipedia: {m.source.title}</span>
+              </a>
+            )}
           </div>
         ))}
         {typing && (

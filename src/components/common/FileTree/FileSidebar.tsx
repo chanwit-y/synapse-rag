@@ -115,6 +115,17 @@ export interface FileSidebarProps {
    * the + button. Only the Document page supplies this; other usages are unaffected.
    */
   headerAction?: React.ReactNode;
+  /**
+   * Star/unstar a node. When provided, every tree node shows a star toggle and
+   * (with {@link favoritesGroup}) a pinned Favorites group renders on top.
+   */
+  onToggleFavorite?: (node: TreeNode) => void;
+  /**
+   * A read-only "Favorites" group pinned above the collections, built by the
+   * caller from the starred nodes across all collections. Omitted/empty → no
+   * Favorites section is shown.
+   */
+  favoritesGroup?: TreeViewGroup | null;
 }
 
 export default function FileSidebar({
@@ -145,6 +156,8 @@ export default function FileSidebar({
   title = "Collection",
   className,
   headerAction,
+  onToggleFavorite,
+  favoritesGroup,
 }: FileSidebarProps) {
   const { showSnackbar } = useSnackbar();
 
@@ -995,6 +1008,18 @@ export default function FileSidebar({
             collapsed ? "opacity-0 pointer-events-none" : "opacity-100"
           }`}
         >
+          {!isLoading &&
+            favoritesGroup &&
+            favoritesGroup.directories.length > 0 && (
+              <div className="shrink-0 max-h-[45%] overflow-y-auto border-b border-border">
+                <TreeView
+                  data={[favoritesGroup]}
+                  onNodeClick={handleNodeClick}
+                  onToggleFavorite={onToggleFavorite}
+                  readOnlyTree
+                />
+              </div>
+            )}
           <div className="flex-1 overflow-hidden">
             {isLoading ? (
               <SkeletonTree />
@@ -1002,6 +1027,7 @@ export default function FileSidebar({
               <TreeView
                 data={collections}
                 onNodeClick={handleNodeClick}
+                onToggleFavorite={onToggleFavorite}
                 onAddFile={handleAddFile}
                 onAddFolder={handleAddFolder}
                 onRequestDeleteNode={handleRequestDeleteNode}
@@ -1034,6 +1060,7 @@ export default function FileSidebar({
                   onRequestDeleteNode={handleRequestDeleteNode}
                   onDuplicateNode={onDuplicateFile ? handleDuplicateNode : undefined}
                   onMoveNode={onMoveItem ? handleRequestMoveNode : undefined}
+                  onToggleFavorite={onToggleFavorite}
                   onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
                   onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                   onRequestDeleteGroup={

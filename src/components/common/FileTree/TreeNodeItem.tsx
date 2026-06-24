@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import InlineEditInput from "./InlineEditInput";
 import {
@@ -12,8 +18,11 @@ import {
   FolderOpen,
   File,
   Frame,
+  MoreHorizontal,
+  Star,
   Trash2,
 } from "lucide-react";
+import { Popover } from "../Popover";
 import type { TreeNode } from "./types";
 
 export interface TreeNodeItemProps {
@@ -41,6 +50,8 @@ export interface TreeNodeItemProps {
   ) => void;
   /** Move a node (file/canvas/folder) to another collection/folder. */
   onMoveNode?: (node: TreeNode, parentFolderId: string | null) => void;
+  /** Star/unstar a node. Available even in read-only trees (the favorites list). */
+  onToggleFavorite?: (node: TreeNode) => void;
   editingNodeId?: string | null;
   onStartRenameNode?: (nodeId: string) => void;
   onSubmitRenameNode?: (
@@ -71,6 +82,7 @@ export default function TreeNodeItem({
   onRequestDeleteNode,
   onDuplicateNode,
   onMoveNode,
+  onToggleFavorite,
   editingNodeId,
   onStartRenameNode,
   onSubmitRenameNode,
@@ -81,10 +93,14 @@ export default function TreeNodeItem({
 }: TreeNodeItemProps) {
   const isEditing = !readOnlyTree && editingNodeId === node.id;
   const [isExpanded, setIsExpanded] = useState(false);
+  // Overflow (⋯) menu holding Move / Duplicate / Remove, anchored to the kebab.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const kebabRef = useRef<HTMLButtonElement>(null);
   const hasChildren = node.children && node.children.length > 0;
   const isFolder = node.type === "folder";
   const isFile = node.type === "file";
   const isCanvas = node.type === "canvas";
+  const canDuplicate = !!onDuplicateNode && (isFile || isCanvas);
   const indentLevel = level > 0 ? level * 20 + 8 : 8;
   const isSelected = selectedNodePath === nodePath;
   const isHighlighted = !!highlightNodeId && highlightNodeId === node.id;
@@ -239,53 +255,99 @@ export default function TreeNodeItem({
             {node.name}
           </span>
         )}
-        {!readOnlyTree && !isEditing && onMoveNode && (
+        {!isEditing && onToggleFavorite && (
           <button
             type="button"
-            className="ml-2 p-1 rounded transition-colors opacity-0 group-hover:opacity-100
-              text-muted-foreground hover:text-accent hover:bg-accent/10
-              dark:hover:bg-accent/20"
+            className={`ml-2 p-1 rounded transition-colors hover:bg-amber-100 dark:hover:bg-amber-500/20 ${
+              node.isFavorite
+                ? "text-amber-500 opacity-100"
+                : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-amber-500"
+            }`}
             onClick={(event) => {
               event.stopPropagation();
-              onMoveNode(node, parentFolderId);
+              onToggleFavorite(node);
             }}
-            aria-label={`Move ${node.type}`}
-            title={`Move ${node.type}`}
+            aria-label={node.isFavorite ? `Unfavorite ${node.type}` : `Favorite ${node.type}`}
+            aria-pressed={!!node.isFavorite}
+            title={node.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
-            <FolderInput className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {!readOnlyTree && !isEditing && onDuplicateNode && (isFile || isCanvas) && (
-          <button
-            type="button"
-            className={`${onMoveNode ? "ml-0.5" : "ml-2"} p-1 rounded transition-colors opacity-0 group-hover:opacity-100
-              text-muted-foreground hover:text-accent hover:bg-accent/10
-              dark:hover:bg-accent/20`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onDuplicateNode(node, nodePath, groupIndex);
-            }}
-            aria-label={`Duplicate ${node.type}`}
-            title={`Duplicate ${node.type}`}
-          >
-            <Copy className="w-3.5 h-3.5" />
+            <Star
+              className="w-3.5 h-3.5"
+              fill={node.isFavorite ? "currentColor" : "none"}
+            />
           </button>
         )}
         {!readOnlyTree && !isEditing && (
-          <button
-            type="button"
-            className={`${onMoveNode || (onDuplicateNode && (isFile || isCanvas)) ? "ml-0.5" : "ml-2"} p-1 rounded transition-colors opacity-0 group-hover:opacity-100
-              text-muted-foreground hover:text-red-600 hover:bg-red-50
-              dark:hover:text-red-400 dark:hover:bg-red-900/20`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onRequestDeleteNode?.(node, nodePath, groupIndex);
-            }}
-            aria-label={`Delete ${node.type}`}
-            title={`Delete ${node.type}`}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          <>
+            <button
+              ref={kebabRef}
+              type="button"
+              className={`${onToggleFavorite ? "ml-0.5" : "ml-2"} p-1 rounded transition-colors
+                text-muted-foreground hover:text-accent hover:bg-accent/10 dark:hover:bg-accent/20 ${
+                  menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                }`}
+              onClick={(event) => {
+                event.stopPropagation();
+                setMenuOpen((o) => !o);
+              }}
+              aria-label={`More actions for ${node.name}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              title="More actions"
+            >
+              <MoreHorizontal className="w-3.5 h-3.5" />
+            </button>
+            <Popover
+              open={menuOpen}
+              onClose={() => setMenuOpen(false)}
+              anchorRef={kebabRef}
+              align="end"
+            >
+              {onMoveNode && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setMenuOpen(false);
+                    onMoveNode(node, parentFolderId);
+                  }}
+                >
+                  <FolderInput className="h-3.5 w-3.5 text-muted-foreground" />
+                  Move
+                </button>
+              )}
+              {canDuplicate && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setMenuOpen(false);
+                    onDuplicateNode?.(node, nodePath, groupIndex);
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                  Duplicate
+                </button>
+              )}
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setMenuOpen(false);
+                  onRequestDeleteNode?.(node, nodePath, groupIndex);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Remove
+              </button>
+            </Popover>
+          </>
         )}
       </div>
       {hasChildren && (
@@ -321,6 +383,7 @@ export default function TreeNodeItem({
                 onRequestDeleteNode={onRequestDeleteNode}
                 onDuplicateNode={onDuplicateNode}
                 onMoveNode={onMoveNode}
+                onToggleFavorite={onToggleFavorite}
                 editingNodeId={editingNodeId}
                 onStartRenameNode={onStartRenameNode}
                 onSubmitRenameNode={onSubmitRenameNode}

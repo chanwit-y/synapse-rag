@@ -4,6 +4,7 @@ import {
   canvasChatService,
   type CanvasChatMessageRecord,
 } from "@/server/services";
+import type { CanvasChatMessageSource } from "@/server/db/schema/canvas-chat-messages";
 import type { ChatRole } from "@/server/db/schema/enums";
 import { actionFailure, actionSuccess, type ActionResult } from "./types";
 
@@ -22,7 +23,12 @@ export async function listCanvasChatMessagesAction(
 export async function appendCanvasChatMessageAction(params: {
   itemId: string;
   nodeId: string;
-  message: { id: string; role: ChatRole; text: string };
+  message: {
+    id: string;
+    role: ChatRole;
+    text: string;
+    source?: CanvasChatMessageSource;
+  };
 }): Promise<ActionResult<void>> {
   try {
     await canvasChatService.appendMessage(params);

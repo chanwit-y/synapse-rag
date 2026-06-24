@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Graph from "graphology";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import Sigma from "sigma";
+import type { CameraState } from "sigma/types";
 import { Network } from "lucide-react";
 import type { TreeNode, TreeViewGroup } from "@/components/common/FileTree";
 
@@ -14,6 +15,12 @@ interface DocumentGraphViewProps {
   theme: GraphTheme;
   /** Open a document by item id (graph → editor). Only fired for file nodes. */
   onOpenFile: (fileId: string) => void;
+  /**
+   * Item id of the file to live-preview (from the search palette): its ancestor
+   * folders/collections auto-expand, the node + its ancestor path highlight, and
+   * the camera pans to it. `null` clears the preview and restores the camera.
+   */
+  previewFileId?: string | null;
 }
 
 type NodeKind = "collection" | "folder" | "file";
@@ -30,13 +37,17 @@ interface FlatNode {
   collapsible: boolean;
 }
 
-const PALETTE: Record<GraphTheme, Record<NodeKind, string> & { edge: string; label: string }> = {
+const PALETTE: Record<
+  GraphTheme,
+  Record<NodeKind, string> & { edge: string; label: string; highlight: string }
+> = {
   light: {
     collection: "#2563eb",
     folder: "#d97706",
     file: "#475569",
     edge: "#cbd5e1",
     label: "#1e293b",
+    highlight: "#db2777",
   },
   dark: {
     collection: "#60a5fa",
@@ -44,6 +55,7 @@ const PALETTE: Record<GraphTheme, Record<NodeKind, string> & { edge: string; lab
     file: "#94a3b8",
     edge: "#334155",
     label: "#e2e8f0",
+    highlight: "#f472b6",
   },
 };
 
@@ -88,12 +100,74 @@ function flattenTree(collections: TreeViewGroup[]): {
   return { nodes, childCount };
 }
 
-/** Populate `graph` with the nodes visible under the current collapsed set. */
-function rebuildGraph(
+/**
+ * Run ForceAtlas2 once over the *fully expanded* tree and return a stable map of
+ * node key → position. These positions are the single source of truth: collapse,
+ * expand, theme, and search-preview all reuse them, so nothing ever relayouts (no
+ * reshuffle, cheap per keystroke).
+ */
+function computeFullLayout(collections: TreeViewGroup[]): Map<string, { x: number; y: number }> {
+  const { nodes } = flattenTree(collections);
+  const graph = new Graph();
+
+  nodes.forEach((node, i) => {
+    // Seed positions on a spiral so ForceAtlas2 has distinct starting points.
+    const angle = i * 2.399963; // golden angle
+    const radius = Math.sqrt(i + 1);
+    graph.addNode(node.key, {
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius,
+      size: SIZE[node.kind],
+    });
+  });
+
+  for (const node of nodes) {
+    if (node.parent && graph.hasNode(node.parent) && graph.hasNode(node.key)) {
+      graph.addEdge(node.parent, node.key);
+    }
+  }
+
+  if (graph.order > 1) {
+    forceAtlas2.assign(graph, {
+      iterations: 300,
+      settings: { ...forceAtlas2.inferSettings(graph), scalingRatio: 12, gravity: 1 },
+    });
+  }
+
+  const positions = new Map<string, { x: number; y: number }>();
+  graph.forEachNode((key, attr) => {
+    positions.set(key, { x: attr.x as number, y: attr.y as number });
+  });
+  return positions;
+}
+
+/** Keys of a node and all its ancestors up to the root (the highlight path). */
+function ancestorPathKeys(collections: TreeViewGroup[], targetKey: string | null): Set<string> {
+  const path = new Set<string>();
+  if (!targetKey) return path;
+  const { nodes } = flattenTree(collections);
+  const byKey = new Map(nodes.map((n) => [n.key, n]));
+  let cur: string | null = targetKey;
+  while (cur && byKey.has(cur)) {
+    path.add(cur);
+    cur = byKey.get(cur)?.parent ?? null;
+  }
+  return path;
+}
+
+/**
+ * Populate `graph` with the nodes visible under `collapsed`, placed at their
+ * cached positions. Nodes/edges on `pathKeys` are highlighted; `targetKey` (the
+ * previewed file) is enlarged most.
+ */
+function renderGraph(
   graph: Graph,
   collections: TreeViewGroup[],
   collapsed: Set<string>,
   theme: GraphTheme,
+  positions: Map<string, { x: number; y: number }>,
+  pathKeys: Set<string>,
+  targetKey: string | null,
 ) {
   const { nodes, childCount } = flattenTree(collections);
   const byKey = new Map(nodes.map((n) => [n.key, n]));
@@ -113,18 +187,19 @@ function rebuildGraph(
 
   graph.clear();
 
-  visible.forEach((node, i) => {
+  visible.forEach((node) => {
     const hidden = collapsed.has(node.key);
     const count = childCount.get(node.key) ?? 0;
-    // Seed positions on a spiral so ForceAtlas2 has distinct starting points.
-    const angle = i * 2.399963; // golden angle
-    const radius = Math.sqrt(i + 1);
+    const pos = positions.get(node.key) ?? { x: 0, y: 0 };
+    const inPath = pathKeys.has(node.key);
+    const isTarget = node.key === targetKey;
     graph.addNode(node.key, {
       label: hidden && count > 0 ? `${node.label} (${count})` : node.label,
-      x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius,
-      size: SIZE[node.kind],
-      color: hidden ? colors.edge : colors[node.kind],
+      x: pos.x,
+      y: pos.y,
+      size: SIZE[node.kind] * (isTarget ? 1.9 : inPath ? 1.25 : 1),
+      color: hidden ? colors.edge : inPath ? colors.highlight : colors[node.kind],
+      highlighted: isTarget,
       kind: node.kind,
       fileId: node.fileId,
       collapsible: node.collapsible,
@@ -133,15 +208,12 @@ function rebuildGraph(
 
   for (const node of visible) {
     if (node.parent && graph.hasNode(node.parent) && graph.hasNode(node.key)) {
-      graph.addEdge(node.parent, node.key, { color: colors.edge, size: 1 });
+      const onPath = pathKeys.has(node.parent) && pathKeys.has(node.key);
+      graph.addEdge(node.parent, node.key, {
+        color: onPath ? colors.highlight : colors.edge,
+        size: onPath ? 2.5 : 1,
+      });
     }
-  }
-
-  if (graph.order > 1) {
-    forceAtlas2.assign(graph, {
-      iterations: 300,
-      settings: { ...forceAtlas2.inferSettings(graph), scalingRatio: 12, gravity: 1 },
-    });
   }
 }
 
@@ -149,10 +221,19 @@ export default function DocumentGraphView({
   collections,
   theme,
   onOpenFile,
+  previewFileId = null,
 }: DocumentGraphViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sigmaRef = useRef<Sigma | null>(null);
   const graphRef = useRef<Graph | null>(null);
+  // Cached node positions (single source of truth) + the `collections` identity
+  // they were computed from, so we only relayout when the data actually changes.
+  const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const layoutSourceRef = useRef<TreeViewGroup[] | null>(null);
+  // Whether the next render should fit the camera (first paint / data change).
+  const needsFitRef = useRef(true);
+  // Camera state captured when a preview begins, restored when it clears.
+  const cameraSnapshotRef = useRef<CameraState | null>(null);
   // Collapsed collection/folder node keys. Empty = fully expanded.
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
@@ -204,16 +285,60 @@ export default function DocumentGraphView({
     };
   }, []);
 
-  // Rebuild graph contents + layout when data, collapse set, or theme change.
+  // Rebuild graph contents when data, collapse set, theme, or preview change.
+  // Positions come from a cached layout (computed once per data change), so a
+  // collapse/expand or preview never relayouts — only visibility/colors change.
   useEffect(() => {
     const graph = graphRef.current;
     const sigma = sigmaRef.current;
     if (!graph || !sigma) return;
-    rebuildGraph(graph, collections, collapsed, theme);
+
+    // Recompute the cached layout only when the data identity changes.
+    if (layoutSourceRef.current !== collections) {
+      positionsRef.current = computeFullLayout(collections);
+      layoutSourceRef.current = collections;
+      needsFitRef.current = true;
+    }
+
+    const targetKey = previewFileId ? `node:${previewFileId}` : null;
+    const pathKeys = ancestorPathKeys(collections, targetKey);
+    // Expand the previewed node's ancestors (ephemerally — the user's collapse
+    // set is untouched, so clearing the preview reverts the view for free).
+    const effectiveCollapsed =
+      targetKey && collapsed.size > 0
+        ? new Set([...collapsed].filter((k) => !pathKeys.has(k)))
+        : collapsed;
+
+    renderGraph(
+      graph,
+      collections,
+      effectiveCollapsed,
+      theme,
+      positionsRef.current,
+      pathKeys,
+      targetKey,
+    );
     sigma.setSetting("labelColor", { color: PALETTE[theme].label });
     sigma.refresh();
-    sigma.getCamera().animatedReset();
-  }, [collections, collapsed, theme]);
+
+    const camera = sigma.getCamera();
+    if (targetKey && graph.hasNode(targetKey)) {
+      // Begin a preview: snapshot the camera once, then pan/zoom to the node.
+      if (!cameraSnapshotRef.current) cameraSnapshotRef.current = camera.getState();
+      const display = sigma.getNodeDisplayData(targetKey);
+      if (display) {
+        camera.animate({ x: display.x, y: display.y, ratio: 0.35 }, { duration: 400 });
+      }
+    } else if (cameraSnapshotRef.current) {
+      // Preview cleared: restore the pre-search camera.
+      camera.animate(cameraSnapshotRef.current, { duration: 400 });
+      cameraSnapshotRef.current = null;
+    } else if (needsFitRef.current) {
+      // First paint or data change with no preview: fit everything.
+      camera.animatedReset();
+      needsFitRef.current = false;
+    }
+  }, [collections, collapsed, theme, previewFileId]);
 
   if (collections.length === 0) {
     return (

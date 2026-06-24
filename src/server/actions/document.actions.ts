@@ -59,6 +59,19 @@ export async function renameDocumentItemAction(
   }
 }
 
+export async function setItemFavoriteAction(
+  itemId: string,
+  isFavorite: boolean,
+): Promise<ActionResult<{ id: string; isFavorite: boolean }>> {
+  try {
+    return actionSuccess(
+      await documentService.setItemFavorite(itemId, isFavorite),
+    );
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
 export async function syncCollectionDirectoriesAction(
   collectionId: string,
   directories: TreeNode[],
