@@ -5,6 +5,7 @@ import LayoutProvider from "@/components/layout/LayoutProvider";
 import { ModalProvider } from "@/components/common/Modal/ModalContext";
 import ModalOutlet from "@/components/common/Modal/ModalOutlet";
 import { SnackbarProvider } from "@/components/common/Snackbar/Snackbar";
+import { authService } from "@/server/services";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,11 +35,15 @@ export const metadata: Metadata = {
 // avoiding a flash of the wrong theme on load. Mirrors LayoutProvider's logic.
 const themeInitScript = `(function(){try{var t="system";var raw=localStorage.getItem("layout-storage");if(raw){var s=JSON.parse(raw);if(s&&s.state&&s.state.theme){t=s.state.theme;}}var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=d?"dark":"light";var e=document.documentElement;e.setAttribute("data-theme",r);e.style.colorScheme=r;}catch(e){}})();`;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Re-validates the session against the DB on each render, so a deactivated or
+  // deleted user loses access on the next navigation.
+  const user = await authService.getCurrentUser();
+
   return (
     <html
       lang="en"
@@ -51,7 +56,7 @@ export default function RootLayout({
       <body className="h-full overflow-hidden">
         <SnackbarProvider>
           <ModalProvider>
-            <LayoutProvider>{children}</LayoutProvider>
+            <LayoutProvider user={user}>{children}</LayoutProvider>
             <ModalOutlet />
           </ModalProvider>
         </SnackbarProvider>

@@ -27,7 +27,7 @@ FROM oven/bun:1.2.20 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 # SQLite file lives here; mount a volume on this path to persist data.
-ENV DATABASE_URL=/app/.data/synapse-rumi.db
+ENV DATABASE_URL=/app/.data/synapse-rag.db
 ENV PORT=3000
 
 # Copy the built app and installed modules from the builder.
