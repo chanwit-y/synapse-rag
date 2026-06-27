@@ -3,11 +3,13 @@
 import Image from "next/image";
 import Icon from "@/components/common/Icon";
 import ThemeToggle from "./ThemeToggle";
+import UserMenu from "./UserMenu";
 import { useLayoutStore } from "@/store/layout-store";
+import type { UserRecord } from "@/components/container/users/types";
 import logoLight from "@/asset/logo-l.png";
 import logoDark from "@/asset/logo-d.png";
 
-export default function AppBar() {
+export default function AppBar({ user = null }: { user?: UserRecord | null }) {
   const toggleMobileSidebar = useLayoutStore((s) => s.toggleMobileSidebar);
 
   return (
@@ -42,6 +44,7 @@ export default function AppBar() {
 
       <div className="flex items-center gap-2">
         <ThemeToggle />
+        {user ? <UserMenu user={user} /> : null}
       </div>
     </header>
   );

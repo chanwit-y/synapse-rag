@@ -15,14 +15,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun run db:migrate` - Apply committed migrations to the database
 - `bun run db:push` - Push schema directly to the database (dev only)
 - `bun run db:studio` - Open Drizzle Studio
+- `bun run db:seed-user -- <email> <password> [name]` - Create (or reset) the first login user. Required once before anyone can sign in.
 
 ## Environment
 
 Copy `.env.example` to `.env`:
-- `DATABASE_URL` - Path to the SQLite file (e.g. `./.data/synapse-rumi.db`). A `file:` prefix is stripped automatically; `:memory:` is supported.
+- `DATABASE_URL` - Path to the SQLite file (e.g. `./.data/synapse-rag.db`). A `file:` prefix is stripped automatically; `:memory:` is supported.
 - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` - Per-provider **fallback** keys. A model normally uses the API key linked to it in the DB; these env vars are only used when no key is linked (see `src/server/services/llm`).
 - `AZURE_ORG` (required for the Azure import feature) plus optional `AZURE_PROJECT` / `AZURE_TEAM` defaults. The Azure DevOps **PAT is not an env var** — it's stored in the DB as an API key with provider `Azure DevOps` (the single active key for that provider is used at request time).
 - `SQLITE_LIB_PATH` *(macOS only, optional)* - Path to a non-Apple `libsqlite3`. See the SQLite note below.
+- `AUTH_SECRET` (**required for login**) - Secret used to sign session JWTs (HS256). Use a long random string, e.g. `openssl rand -base64 32`. Login fails fast if unset/too short.
 
 There is **no Docker / PostgreSQL**. The database is a local SQLite file created on first run (`db:migrate` or starting the app).
 
@@ -57,6 +59,14 @@ Server Component / Client (server action call)
 - **Repositories** are the only place that touches Drizzle queries; extend `repository/base.ts`.
 - Import the DB client and schema from `@/server/db`.
 
+**Authentication** (`src/server/services/auth/` + `src/proxy.ts`): the app is a **login-gated shared workspace** — every authenticated user is equal (no roles), and there is **no per-user data isolation** (collections/items/etc. are still workspace-global). Users live in the `users` table (email unique+lowercased, `password_hash`, `status`). Passwords are hashed with **`Bun.password`** (argon2id — no extra dep). Sessions are a **`jose`-signed JWT** (HS256, fixed 7-day expiry) in an httpOnly cookie (`synapse_session`). Layering:
+  - `auth/jwt.ts` — sign/verify the token. **`jose`-only, no DB, no `Bun.*`** so it's Edge-safe and importable from middleware. **Don't add DB/Bun imports here.**
+  - `auth/password.ts` — `Bun.password` hashing (server runtime only).
+  - `auth/session.ts` — `getSession()` reads the cookie, verifies it, then **re-checks the DB** that the user still exists and is `active` (so deactivation/deletion takes effect on the next navigation, not in 7 days); plus cookie set/clear helpers.
+  - `auth.service.ts` (login/logout/current-user/self-service) and `user.service.ts` (management CRUD + **lockout guard**: can't delete/deactivate the last active user). Actions in `auth.actions.ts` / `user.actions.ts`.
+  - `src/proxy.ts` — Next 16 `proxy` (formerly `middleware`); **signature-only** gate (no DB → stays Edge-safe), redirects unauthenticated requests to `/login` (preserving a `?next=` target) and bounces logged-in users away from `/login`. DB re-validation happens in the root layout via `getSession()`.
+  - UI: `/login` (bare — `LayoutProvider` skips the shell for that path); user management at **`/settings/users`**; the AppBar `UserMenu` (logout + change-own-password + edit-own-name). First user is created with `bun run db:seed-user`.
+
 **LLM connector** (`src/server/services/llm/`): provider-agnostic, Strategy + Registry pattern. `getChatModelFromDb(modelId)` / `getEmbeddingsFromDb(modelId)` resolve a model's provider + linked API key from the DB and return a LangChain `BaseChatModel` / `Embeddings`, so callers use a uniform `.invoke()` / `.embedDocuments()` regardless of provider. Add a provider by writing a strategy in `llm/providers/` and registering it in `llm/registry.ts`. Anthropic has no embeddings API (use OpenAI/Google for embedding models). `langchain-openai.ts` is a deprecated back-compat shim.
 
 **Microsoft Foundry** (`llm/providers/microsoft-foundry.provider.ts`) is the `microsoft-foundry` provider — Azure AI Foundry's OpenAI-compatible `/openai/v1` endpoint, reached by reusing LangChain's `ChatOpenAI`/`OpenAIEmbeddings` with a `configuration.baseURL` override (the model id is the Foundry **deployment name**). Its config lives on the **API key** (`api_keys.endpoint`, set in Settings → API Key): the endpoint is required, and the key value is optional — a blank key means Entra ID token auth, where `key-resolver.ts` mints a bearer token via `DefaultAzureCredential` (`azure-credential.ts`, lazy `@azure/identity`, scope `https://ai.azure.com/.default`). Because the endpoint is per-key it's threaded through `resolveApiKeyForModelId` → `createChatModel({ baseURL })`, so Foundry only works via the DB path (`getChatModelFromDb`), not the env-based `getChatModel(provider)`. `@azure/identity` is in `serverExternalPackages` (next.config) so it isn't bundled.
@@ -82,13 +92,14 @@ Located in `src/server/db/schema/` (one file per table, re-exported from `index.
 - `rags` → `rag_chunks` (embedded chunks for vector search via `sqlite-vec`)
 - `api_keys` → `models` → `rags` (dependency chain)
 - `ai_instructions` (standalone) — named system-prompt templates for the chat picker
+- `users` (standalone) — login accounts (email, `password_hash`, `status`); see **Authentication** above
 
 Migrations are generated into `src/server/db/migrations/`.
 
 ### Project structure
 ```
 src/
-├── app/                    # App Router routes (analytics, document, rag, settings/{ai-instruction,ai-model,api-key}, users)
+├── app/                    # App Router routes (login, analytics, document, rag, settings/{ai-instruction,ai-model,api-key,users})
 │                           #   pages are async Server Components; add loading.tsx for route-level skeletons
 ├── components/
 │   ├── common/             # Reusable UI primitives — each in its own folder with an index file

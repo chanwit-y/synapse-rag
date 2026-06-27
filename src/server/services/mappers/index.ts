@@ -8,3 +8,4 @@ export {
   type CanvasChatMessageRecord,
 } from "./canvas-chat-message.mapper";
 export { toTagRecord, type TagRecord } from "./tag.mapper";
+export { toUserRecord } from "./user.mapper";

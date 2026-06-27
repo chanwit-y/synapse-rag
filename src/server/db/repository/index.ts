@@ -43,6 +43,13 @@ export {
 } from "./ai-instruction.repository";
 
 export {
+  UserRepository,
+  userRepository,
+  type User,
+  type NewUser,
+} from "./user.repository";
+
+export {
   ModelRepository,
   modelRepository,
   type Model,

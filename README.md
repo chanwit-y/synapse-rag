@@ -22,7 +22,7 @@ Configure environment:
 cp .env.example .env
 ```
 
-Apply migrations (creates `./.data/synapse-rumi.db`):
+Apply migrations (creates `./.data/synapse-rag.db`):
 
 ```bash
 mkdir -p .data
@@ -44,7 +44,7 @@ Open [http://localhost:3000](http://localhost:3000).
 The database is a local SQLite file. `.env.example` sets:
 
 ```
-DATABASE_URL=./.data/synapse-rumi.db
+DATABASE_URL=./.data/synapse-rag.db
 # macOS only, defaults to the Homebrew build:
 # SQLITE_LIB_PATH=/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib
 ```

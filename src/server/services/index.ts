@@ -2,6 +2,8 @@ export { ServiceError, assertFound, maskKey, parseId, toIdString, toIsoString } 
 
 export { ApiKeyService, apiKeyService } from "./api-key.service";
 export { AiInstructionService, aiInstructionService } from "./ai-instruction.service";
+export { UserService, userService, normalizeEmail } from "./user.service";
+export { AuthService, authService } from "./auth.service";
 export { AppSettingService, appSettingService } from "./app-settings.service";
 export { AiModelService, aiModelService } from "./ai-model.service";
 export { RagService, ragService } from "./rag.service";
