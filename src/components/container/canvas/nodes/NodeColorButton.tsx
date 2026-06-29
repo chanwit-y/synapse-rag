@@ -15,9 +15,13 @@ import type { NodeColor } from "../types";
 export default function NodeColorButton({
   id,
   color,
+  positionClassName = "right-10 top-1.5",
 }: {
   id: string;
   color: NodeColor | undefined;
+  /** Override the absolute position of the control (default sits at `right-10`).
+   *  Used when a node has extra controls and needs the color picker re-slotted. */
+  positionClassName?: string;
 }) {
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const [open, setOpen] = useState(false);
@@ -37,7 +41,7 @@ export default function NodeColorButton({
   }, [open]);
 
   return (
-    <div ref={ref} className="nodrag absolute right-10 top-1.5 z-20">
+    <div ref={ref} className={`nodrag absolute ${positionClassName} z-20`}>
       <button
         onClick={() => setOpen((o) => !o)}
         title="Node color"

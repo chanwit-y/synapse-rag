@@ -18,14 +18,13 @@ import {
 } from "@xyflow/react";
 import {
   Bot,
-  Send,
   Sparkles,
   ArrowLeft,
   StickyNote,
   ChevronDown,
   FileText,
   Loader2,
-  BookOpen,
+  Maximize2,
 } from "lucide-react";
 import {
   appendCanvasChatMessageAction,
@@ -33,6 +32,7 @@ import {
   summarizeContextAction,
   summarizeChatNodeAction,
 } from "@/server/actions";
+import Modal from "@/components/common/Modal/Modal";
 import { useCanvasStore } from "../store/canvas-store";
 import { markdownToProseMirrorDoc } from "./markdownToDoc";
 import SideHandles, { SIDES } from "./SideHandles";
@@ -40,6 +40,11 @@ import NodeRemoveButton from "./NodeRemoveButton";
 import NodeColorButton from "./NodeColorButton";
 import { nodeColor } from "./nodeColors";
 import SideChoiceRow from "./SideChoiceRow";
+import ChatConversation, {
+  ChatBubble,
+  ChatInput,
+  TypingIndicator,
+} from "./ChatConversation";
 import type { ChatMessage, ChatNode as ChatNodeType } from "../types";
 
 type Rect = { top: number; left: number; width: number; height: number };
@@ -127,6 +132,9 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
   const [summarizing, setSummarizing] = useState(false);
   // While true, the chat is being summarized into a note (header button spinner).
   const [busySummarize, setBusySummarize] = useState(false);
+  // When true, the chat is expanded into a focus-mode modal. Same component
+  // instance, so the modal shares this node's messages/draft/typing state.
+  const [expanded, setExpanded] = useState(false);
   // Collapse the carried-over context note (label stays so it can be reopened).
   // Hidden by default — the context grounds the model regardless of visibility.
   const [contextCollapsed, setContextCollapsed] = useState(true);
@@ -536,8 +544,23 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       />
       {/* Four-side connection handles */}
       <SideHandles />
-      <NodeRemoveButton id={id} />
-      <NodeColorButton id={id} color={data.color} />
+      {/* Control cluster, right → left: Expand (rightmost), Remove, Color,
+          Summarize. The expand action sits first/most-prominent at the edge. */}
+      {/* Expand → open this chat in a focus-mode modal. Reveals on hover/selection
+          like the others. Same component instance, so the modal shares this
+          node's messages/draft/typing state. */}
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        title="Expand chat"
+        aria-label="Expand chat to a larger view"
+        className="node-ctl nodrag absolute right-1.5 top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 opacity-0 shadow-sm ring-1 ring-slate-200 transition-opacity hover:text-violet-600 group-hover:opacity-100 dark:bg-slate-800 dark:text-slate-500 dark:ring-slate-700 dark:hover:text-violet-300"
+      >
+        <Maximize2 size={13} />
+      </button>
+      <NodeRemoveButton id={id} className="right-10 top-1.5" />
+      <NodeColorButton id={id} color={data.color} positionClassName="right-[4.625rem] top-1.5" />
+
       {/* Summarize → replace this chat with a note. Lives in the node-control
           cluster, just left of the color picker. Reveals on hover/selection like
           the other controls; disabled until there's a real exchange. */}
@@ -551,7 +574,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
             : "Have a conversation first"
         }
         aria-label="Summarize chat into a note"
-        className={`node-ctl nodrag absolute right-[4.625rem] top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-opacity hover:text-violet-600 disabled:cursor-not-allowed dark:bg-slate-800 dark:text-slate-500 dark:ring-slate-700 dark:hover:text-violet-300 ${
+        className={`node-ctl nodrag absolute right-[6.75rem] top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200 transition-opacity hover:text-violet-600 disabled:cursor-not-allowed dark:bg-slate-800 dark:text-slate-500 dark:ring-slate-700 dark:hover:text-violet-300 ${
           busySummarize
             ? "opacity-100"
             : canSummarize
@@ -620,49 +643,9 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
         className="nodrag nowheel relative flex-1 space-y-3 overflow-y-auto px-3 py-3"
       >
         {messages.map((m) => (
-          <div
-            key={m.id}
-            className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}
-          >
-            <div
-              data-mid={m.role === "ai" ? m.id : undefined}
-              onMouseUp={m.role === "ai" ? () => handleSelect(m.id) : undefined}
-              className={`max-w-[80%] rounded-2xl px-3 py-2 text-[12.5px] leading-snug ${
-                m.role === "user"
-                  ? "rounded-br-sm bg-violet-500 text-white"
-                  : "cursor-text select-text rounded-bl-sm bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-              }`}
-            >
-              {m.text}
-            </div>
-            {/* Grounding source chip — links to the Wikipedia article that
-                grounded a historical answer. Persisted with the message. */}
-            {m.role === "ai" && m.source && (
-              <a
-                href={m.source.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Wikipedia: ${m.source.title}`}
-                className="nodrag mt-1 inline-flex max-w-[80%] items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10.5px] font-medium text-slate-500 transition-colors hover:border-violet-300 hover:text-violet-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-violet-500 dark:hover:text-violet-300"
-              >
-                <BookOpen size={11} className="shrink-0" />
-                <span className="truncate">Wikipedia: {m.source.title}</span>
-              </a>
-            )}
-          </div>
+          <ChatBubble key={m.id} message={m} selectable onSelect={handleSelect} />
         ))}
-        {typing && (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-slate-100 px-3 py-2.5 dark:bg-slate-800">
-              <Sparkles size={12} className="text-violet-400" />
-              <span className="flex gap-1">
-                <Dot delay="0ms" />
-                <Dot delay="150ms" />
-                <Dot delay="300ms" />
-              </span>
-            </div>
-          </div>
-        )}
+        {typing && <TypingIndicator />}
 
         {/* Saved highlight overlays — focus-revealed per pair; scroll + clip
             natively (children of the scroll container). */}
@@ -679,23 +662,7 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
       </div>
 
       {/* Input */}
-      <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2.5 dark:border-slate-800">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") send();
-          }}
-          placeholder="Ask anything…"
-          className="nodrag min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-[12.5px] text-slate-700 outline-none transition-colors focus:border-violet-300 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:border-violet-500 dark:focus:bg-slate-800"
-        />
-        <button
-          onClick={send}
-          className="nodrag flex h-8 w-8 items-center justify-center rounded-full bg-violet-500 text-white transition-colors hover:bg-violet-600"
-        >
-          <Send size={14} />
-        </button>
-      </div>
+      <ChatInput draft={draft} onChange={setDraft} onSend={send} />
 
       {/* Source handles — one per saved highlight, clamped to the message
           viewport (always rendered so edge geometry survives scroll). */}
@@ -779,15 +746,20 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
           )}
         </div>
       )}
-    </div>
-  );
-}
 
-function Dot({ delay }: { delay: string }) {
-  return (
-    <span
-      className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400"
-      style={{ animationDelay: delay }}
-    />
+      {/* Focus-mode modal — a larger, plain view of this same conversation.
+          Shares the node's messages/draft/typing (one instance), so sending here
+          and inline stay in sync. No selection/spawn, summarize, or context
+          banner — those stay on the inline node. */}
+      <Modal open={expanded} onClose={() => setExpanded(false)} size="lg" title={title}>
+        <ChatConversation
+          messages={messages}
+          typing={typing}
+          draft={draft}
+          onDraftChange={setDraft}
+          onSend={send}
+        />
+      </Modal>
+    </div>
   );
 }
