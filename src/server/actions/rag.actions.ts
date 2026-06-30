@@ -6,7 +6,7 @@ import type {
   RagFormValues,
   RagRecord,
 } from "@/components/container/rag/types";
-import { ragService } from "@/server/services";
+import { chunkingService, ragService } from "@/server/services";
 import { actionFailure, actionSuccess, type ActionResult } from "./types";
 
 export async function listRagsAction(): Promise<ActionResult<RagRecord[]>> {
@@ -54,6 +54,43 @@ export async function deleteRagAction(id: string): Promise<ActionResult<void>> {
   try {
     await ragService.remove(id);
     return actionSuccess(undefined);
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+/**
+ * Server-side chunk preview for the RAG modal. Loads the selected documents and
+ * runs the chosen strategy (incl. token sizing, custom separators, per-format
+ * `auto`, and embedding-based `semantic`), returning the resulting chunks.
+ */
+export async function previewRagChunksAction(
+  documentIds: string[],
+  values: Pick<
+    RagFormValues,
+    | "chunkStrategy"
+    | "sizingUnit"
+    | "chunkSize"
+    | "chunkOverlap"
+    | "customSeparators"
+    | "semanticThreshold"
+    | "embeddingModel"
+  >,
+  lang: "en" | "th",
+): Promise<ActionResult<ChunkRecord[]>> {
+  try {
+    return actionSuccess(
+      await chunkingService.preview(documentIds, {
+        strategy: values.chunkStrategy,
+        sizingUnit: values.sizingUnit,
+        chunkSize: values.chunkSize,
+        chunkOverlap: values.chunkOverlap,
+        customSeparators: values.customSeparators,
+        semanticThreshold: values.semanticThreshold,
+        embeddingModel: values.embeddingModel,
+        lang,
+      }),
+    );
   } catch (error) {
     return actionFailure(error);
   }

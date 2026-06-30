@@ -10,6 +10,7 @@ import {
   FileText,
   FolderInput,
   Frame,
+  Import,
   Trash2,
 } from "lucide-react";
 import type { TreeNode, TreeViewGroup, FileType } from "./types";
@@ -130,6 +131,10 @@ export default function TreeViewGroupItem({
   const [addFileMenuOpen, setAddFileMenuOpen] = useState(false);
   const addFileButtonRef = useRef<HTMLButtonElement | null>(null);
 
+  // Import-source popover (Azure DevOps / SharePoint), anchored to its button.
+  const [importMenuOpen, setImportMenuOpen] = useState(false);
+  const importButtonRef = useRef<HTMLButtonElement | null>(null);
+
   // Adds triggered from the collection header always target the collection
   // root — they belong to the collection, not to whatever node happens to be
   // selected elsewhere in the tree.
@@ -222,91 +227,119 @@ export default function TreeViewGroupItem({
         </div>
         {!readOnlyTree && (
           <div className="shrink-0 flex items-center gap-0.5">
-            {onImportFromAzure && (
-              <button
-                type="button"
-                className="p-1 hover:bg-surface rounded transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onImportFromAzure(group.id, selectedNode, selectedNodePath);
-                }}
-                title="Import user stories from Azure DevOps"
-              >
-                <CloudDownload className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
-            )}
-            {onImportFromSharePoint && (
-              <button
-                type="button"
-                className="p-1 hover:bg-surface rounded transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onImportFromSharePoint(group.id, selectedNode, selectedNodePath);
-                }}
-                title="Import files from SharePoint"
-              >
-                <FolderInput className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
-            )}
-            <div className="flex items-center gap-0.5 rounded-md px-0.5 bg-surface-strong">
-              <button
-                ref={addFileButtonRef}
-                type="button"
-                className="p-1 hover:bg-surface rounded transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setAddFileMenuOpen((open) => !open);
-                }}
-                aria-haspopup="menu"
-                aria-expanded={addFileMenuOpen}
-                title="Add File"
-              >
-                <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
-              <Popover
-                open={addFileMenuOpen}
-                onClose={() => setAddFileMenuOpen(false)}
-                anchorRef={addFileButtonRef}
-              >
+            {(onImportFromAzure || onImportFromSharePoint) && (
+              <>
                 <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePickFileType("md");
-                  }}
-                >
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                  Markdown
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePickFileType("rt");
-                  }}
-                >
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                  Rich Text
-                </button>
-              </Popover>
-              {onAddCanvas && (
-                <button
+                  ref={importButtonRef}
                   type="button"
                   className="p-1 hover:bg-surface rounded transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
+                    setImportMenuOpen((open) => !open);
+                  }}
+                  aria-haspopup="menu"
+                  aria-expanded={importMenuOpen}
+                  title="Import"
+                >
+                  <Import className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+                <Popover
+                  open={importMenuOpen}
+                  onClose={() => setImportMenuOpen(false)}
+                  anchorRef={importButtonRef}
+                >
+                  {onImportFromAzure && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setImportMenuOpen(false);
+                        onImportFromAzure(group.id, selectedNode, selectedNodePath);
+                      }}
+                    >
+                      <CloudDownload className="h-3.5 w-3.5 text-muted-foreground" />
+                      Azure DevOps
+                    </button>
+                  )}
+                  {onImportFromSharePoint && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setImportMenuOpen(false);
+                        onImportFromSharePoint(group.id, selectedNode, selectedNodePath);
+                      }}
+                    >
+                      <FolderInput className="h-3.5 w-3.5 text-muted-foreground" />
+                      SharePoint
+                    </button>
+                  )}
+                </Popover>
+              </>
+            )}
+            <button
+              ref={addFileButtonRef}
+              type="button"
+              className="p-1 hover:bg-surface rounded transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setAddFileMenuOpen((open) => !open);
+              }}
+              aria-haspopup="menu"
+              aria-expanded={addFileMenuOpen}
+              title="Add File"
+            >
+              <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+            <Popover
+              open={addFileMenuOpen}
+              onClose={() => setAddFileMenuOpen(false)}
+              anchorRef={addFileButtonRef}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePickFileType("md");
+                }}
+              >
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                Markdown
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePickFileType("rt");
+                }}
+              >
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                Rich Text
+              </button>
+              {onAddCanvas && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-strong"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAddFileMenuOpen(false);
                     onAddCanvas(null, null, groupIndex);
                   }}
-                  title="Add Canvas"
                 >
-                  <Frame className="w-3.5 h-3.5 text-muted-foreground" />
+                  <Frame className="h-3.5 w-3.5 text-muted-foreground" />
+                  Canvas
                 </button>
               )}
-            </div>
+            </Popover>
             <button
               type="button"
               className="p-1 hover:bg-surface rounded transition-colors"

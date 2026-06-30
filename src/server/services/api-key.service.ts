@@ -46,6 +46,46 @@ function sanitizeApiVersion(raw?: string): string | null {
   return trimmed;
 }
 
+/**
+ * Normalize a SharePoint site host to an origin URL (scheme + host, no path),
+ * e.g. `contoso.sharepoint.com` ⇒ `https://contoso.sharepoint.com`. Returns
+ * null for blank/unparseable input.
+ */
+function normalizeSharePointHost(raw?: string): string | null {
+  const trimmed = raw?.trim().replace(/\/+$/, "");
+  if (!trimmed) return null;
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    return new URL(withScheme).origin;
+  } catch {
+    return null;
+  }
+}
+
+/** Validate + normalize the SharePoint-specific fields, throwing on missing input. */
+function buildSharePointFields(values: ApiKeyFormValues): {
+  endpoint: string;
+  tenantId: string;
+  clientId: string;
+} {
+  const endpoint = normalizeSharePointHost(values.endpoint);
+  if (!endpoint) {
+    throw new ServiceError(
+      "Site host is required for SharePoint (e.g. https://contoso.sharepoint.com).",
+      "VALIDATION",
+    );
+  }
+  const tenantId = values.tenantId?.trim();
+  if (!tenantId) {
+    throw new ServiceError("Tenant ID is required for SharePoint.", "VALIDATION");
+  }
+  const clientId = values.clientId?.trim();
+  if (!clientId) {
+    throw new ServiceError("Client ID is required for SharePoint.", "VALIDATION");
+  }
+  return { endpoint, tenantId, clientId };
+}
+
 export class ApiKeyService {
   async list(): Promise<ApiKeyRecord[]> {
     const rows = await apiKeyRepository.findAll();
@@ -54,14 +94,28 @@ export class ApiKeyService {
 
   async create(values: ApiKeyFormValues): Promise<ApiKeyRecord> {
     const isFoundry = values.provider === "microsoft-foundry";
+    const isSharePoint = values.provider === "sharepoint";
     const apiKey = values.apiKey.trim();
-    const endpoint = isFoundry ? normalizeFoundryEndpoint(values.endpoint) : null;
+
+    let endpoint: string | null = null;
+    let tenantId: string | null = null;
+    let clientId: string | null = null;
 
     if (isFoundry) {
       // Foundry requires an endpoint; the key is optional (blank ⇒ Entra ID token).
+      endpoint = normalizeFoundryEndpoint(values.endpoint);
       if (!endpoint) {
         throw new ServiceError(
           "Endpoint is required for Microsoft Foundry.",
+          "VALIDATION",
+        );
+      }
+    } else if (isSharePoint) {
+      // SharePoint needs host + tenant + client id, and a client secret in keyValue.
+      ({ endpoint, tenantId, clientId } = buildSharePointFields(values));
+      if (!apiKey) {
+        throw new ServiceError(
+          "Client secret is required for SharePoint.",
           "VALIDATION",
         );
       }
@@ -76,6 +130,10 @@ export class ApiKeyService {
       keyMasked: foundryAwareMask(apiKey, isFoundry),
       endpoint,
       apiVersion: isFoundry ? sanitizeApiVersion(values.apiVersion) : null,
+      tenantId,
+      clientId,
+      sitePath: isSharePoint ? values.sitePath?.trim() || null : null,
+      folderPath: isSharePoint ? values.folderPath?.trim() || null : null,
       status: values.active ? "active" : "inactive",
     });
 
@@ -89,6 +147,7 @@ export class ApiKeyService {
     }
 
     const isFoundry = values.provider === "microsoft-foundry";
+    const isSharePoint = values.provider === "sharepoint";
 
     const patch: Partial<Omit<NewApiKey, "id">> = {
       name: values.name.trim(),
@@ -96,7 +155,7 @@ export class ApiKeyService {
       status: values.active ? "active" : "inactive",
     };
 
-    // Endpoint only applies to Foundry; clear it for other providers.
+    // Provider-specific config columns. Clear them for providers that don't use them.
     if (isFoundry) {
       const endpoint = normalizeFoundryEndpoint(values.endpoint);
       if (!endpoint) {
@@ -107,9 +166,23 @@ export class ApiKeyService {
       }
       patch.endpoint = endpoint;
       patch.apiVersion = sanitizeApiVersion(values.apiVersion);
+      patch.tenantId = null;
+      patch.clientId = null;
+    } else if (isSharePoint) {
+      const sp = buildSharePointFields(values);
+      patch.endpoint = sp.endpoint;
+      patch.tenantId = sp.tenantId;
+      patch.clientId = sp.clientId;
+      patch.apiVersion = null;
+      patch.sitePath = values.sitePath?.trim() || null;
+      patch.folderPath = values.folderPath?.trim() || null;
     } else {
       patch.endpoint = null;
       patch.apiVersion = null;
+      patch.tenantId = null;
+      patch.clientId = null;
+      patch.sitePath = null;
+      patch.folderPath = null;
     }
 
     const apiKey = values.apiKey.trim();

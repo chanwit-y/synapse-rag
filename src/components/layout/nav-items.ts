@@ -35,6 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
         Icon: Icon.ScrollText,
       },
       { href: "/settings/api-key", label: "API Key", Icon: Icon.Key },
+      { href: "/settings/sharepoint", label: "SharePoint", Icon: Icon.Cloud },
       { href: "/settings/users", label: "Users", Icon: Icon.Users },
     ],
   },

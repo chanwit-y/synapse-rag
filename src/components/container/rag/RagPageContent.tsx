@@ -362,8 +362,11 @@ export default function RagPageContent({
                 documentIds: editing.documentIds,
                 method: editing.method,
                 chunkStrategy: editing.chunkStrategy,
+                sizingUnit: editing.sizingUnit,
                 chunkSize: editing.chunkSize,
                 chunkOverlap: editing.chunkOverlap,
+                customSeparators: editing.customSeparators,
+                semanticThreshold: editing.semanticThreshold,
                 embeddingModel:
                   editing.embeddingModel && embeddingModelValues.has(editing.embeddingModel)
                     ? editing.embeddingModel

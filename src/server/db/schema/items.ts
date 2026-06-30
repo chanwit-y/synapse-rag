@@ -1,7 +1,7 @@
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { collections } from "./collections";
-import { itemTypeValues } from "./enums";
+import { itemTypeValues, sourceFormatValues } from "./enums";
 
 export const items = sqliteTable("items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -23,6 +23,12 @@ export const items = sqliteTable("items", {
   contentTh: text("content_th"),
   /** SHA-256 of the English `content` captured when `contentTh` was generated; used to detect staleness. */
   contentThHash: text("content_th_hash"),
+  /**
+   * Original file format this document was extracted from on import (e.g. a
+   * SharePoint pull). Drives the `auto` chunk strategy. NULL for manually
+   * authored documents, which are treated as Markdown.
+   */
+  sourceFormat: text("source_format", { enum: sourceFormatValues }),
   /**
    * Whether the user has starred this item. Workspace-global (single-user app).
    * Applies to any item type — files, canvases, and folders can be favorited.

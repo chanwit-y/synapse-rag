@@ -16,6 +16,7 @@ export const apiKeyProviderValues = [
   "azure-openai",
   "microsoft-foundry",
   "azure-devops",
+  "sharepoint",
   "other",
 ] as const;
 export type ApiKeyProvider = (typeof apiKeyProviderValues)[number];
@@ -56,8 +57,32 @@ export const ragChunkStrategyValues = [
   "recursive",
   "markdown",
   "sentence",
+  /** User-defined separators / regex, then packed to size. */
+  "custom",
+  /** Pick a strategy per document based on its source file format. */
+  "auto",
+  /** Embedding-similarity boundaries (groups sentences by topic). */
+  "semantic",
 ] as const;
 export type RagChunkStrategy = (typeof ragChunkStrategyValues)[number];
 
+/** Unit `chunkSize` / `chunkOverlap` are measured in. */
+export const ragSizingUnitValues = ["chars", "tokens"] as const;
+export type RagSizingUnit = (typeof ragSizingUnitValues)[number];
+
 export const ragStatusValues = ["ready", "processing", "failed"] as const;
 export type RagStatus = (typeof ragStatusValues)[number];
+
+/**
+ * Original file format an imported document was extracted from. Drives the
+ * `auto` chunk strategy. NULL for manually-authored documents (treated as md).
+ */
+export const sourceFormatValues = [
+  "pdf",
+  "docx",
+  "xlsx",
+  "pptx",
+  "md",
+  "txt",
+] as const;
+export type SourceFormat = (typeof sourceFormatValues)[number];

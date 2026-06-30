@@ -59,7 +59,7 @@ const CanvasDocumentView = dynamic(
   },
 );
 import { useLayoutStore } from "@/store/layout-store";
-import { ArrowLeft, ChevronRight, Clock, FileText, Network, Star } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock, FileText, Network, Sparkles, Star } from "lucide-react";
 import ApiLoadingBackdrop from "@/components/common/ApiLoadingBackdrop/ApiLoadingBackdrop";
 import { CanvasSkeleton, DocumentSkeleton } from "@/components/common/Skeleton";
 import SelectField from "@/components/common/SelectField/SelectField";
@@ -73,6 +73,7 @@ import {
   ensureDocumentTranslationAction,
   getDocumentItemContentAction,
   importAzureUserStoriesAction,
+  importSharePointFilesAction,
   listChatModelsAction,
   listCollectionsAction,
   listDocumentHistoryAction,
@@ -95,6 +96,8 @@ import Drawer from "@/components/common/Drawer/Drawer";
 import Modal from "@/components/common/Modal/Modal";
 import DiffViewer from "@/components/common/DiffViewer/DiffViewer";
 import AzureImportModal from "@/components/container/document/AzureImportModal";
+import SharePointImportModal from "@/components/container/document/SharePointImportModal";
+import ReformatModal from "@/components/container/document/ReformatModal";
 import { useSnackbar } from "@/components/common/Snackbar/Snackbar";
 import type { History } from "@/server/db/repository/history.repository";
 
@@ -183,9 +186,18 @@ export default function DocumentPageContent({
   const [historyRows, setHistoryRows] = useState<History[]>([]);
   const [selectedHistory, setSelectedHistory] = useState<History | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [reformatOpen, setReformatOpen] = useState(false);
+  // Bumped to remount the editor when content is replaced out-of-band (e.g. an
+  // applied AI reformat) so it re-seeds from the new content.
+  const [editorRev, setEditorRev] = useState(0);
   const [azureOpen, setAzureOpen] = useState(false);
   const [azureCollectionId, setAzureCollectionId] = useState<string | null>(null);
   const [azureFolderId, setAzureFolderId] = useState<string | null>(null);
+  const [sharePointOpen, setSharePointOpen] = useState(false);
+  const [sharePointCollectionId, setSharePointCollectionId] = useState<string | null>(
+    null,
+  );
+  const [sharePointFolderId, setSharePointFolderId] = useState<string | null>(null);
   const [viewLang, setViewLang] = useState<ViewLang>("en");
   const [thContents, setThContents] = useState<Record<string, string>>({});
   const [thSeed, setThSeed] = useState("");
@@ -672,6 +684,31 @@ export default function DocumentPageContent({
     [viewLang, withLoading],
   );
 
+  // Apply an AI-reformatted version of the current document: seed the editor with
+  // the new text, persist it through the normal save path (which writes a history
+  // revision, so it's revertable), and remount the editor to pick up the seed.
+  // Honors the language being viewed (English `content` vs. Thai `content_th`).
+  const applyReformat = useCallback(
+    async (newText: string) => {
+      if (!selectedFile) return;
+      if (viewLang === "th") {
+        setThSeed(newText);
+        setThContents((prev) => ({ ...prev, [selectedFile.id]: newText }));
+      } else {
+        setEditorContent(newText);
+        setFileContents((prev) => ({ ...prev, [selectedFile.id]: newText }));
+      }
+      await handleSave({
+        id: selectedFile.id,
+        name: selectedFile.name,
+        content: newText,
+        collectionId: selectedFile.collectionId,
+      });
+      setEditorRev((r) => r + 1);
+    },
+    [selectedFile, viewLang, handleSave],
+  );
+
   const loadHistory = useCallback(async () => {
     if (!selectedFile) return;
     await withLoading(async () => {
@@ -781,6 +818,15 @@ export default function DocumentPageContent({
       setAzureCollectionId(collectionId);
       setAzureFolderId(folderId);
       setAzureOpen(true);
+    },
+    [],
+  );
+
+  const handleOpenSharePointImport = useCallback(
+    (collectionId: string, folderId: string | null) => {
+      setSharePointCollectionId(collectionId);
+      setSharePointFolderId(folderId);
+      setSharePointOpen(true);
     },
     [],
   );
@@ -908,6 +954,38 @@ export default function DocumentPageContent({
     [azureCollectionId, azureFolderId, withLoading, showSnackbar],
   );
 
+  const handleImportSharePoint = useCallback(
+    async (site: string, folderServerRelativeUrl: string, selectedUrls: string[]) => {
+      if (!sharePointCollectionId) return;
+      await withLoading(async () => {
+        const result = unwrapAction(
+          await importSharePointFilesAction({
+            site,
+            folderServerRelativeUrl,
+            selectedUrls,
+            collectionId: sharePointCollectionId,
+            folderId: sharePointFolderId,
+          }),
+        );
+        const listResult = await listCollectionsAction();
+        if (listResult.success) {
+          setCollections(listResult.data);
+        }
+        setSharePointOpen(false);
+        const changed = result.imported + result.updated;
+        showSnackbar({
+          variant: changed > 0 ? "success" : "info",
+          message:
+            `Imported ${result.imported} new` +
+            (result.updated > 0 ? `, updated ${result.updated}` : "") +
+            (result.skipped.length > 0 ? `, skipped ${result.skipped.length}` : "") +
+            ".",
+        });
+      });
+    },
+    [sharePointCollectionId, sharePointFolderId, withLoading, showSnackbar],
+  );
+
   return (
     <div className="relative flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden">
       <ApiLoadingBackdrop show={isLoading} />
@@ -936,6 +1014,7 @@ export default function DocumentPageContent({
           onToggleFavorite={handleToggleFavorite}
           favoritesGroup={favoritesGroup}
           onImportFromAzure={handleOpenAzureImport}
+          onImportFromSharePoint={handleOpenSharePointImport}
           onCreateCanvas={handleCreateCanvas}
           onConvertToCanvas={handleConvertToCanvas}
           onToggleCollapsed={() => setCollapsed((c) => !c)}
@@ -1100,6 +1179,15 @@ export default function DocumentPageContent({
                       <button
                         type="button"
                         className="inline-flex items-center justify-center rounded-md border border-border bg-surface p-2 text-sm text-foreground hover:bg-surface/70"
+                        onClick={() => setReformatOpen(true)}
+                        aria-label="Reformat with AI"
+                        title="Reformat with AI"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md border border-border bg-surface p-2 text-sm text-foreground hover:bg-surface/70"
                         onClick={() => setHistoryOpen(true)}
                         aria-label="Open history"
                         title="History"
@@ -1130,7 +1218,7 @@ export default function DocumentPageContent({
               ) : isRichTextFileName(selectedFile.name) ? (
               <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                 <TiptapEditor
-                  key={`${selectedFile.id}:${viewLang}`}
+                  key={`${selectedFile.id}:${viewLang}:${editorRev}`}
                   selectedFile={selectedFile}
                   theme={resolvedTheme}
                   initialContent={editorSeed}
@@ -1145,7 +1233,7 @@ export default function DocumentPageContent({
               ) : (
               <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                 <MarkdownEditor
-                  key={`${selectedFile.id}:${viewLang}`}
+                  key={`${selectedFile.id}:${viewLang}:${editorRev}`}
                   selectedFile={selectedFile}
                   theme={resolvedTheme}
                   initialContent={editorSeed}
@@ -1240,10 +1328,25 @@ export default function DocumentPageContent({
         </div>
       </Modal>
 
+      <ReformatModal
+        open={reformatOpen}
+        onClose={() => setReformatOpen(false)}
+        sourceText={currentEditorText}
+        models={chatModels.map((m) => ({ id: m.id, name: m.name }))}
+        defaultModelId={translationModelId}
+        onApply={applyReformat}
+      />
+
       <AzureImportModal
         open={azureOpen}
         onClose={() => setAzureOpen(false)}
         onImport={handleImportUserStories}
+      />
+
+      <SharePointImportModal
+        open={sharePointOpen}
+        onClose={() => setSharePointOpen(false)}
+        onImport={handleImportSharePoint}
       />
 
       {paletteOpen && (

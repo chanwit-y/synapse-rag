@@ -159,3 +159,5 @@ Server-only: import `db` from API routes, Server Actions, or other server code â
 | `bun run db:generate` | Generate migration from schema |
 | `bun run db:push` | Sync schema to DB (dev shortcut) |
 | `bun run db:studio` | Drizzle Studio UI |
+
+Synapse#2026

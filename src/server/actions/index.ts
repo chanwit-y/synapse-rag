@@ -52,6 +52,7 @@ export {
   createRagAction,
   updateRagAction,
   deleteRagAction,
+  previewRagChunksAction,
 } from "./rag.actions";
 
 export {
@@ -104,6 +105,14 @@ export {
   listAzureChildrenAction,
   importAzureUserStoriesAction,
 } from "./azure.actions";
+
+export {
+  getSharePointDefaultsAction,
+  listSharePointFilesAction,
+  importSharePointFilesAction,
+} from "./sharepoint.actions";
+
+export { reformatDocumentAction } from "./reformat.actions";
 
 export {
   chatWithModelFromDbAction,

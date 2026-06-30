@@ -68,6 +68,8 @@ export interface FileSidebarProps {
   onDeleteCollection?: (collectionId: string) => Promise<void>;
   /** Called when the user clicks "Import from Azure DevOps" for a collection. */
   onImportFromAzure?: (collectionId: string, folderId: string | null) => void;
+  /** Called when the user clicks "Import from SharePoint" for a collection. */
+  onImportFromSharePoint?: (collectionId: string, folderId: string | null) => void;
   /**
    * Create a new canvas document. Resolves to the created item's id so the
    * caller can open it. `folderId` is the target folder (null = collection root).
@@ -140,6 +142,7 @@ export default function FileSidebar({
   onMoveItem,
   onDeleteCollection,
   onImportFromAzure,
+  onImportFromSharePoint,
   onCreateCanvas,
   onConvertToCanvas,
   onRenameItem,
@@ -424,33 +427,52 @@ export default function FileSidebar({
     setIsAddItemModalOpen(true);
   };
 
-  // Resolve which folder an Azure import should land in, from the current tree
-  // selection (mirrors handleAddItem): a selected folder is the target, a
-  // selected file targets its parent folder, and a selection outside this
-  // collection (or none) falls back to the collection root (null).
+  // Resolve which folder an import should land in, from the current tree
+  // selection: a selected folder is the target, a selected file targets its
+  // parent folder, and a selection outside this collection (or none) falls back
+  // to the collection root (null).
+  const resolveImportFolderId = (
+    collectionId: string,
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+  ): string | null => {
+    const group = collections.find((g) => g.id === collectionId);
+    if (group && selectedNode && selectedNodePath) {
+      const segments = selectedNodePath.split("/");
+      const node = findNodeByPath(group.directories, segments);
+      if (node && node.id === selectedNode.id) {
+        if (node.type === "folder") {
+          return node.id;
+        }
+        if (segments.length > 1) {
+          const parent = findNodeByPath(group.directories, segments.slice(0, -1));
+          if (parent && parent.type === "folder") return parent.id;
+        }
+      }
+    }
+    return null;
+  };
+
   const handleImportFromAzure = (
     collectionId: string,
     selectedNode: TreeNode | null,
     selectedNodePath: string | null,
   ) => {
-    let folderId: string | null = null;
+    onImportFromAzure?.(
+      collectionId,
+      resolveImportFolderId(collectionId, selectedNode, selectedNodePath),
+    );
+  };
 
-    const group = collections.find((g) => g.id === collectionId);
-    if (group && selectedNode && selectedNodePath) {
-      const segments = selectedNodePath.split("/");
-      const node = findNodeByPath(group.directories, segments);
-      // Only honour the selection if it actually belongs to this collection.
-      if (node && node.id === selectedNode.id) {
-        if (node.type === "folder") {
-          folderId = node.id;
-        } else if (segments.length > 1) {
-          const parent = findNodeByPath(group.directories, segments.slice(0, -1));
-          if (parent && parent.type === "folder") folderId = parent.id;
-        }
-      }
-    }
-
-    onImportFromAzure?.(collectionId, folderId);
+  const handleImportFromSharePoint = (
+    collectionId: string,
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+  ) => {
+    onImportFromSharePoint?.(
+      collectionId,
+      resolveImportFolderId(collectionId, selectedNode, selectedNodePath),
+    );
   };
 
   const handleCloseAddItemModal = () => {
@@ -1038,6 +1060,9 @@ export default function FileSidebar({
                 onMoveNode={onMoveItem ? handleRequestMoveNode : undefined}
                 onConvertToCanvas={onConvertToCanvas}
                 onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
+                onImportFromSharePoint={
+                  onImportFromSharePoint ? handleImportFromSharePoint : undefined
+                }
                 onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                 onRequestDeleteGroup={
                   onDeleteCollection ? handleRequestDeleteGroup : undefined
@@ -1067,6 +1092,9 @@ export default function FileSidebar({
                   onConvertToCanvas={onConvertToCanvas}
                   onToggleFavorite={onToggleFavorite}
                   onImportFromAzure={onImportFromAzure ? handleImportFromAzure : undefined}
+                onImportFromSharePoint={
+                  onImportFromSharePoint ? handleImportFromSharePoint : undefined
+                }
                   onAddCanvas={onCreateCanvas ? handleAddCanvas : undefined}
                   onRequestDeleteGroup={
                     onDeleteCollection ? handleRequestDeleteGroup : undefined

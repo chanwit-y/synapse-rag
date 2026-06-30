@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Send, Sparkles, BookOpen } from "lucide-react";
 import type { ChatMessage } from "../types";
+import SourcesBar from "./SourcesBar";
 
 /** A single chat bubble (user or AI) plus an optional grounding-source chip.
  *  Shared by the inline node body and the expanded modal so both render
@@ -152,6 +153,7 @@ export default function ChatConversation({
         ))}
         {typing && <TypingIndicator />}
       </div>
+      <SourcesBar messages={messages} />
       <ChatInput draft={draft} onChange={onDraftChange} onSend={onSend} autoFocus />
     </div>
   );

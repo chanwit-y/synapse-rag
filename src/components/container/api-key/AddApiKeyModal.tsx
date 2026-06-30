@@ -126,7 +126,9 @@ export default function AddApiKeyModal({ open, onClose, onSubmit }: AddApiKeyMod
           variant="outlined"
           label="Provider"
           fullWidth
-          options={PROVIDER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          options={PROVIDER_OPTIONS.filter((o) => o.value !== "sharepoint").map(
+            (o) => ({ value: o.value, label: o.label }),
+          )}
           value={form.provider}
           onChange={(value) =>
             patchForm({ provider: (value ?? "openai") as ApiKeyProvider })

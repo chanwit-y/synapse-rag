@@ -8,7 +8,14 @@ export { AppSettingService, appSettingService } from "./app-settings.service";
 export { AiModelService, aiModelService } from "./ai-model.service";
 export { RagService, ragService } from "./rag.service";
 export { RagChunkService, ragChunkService } from "./rag-chunk.service";
+export {
+  ChunkingService,
+  chunkingService,
+  countTokens,
+  type ServerChunkOptions,
+} from "./chunking";
 export { QueryExpansionService, queryExpansionService } from "./query-expansion.service";
+export { ReformatService, reformatService } from "./reformat";
 export {
   WikiHistoryService,
   wikiHistoryService,
@@ -30,6 +37,13 @@ export type {
   AzureWorkItemNode,
   ImportUserStoriesResult,
 } from "./azure";
+export { SharePointService, sharePointService } from "./sharepoint";
+export type {
+  SharePointFileEntry,
+  SharePointImportParams,
+  SharePointImportResult,
+  SharePointSkip,
+} from "./sharepoint";
 
 export {
   getChatModel,

@@ -40,6 +40,7 @@ import NodeRemoveButton from "./NodeRemoveButton";
 import NodeColorButton from "./NodeColorButton";
 import { nodeColor } from "./nodeColors";
 import SideChoiceRow from "./SideChoiceRow";
+import SourcesBar from "./SourcesBar";
 import ChatConversation, {
   ChatBubble,
   ChatInput,
@@ -294,6 +295,17 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
     },
     [notify, persist, data.contextSummary],
   );
+
+  // Adopt messages hydrated from the DB. Chat transcripts are stripped from the
+  // saved graph and re-fetched asynchronously (CanvasDocumentView), so they land
+  // in `data.messages` AFTER this node has already mounted with the graph's empty
+  // messages — without this sync the conversation would stay blank after a
+  // save+reload. Guarded to non-empty so a save's message-strip (which sets
+  // `data.messages` to []) can't blank a live chat; the DB re-fetch repopulates it.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (data.messages.length > 0) setMessages(data.messages);
+  }, [data.messages]);
 
   // "Ask AI" spawns this node with a seeded question + `pending`; answer it on
   // mount by running the seeded transcript through the selected model.
@@ -660,6 +672,10 @@ export default function ChatNode({ id, data, selected }: NodeProps<ChatNodeType>
         {/* Live selection preview (unsaved), shown while the popover is open. */}
         {showPopover && live?.contentRects.map((r, i) => overlayBox(r, `live-${i}`))}
       </div>
+
+      {/* Grounding sources — every Wikipedia article this conversation rests on,
+          deduped. Pinned above the input; hidden when the chat used none. */}
+      <SourcesBar messages={messages} />
 
       {/* Input */}
       <ChatInput draft={draft} onChange={setDraft} onSend={send} />

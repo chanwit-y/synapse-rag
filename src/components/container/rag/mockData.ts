@@ -19,6 +19,7 @@ Retrieval-augmented generation combines your private documents with a language m
 - Reduce hallucinations on domain-specific topics
 - Keep knowledge bases up to date without retraining models`,
     contentTh: null,
+    sourceFormat: "md",
   },
   {
     id: "doc-2",
@@ -44,6 +45,7 @@ Generate vector embeddings for text input. Use this endpoint when building custo
 
 List uploaded documents with pagination and optional collection filters.`,
     contentTh: null,
+    sourceFormat: "md",
   },
   {
     id: "doc-3",
@@ -63,6 +65,7 @@ Match your embedding model to the model used at query time. Mixing embedding fam
 
 Maintain a small set of question–answer pairs and measure recall@k after each index change.`,
     contentTh: null,
+    sourceFormat: "md",
   },
   {
     id: "doc-4",
@@ -81,6 +84,7 @@ Maintain a small set of question–answer pairs and measure recall@k after each 
 ## Blockers
 - Waiting on staging API keys for integration tests`,
     contentTh: null,
+    sourceFormat: "md",
   },
 ];
 
@@ -92,6 +96,7 @@ export const INITIAL_RAG_RECORDS: RagRecord[] = [
     documentNames: ["introduction.md"],
     method: "semantic",
     chunkStrategy: "fixed",
+    sizingUnit: "chars",
     chunkSize: 512,
     chunkOverlap: 64,
     embeddingModel: "text-embedding-3-small",
@@ -107,6 +112,7 @@ export const INITIAL_RAG_RECORDS: RagRecord[] = [
     documentNames: ["api-reference.md", "best-practices.md"],
     method: "hybrid",
     chunkStrategy: "markdown",
+    sizingUnit: "chars",
     chunkSize: 768,
     chunkOverlap: 128,
     embeddingModel: "text-embedding-3-large",
@@ -122,6 +128,7 @@ export const INITIAL_RAG_RECORDS: RagRecord[] = [
     documentNames: ["standup-2025-01.md"],
     method: "keyword",
     chunkStrategy: "recursive",
+    sizingUnit: "chars",
     chunkSize: 256,
     chunkOverlap: 32,
     embeddingModel: "text-embedding-3-small",
@@ -139,10 +146,13 @@ export const RAG_METHOD_OPTIONS = [
 ] as const;
 
 export const CHUNK_STRATEGY_OPTIONS = [
-  { value: "fixed", label: "Fixed size (char window)" },
+  { value: "fixed", label: "Fixed size (window)" },
   { value: "recursive", label: "Recursive (paragraph → sentence)" },
   { value: "markdown", label: "Markdown (by heading)" },
   { value: "sentence", label: "Sentence" },
+  { value: "custom", label: "Custom (separators / regex)" },
+  { value: "auto", label: "Auto (per file format)" },
+  { value: "semantic", label: "Semantic (embedding boundaries)" },
 ] as const;
 
 export const CHUNK_STRATEGY_LABELS: Record<string, string> = {
@@ -150,7 +160,15 @@ export const CHUNK_STRATEGY_LABELS: Record<string, string> = {
   recursive: "Recursive",
   markdown: "Markdown",
   sentence: "Sentence",
+  custom: "Custom",
+  auto: "Auto",
+  semantic: "Semantic",
 };
+
+export const SIZING_UNIT_OPTIONS = [
+  { value: "chars", label: "Characters" },
+  { value: "tokens", label: "Tokens" },
+] as const;
 
 export const EMBEDDING_MODEL_OPTIONS = [
   { value: "text-embedding-3-small", label: "text-embedding-3-small" },

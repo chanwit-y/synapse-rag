@@ -12,6 +12,21 @@ import {
 import { toDocumentOption, toRagRecord } from "./mappers";
 import { assertFound, parseId, ServiceError } from "./utils";
 
+/** JSON-encode custom separators for the `custom` strategy; null otherwise. */
+function serializeSeparators(values: RagFormValues): string | null {
+  if (values.chunkStrategy !== "custom") return null;
+  const seps = (values.customSeparators ?? []).filter((s) => s.length > 0);
+  return seps.length > 0 ? JSON.stringify(seps) : null;
+}
+
+/** Clamp the semantic percentile to 1–99 for the `semantic` strategy; null otherwise. */
+function normalizeThreshold(values: RagFormValues): number | null {
+  if (values.chunkStrategy !== "semantic") return null;
+  const t = values.semanticThreshold;
+  if (t == null || !Number.isFinite(t)) return null;
+  return Math.min(99, Math.max(1, Math.round(t)));
+}
+
 export class RagService {
   async list(): Promise<RagRecord[]> {
     const rows = await ragRepository.findAllWithItems();
@@ -34,8 +49,11 @@ export class RagService {
       modelId,
       method: values.method,
       chunkStrategy: values.chunkStrategy,
+      sizingUnit: values.sizingUnit,
       chunkSize: values.chunkSize,
       chunkOverlap: values.chunkOverlap,
+      customSeparators: serializeSeparators(values),
+      semanticThreshold: normalizeThreshold(values),
       embeddingModel: values.embeddingModel || null,
       includeMetadata: values.includeMetadata,
       chunkCount,
@@ -69,8 +87,11 @@ export class RagService {
       modelId,
       method: values.method,
       chunkStrategy: values.chunkStrategy,
+      sizingUnit: values.sizingUnit,
       chunkSize: values.chunkSize,
       chunkOverlap: values.chunkOverlap,
+      customSeparators: serializeSeparators(values),
+      semanticThreshold: normalizeThreshold(values),
       embeddingModel: values.embeddingModel || null,
       includeMetadata: values.includeMetadata,
       chunkCount,

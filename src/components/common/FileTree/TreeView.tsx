@@ -38,6 +38,11 @@ export interface TreeViewProps {
     selectedNode: TreeNode | null,
     selectedNodePath: string | null,
   ) => void;
+  onImportFromSharePoint?: (
+    collectionId: string,
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+  ) => void;
   onAddCanvas?: (
     selectedNode: TreeNode | null,
     selectedNodePath: string | null,
@@ -82,6 +87,7 @@ export default function TreeView({
   onConvertToCanvas,
   onToggleFavorite,
   onImportFromAzure,
+  onImportFromSharePoint,
   onAddCanvas,
   onRequestDeleteGroup,
   editingNodeId,
@@ -159,6 +165,7 @@ export default function TreeView({
             onMoveNode={onMoveNode}
             onToggleFavorite={onToggleFavorite}
             onImportFromAzure={onImportFromAzure}
+            onImportFromSharePoint={onImportFromSharePoint}
             onAddCanvas={onAddCanvas}
             onRequestDeleteGroup={onRequestDeleteGroup}
             editingNodeId={editingNodeId}

@@ -179,6 +179,14 @@ function Sparkles(props: IconProps) {
   );
 }
 
+function Cloud(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M17.5 19a4.5 4.5 0 0 0 0-9 5.5 5.5 0 0 0-10.6-1.5A4 4 0 0 0 6.5 19z" />
+    </svg>
+  );
+}
+
 function PanelLeftClose(props: IconProps) {
   return (
     <svg {...baseProps} {...props}>
@@ -219,6 +227,7 @@ const Icon = {
   Key,
   ScrollText,
   Sparkles,
+  Cloud,
   PanelLeftClose,
   PanelRightClose,
 };

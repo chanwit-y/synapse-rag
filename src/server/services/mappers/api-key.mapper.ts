@@ -10,6 +10,10 @@ export function toApiKeyRecord(row: ApiKey): ApiKeyRecord {
     keyMasked: row.keyMasked,
     endpoint: row.endpoint ?? null,
     apiVersion: row.apiVersion ?? null,
+    tenantId: row.tenantId ?? null,
+    clientId: row.clientId ?? null,
+    sitePath: row.sitePath ?? null,
+    folderPath: row.folderPath ?? null,
     status: row.status,
     updatedAt: toIsoString(row.updatedAt),
   };

@@ -6,6 +6,20 @@ type RagWithLinks = Rag & {
   items?: Array<{ item: Item & { collection?: { name: string } | null } }>;
 };
 
+/** Parse the JSON-encoded `string[]` of custom separators; undefined when unset/invalid. */
+function parseSeparators(raw: string | null): string[] | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.every((s) => typeof s === "string")) {
+      return parsed as string[];
+    }
+  } catch {
+    // fall through
+  }
+  return undefined;
+}
+
 export function toRagRecord(
   row: RagWithLinks,
   linkedItems?: Array<Item & { collection?: { name: string } | null }>,
@@ -19,8 +33,11 @@ export function toRagRecord(
     documentNames: items.map((item) => item.name),
     method: row.method,
     chunkStrategy: row.chunkStrategy,
+    sizingUnit: row.sizingUnit,
     chunkSize: row.chunkSize,
     chunkOverlap: row.chunkOverlap,
+    customSeparators: parseSeparators(row.customSeparators),
+    semanticThreshold: row.semanticThreshold ?? undefined,
     embeddingModel: row.embeddingModel ?? undefined,
     includeMetadata: row.includeMetadata,
     chunkCount: row.chunkCount,
@@ -45,5 +62,6 @@ export function toDocumentOption(
     collection: collectionLabel,
     content: item.content ?? "",
     contentTh: hasThai ? item.contentTh! : null,
+    sourceFormat: item.sourceFormat ?? null,
   };
 }

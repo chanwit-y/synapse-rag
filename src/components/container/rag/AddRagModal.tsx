@@ -12,8 +12,13 @@ import Flex from "@/components/common/Flex/Flex";
 import Typography from "@/components/common/Typography/Typography";
 import { Layers, Pencil, Sparkles, Trash2 } from "lucide-react";
 import DocumentMultiSelect from "./DocumentMultiSelect";
-import { CHUNK_STRATEGY_OPTIONS, RAG_METHOD_OPTIONS } from "./mockData";
-import { generateChunksFromDocuments, truncatePreview } from "./chunkUtils";
+import {
+  CHUNK_STRATEGY_OPTIONS,
+  RAG_METHOD_OPTIONS,
+  SIZING_UNIT_OPTIONS,
+} from "./mockData";
+import { truncatePreview } from "./chunkUtils";
+import { previewRagChunksAction } from "@/server/actions";
 import type {
   ChunkRecord,
   ContentLang,
@@ -21,6 +26,7 @@ import type {
   RagChunkStrategy,
   RagFormValues,
   RagMethod,
+  RagSizingUnit,
 } from "./types";
 
 function LangBadge({ lang }: { lang: ContentLang }) {
@@ -44,11 +50,21 @@ const DEFAULT_FORM: RagFormValues = {
   documentIds: [],
   method: "semantic",
   chunkStrategy: "fixed",
+  sizingUnit: "chars",
   chunkSize: 512,
   chunkOverlap: 64,
+  customSeparators: [],
+  semanticThreshold: 95,
   embeddingModel: "text-embedding-3-small",
   includeMetadata: true,
 };
+
+function unwrap<T>(
+  result: { success: true; data: T } | { success: false; error: string },
+): T {
+  if (!result.success) throw new Error(result.error);
+  return result.data;
+}
 
 type AddRagModalProps = {
   open: boolean;
@@ -125,31 +141,23 @@ export default function AddRagModal({
   title = "New RAG configuration",
   submitLabel = "Create RAG",
   initialValues,
-  autoGenerateOnOpen = false,
 }: AddRagModalProps) {
 
   const [form, setForm] = useState<RagFormValues>(() => ({ ...DEFAULT_FORM, ...initialValues }));
   // Preferred content language for chunking. Only applied to documents that
   // actually have a Thai translation; others always use their English source.
   const [contentLang, setContentLang] = useState<ContentLang>("th");
-  const [chunks, setChunks] = useState<ChunkRecord[]>(() => {
-    if (!autoGenerateOnOpen) return [];
-    const seedForm = { ...DEFAULT_FORM, ...initialValues };
-    const selected = documents.filter((d) => seedForm.documentIds.includes(d.id));
-    return selected.length > 0
-      ? generateChunksFromDocuments(
-          selected,
-          seedForm.chunkSize,
-          seedForm.chunkOverlap,
-          "th",
-          seedForm.chunkStrategy,
-        )
-      : [];
-  });
-  const [hasChunked, setHasChunked] = useState(() => chunks.length > 0);
+  const [chunks, setChunks] = useState<ChunkRecord[]>([]);
+  const [hasChunked, setHasChunked] = useState(false);
   const [isChunking, setIsChunking] = useState(false);
+  const [chunkError, setChunkError] = useState<string | null>(null);
   const [editingChunk, setEditingChunk] = useState<ChunkRecord | null>(null);
   const [editingContent, setEditingContent] = useState("");
+
+  const isSemantic = form.chunkStrategy === "semantic";
+  const isCustom = form.chunkStrategy === "custom";
+  const isAuto = form.chunkStrategy === "auto";
+  const unitLabel = form.sizingUnit === "tokens" ? "tokens" : "chars";
 
   const selectedDocuments = useMemo(
     () => documents.filter((d) => form.documentIds.includes(d.id)),
@@ -237,37 +245,68 @@ export default function AddRagModal({
 
   const patchForm = useCallback((patch: Partial<RagFormValues>) => {
     setForm((prev) => ({ ...prev, ...patch }));
-    setHasChunked(false);
-    setChunks([]);
   }, []);
 
   const handleLanguageChange = useCallback((lang: ContentLang) => {
     setContentLang(lang);
-    setHasChunked(false);
-    setChunks([]);
   }, []);
 
-  const handleGenerateChunks = useCallback(async () => {
-    if (selectedDocuments.length === 0) return;
+  // Generate the chunk preview on the server (handles token sizing, custom
+  // separators, per-format `auto`, and embedding-based `semantic`).
+  const runPreview = useCallback(async () => {
+    if (form.documentIds.length === 0) {
+      setChunks([]);
+      setHasChunked(false);
+      return;
+    }
     setIsChunking(true);
-    await new Promise((r) => setTimeout(r, 400));
-    const result = generateChunksFromDocuments(
-      selectedDocuments,
-      form.chunkSize,
-      form.chunkOverlap,
-      contentLang,
-      form.chunkStrategy,
-    );
-    setChunks(normalizeChunkIndices(result));
-    setHasChunked(true);
-    setIsChunking(false);
+    setChunkError(null);
+    try {
+      const result = unwrap(
+        await previewRagChunksAction(
+          form.documentIds,
+          {
+            chunkStrategy: form.chunkStrategy,
+            sizingUnit: form.sizingUnit,
+            chunkSize: form.chunkSize,
+            chunkOverlap: form.chunkOverlap,
+            customSeparators: form.customSeparators,
+            semanticThreshold: form.semanticThreshold,
+            embeddingModel: form.embeddingModel,
+          },
+          contentLang,
+        ),
+      );
+      setChunks(normalizeChunkIndices(result));
+      setHasChunked(true);
+    } catch (e) {
+      setChunkError(e instanceof Error ? e.message : "Failed to generate chunks");
+      setChunks([]);
+      setHasChunked(false);
+    } finally {
+      setIsChunking(false);
+    }
   }, [
-    selectedDocuments,
+    form.documentIds,
+    form.chunkStrategy,
+    form.sizingUnit,
     form.chunkSize,
     form.chunkOverlap,
-    form.chunkStrategy,
+    form.customSeparators,
+    form.semanticThreshold,
+    form.embeddingModel,
     contentLang,
   ]);
+
+  // Debounced auto-preview for non-semantic strategies. Semantic is gated behind
+  // an explicit click (it embeds every sentence, which we don't want per keystroke).
+  useEffect(() => {
+    if (!open || form.documentIds.length === 0 || isSemantic) return;
+    const t = setTimeout(() => {
+      void runPreview();
+    }, 500);
+    return () => clearTimeout(t);
+  }, [open, form.documentIds, isSemantic, runPreview]);
 
   const canSubmit =
     form.name.trim().length > 0 &&
@@ -369,15 +408,31 @@ export default function AddRagModal({
               }
             />
             <Typography variant="caption" color="muted">
-              How documents are split. Chunk size caps every strategy; oversized
-              sections fall back to a recursive split with overlap.
+              {isAuto
+                ? "Picks a strategy per document from its source format (PDF/Word → recursive, Excel/PowerPoint/Markdown → by heading, text → sentence)."
+                : isSemantic
+                  ? "Groups sentences by embedding similarity; chunk size still caps each group."
+                  : "How documents are split. Chunk size caps every strategy; oversized sections fall back to a recursive split with overlap."}
             </Typography>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <SelectField
+              variant="outlined"
+              label="Size unit"
+              fullWidth
+              options={SIZING_UNIT_OPTIONS.map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
+              value={form.sizingUnit}
+              onChange={(value) =>
+                patchForm({ sizingUnit: (value ?? "chars") as RagSizingUnit })
+              }
+            />
             <TextField
               variant="outlined"
-              label="Chunk size (chars)"
+              label={`Chunk size (${unitLabel})`}
               type="number"
               fullWidth
               value={String(form.chunkSize)}
@@ -387,7 +442,7 @@ export default function AddRagModal({
             />
             <TextField
               variant="outlined"
-              label="Chunk overlap (chars)"
+              label={`Chunk overlap (${unitLabel})`}
               type="number"
               fullWidth
               value={String(form.chunkOverlap)}
@@ -396,6 +451,51 @@ export default function AddRagModal({
               }
             />
           </div>
+
+          {isCustom && (
+            <div className="flex flex-col gap-1.5">
+              <TextField
+                variant="outlined"
+                label="Custom separators (one per line)"
+                fullWidth
+                multiline
+                minRows={3}
+                value={(form.customSeparators ?? []).join("\n")}
+                onChange={(e) =>
+                  patchForm({
+                    customSeparators: e.target.value
+                      .split("\n")
+                      .map((s) => s.replace(/\r$/, ""))
+                      .filter((s) => s.length > 0),
+                  })
+                }
+              />
+              <Typography variant="caption" color="muted">
+                Split is applied in order. Prefix a line with{" "}
+                <span className="font-mono">re:</span> for a regular expression
+                (e.g. <span className="font-mono">{"re:\\n#{1,6}\\s"}</span>).
+              </Typography>
+            </div>
+          )}
+
+          {isSemantic && (
+            <div className="flex flex-col gap-1.5">
+              <TextField
+                variant="outlined"
+                label="Boundary percentile (1–99)"
+                type="number"
+                fullWidth
+                value={String(form.semanticThreshold ?? 95)}
+                onChange={(e) =>
+                  patchForm({ semanticThreshold: Number(e.target.value) || 95 })
+                }
+              />
+              <Typography variant="caption" color="muted">
+                A new chunk starts where consecutive-sentence distance exceeds this
+                percentile. Higher = fewer, larger chunks.
+              </Typography>
+            </div>
+          )}
 
           <Switch
             label="Include document metadata in chunks"
@@ -441,20 +541,34 @@ export default function AddRagModal({
             <Button
               variant="outlined"
               startIcon={<Layers size={16} />}
-              onClick={handleGenerateChunks}
-              disabled={selectedDocuments.length === 0}
+              onClick={() => void runPreview()}
+              disabled={form.documentIds.length === 0}
               loading={isChunking}
               style={{marginRight: 14}}
             >
               {hasChunked ? "Regenerate chunks" : "Generate chunks"}
             </Button>
-            {selectedDocuments.length > 0 && !hasChunked && (
+            {isSemantic && (
               <Typography variant="caption" color="muted">
-                Preview chunks from {selectedDocuments.length} selected document
-                {selectedDocuments.length === 1 ? "" : "s"} before creating.
+                Semantic chunking embeds each sentence — click to preview.
+              </Typography>
+            )}
+            {!isSemantic && form.documentIds.length > 0 && !hasChunked && (
+              <Typography variant="caption" color="muted">
+                Generating preview from {selectedDocuments.length} selected document
+                {selectedDocuments.length === 1 ? "" : "s"}…
               </Typography>
             )}
           </Flex>
+
+          {chunkError && (
+            <div
+              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              role="alert"
+            >
+              {chunkError}
+            </div>
+          )}
         </section>
 
         {hasChunked && (
