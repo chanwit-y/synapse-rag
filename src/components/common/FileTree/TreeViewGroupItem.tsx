@@ -8,6 +8,7 @@ import {
   CloudDownload,
   Folder,
   FileText,
+  FolderInput,
   Frame,
   Trash2,
 } from "lucide-react";
@@ -49,6 +50,11 @@ export interface TreeViewGroupItemProps {
   onConvertToCanvas?: (node: TreeNode, parentFolderId: string | null) => void;
   onToggleFavorite?: (node: TreeNode) => void;
   onImportFromAzure?: (
+    collectionId: string,
+    selectedNode: TreeNode | null,
+    selectedNodePath: string | null,
+  ) => void;
+  onImportFromSharePoint?: (
     collectionId: string,
     selectedNode: TreeNode | null,
     selectedNodePath: string | null,
@@ -100,6 +106,7 @@ export default function TreeViewGroupItem({
   onConvertToCanvas,
   onToggleFavorite,
   onImportFromAzure,
+  onImportFromSharePoint,
   onAddCanvas,
   onRequestDeleteGroup,
   editingNodeId,
@@ -123,9 +130,12 @@ export default function TreeViewGroupItem({
   const [addFileMenuOpen, setAddFileMenuOpen] = useState(false);
   const addFileButtonRef = useRef<HTMLButtonElement | null>(null);
 
+  // Adds triggered from the collection header always target the collection
+  // root — they belong to the collection, not to whatever node happens to be
+  // selected elsewhere in the tree.
   const handlePickFileType = (fileType: FileType) => {
     setAddFileMenuOpen(false);
-    onAddFile?.(selectedNode, selectedNodePath, groupIndex, fileType);
+    onAddFile?.(null, null, groupIndex, fileType);
   };
 
   // A breadcrumb reveal forces this collection open if it was collapsed.
@@ -225,6 +235,19 @@ export default function TreeViewGroupItem({
                 <CloudDownload className="w-3.5 h-3.5 text-muted-foreground" />
               </button>
             )}
+            {onImportFromSharePoint && (
+              <button
+                type="button"
+                className="p-1 hover:bg-surface rounded transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onImportFromSharePoint(group.id, selectedNode, selectedNodePath);
+                }}
+                title="Import files from SharePoint"
+              >
+                <FolderInput className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            )}
             <div className="flex items-center gap-0.5 rounded-md px-0.5 bg-surface-strong">
               <button
                 ref={addFileButtonRef}
@@ -276,7 +299,7 @@ export default function TreeViewGroupItem({
                   className="p-1 hover:bg-surface rounded transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onAddCanvas(selectedNode, selectedNodePath, groupIndex);
+                    onAddCanvas(null, null, groupIndex);
                   }}
                   title="Add Canvas"
                 >
@@ -289,7 +312,7 @@ export default function TreeViewGroupItem({
               className="p-1 hover:bg-surface rounded transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
-                onAddFolder?.(selectedNode, selectedNodePath, groupIndex);
+                onAddFolder?.(null, null, groupIndex);
               }}
               title="Add Folder"
             >
